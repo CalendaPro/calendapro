@@ -19,10 +19,7 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <ClerkProvider 
-      afterSignInUrl="/api/auth/callback"
-      afterSignUpUrl="/api/auth/callback"
-    >
+    <ClerkProvider afterSignOutUrl="/">
       <html lang="fr" className={inter.variable}>
         <body className={`${inter.variable} font-sans antialiased`}>
           {children}
