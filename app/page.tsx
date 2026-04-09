@@ -452,10 +452,10 @@ function Nav() {
         ))}
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-        <Link href="/onboarding" style={{ fontSize: '0.85rem', fontWeight: 500, color: '#0f172a', textDecoration: 'none', padding: '0.45rem 1.1rem', borderRadius: '100px', border: '1px solid rgba(0,0,0,0.14)', fontFamily: 'DM Sans, sans-serif', transition: 'all 0.2s' }}>
+        <Link href="/login" style={{ fontSize: '0.85rem', fontWeight: 500, color: '#0f172a', textDecoration: 'none', padding: '0.45rem 1.1rem', borderRadius: '100px', border: '1px solid rgba(0,0,0,0.14)', fontFamily: 'DM Sans, sans-serif', transition: 'all 0.2s' }}>
           Connexion
         </Link>
-        <Link href="/onboarding" style={{ fontSize: '0.85rem', fontWeight: 600, color: 'white', textDecoration: 'none', padding: '0.5rem 1.3rem', borderRadius: '100px', background: 'linear-gradient(135deg, #7c3aed, #ec4899)', fontFamily: 'DM Sans, sans-serif', boxShadow: '0 4px 20px rgba(124,58,237,0.35)', transition: 'all 0.2s' }}
+        <Link href="/login" style={{ fontSize: '0.85rem', fontWeight: 600, color: 'white', textDecoration: 'none', padding: '0.5rem 1.3rem', borderRadius: '100px', background: 'linear-gradient(135deg, #7c3aed, #ec4899)', fontFamily: 'DM Sans, sans-serif', boxShadow: '0 4px 20px rgba(124,58,237,0.35)', transition: 'all 0.2s' }}
           onMouseOver={(e: ME) => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 8px 28px rgba(124,58,237,0.45)' }}
           onMouseOut={(e: ME) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 20px rgba(124,58,237,0.35)' }}
         >
@@ -499,7 +499,7 @@ function Hero() {
           >
             Démarrer gratuitement <Icons.Arrow />
           </Link>
-          <Link href="/marketplace" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '0.9rem 2rem', background: 'transparent', color: '#0f172a', borderRadius: '100px', fontWeight: 500, fontSize: '0.95rem', textDecoration: 'none', fontFamily: 'DM Sans, sans-serif', border: '1.5px solid rgba(0,0,0,0.12)', transition: 'all 0.2s' }}
+          <Link href="/client-sign-up" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '0.9rem 2rem', background: 'transparent', color: '#0f172a', borderRadius: '100px', fontWeight: 500, fontSize: '0.95rem', textDecoration: 'none', fontFamily: 'DM Sans, sans-serif', border: '1.5px solid rgba(0,0,0,0.12)', transition: 'all 0.2s' }}
             onMouseOver={(e: ME) => { e.currentTarget.style.borderColor = 'rgba(124,58,237,0.4)'; e.currentTarget.style.color = '#7c3aed' }}
             onMouseOut={(e: ME) => { e.currentTarget.style.borderColor = 'rgba(0,0,0,0.12)'; e.currentTarget.style.color = '#0f172a' }}
           >
