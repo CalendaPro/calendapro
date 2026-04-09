@@ -17,8 +17,8 @@ function SignUpWithRedirect() {
   const redirectUrl = safeRelativeRedirect(searchParams.get('redirect_url'))
   
   const callbackUrl = redirectUrl
-    ? `/api/auth/callback?redirect_url=${encodeURIComponent(redirectUrl)}`
-    : '/api/auth/callback'
+    ? `/api/auth/callback?role=pro&redirect_url=${encodeURIComponent(redirectUrl)}`
+    : '/api/auth/callback?role=pro'
 
   return <SignUp forceRedirectUrl={callbackUrl} />
 }

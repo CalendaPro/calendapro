@@ -5,29 +5,31 @@ import { createServerSupabaseClient } from '@/lib/supabase-server'
 /**
  * GET /api/auth/callback
  *
- * Point d'entrée post-connexion. Lit le profil Supabase de l'utilisateur
+ * Point d'entrée post-connexion Clerk. Lit le profil Supabase de l'utilisateur
  * et redirige selon son rôle et son état d'onboarding.
  *
  * Query params :
+ *   - role : 'pro' ou 'client' (déterminé par la route utilisée)
  *   - redirect_url : URL de retour optionnelle (ex: la page pro consultée avant login)
  *
  * Logique :
- *   PRO  + onboarding_completed = false  → /onboarding
- *   PRO  + onboarding_completed = true   → /dashboard
- *   CLIENT                               → redirect_url ?? /marketplace
- *   Profil inexistant                    → Créer le profil automatiquement puis rediriger
+ *   Profil existe + role = attendu → Redirection selon onboarding
+ *   Profil existe + role ≠ attendu → Erreur role mismatch
+ *   Profil inexistant → Créer le profil automatiquement puis rediriger
  */
 export async function GET(request: NextRequest) {
   const { userId } = await auth()
 
   // Pas connecté → retour au sign-in
   if (!userId) {
-    return NextResponse.redirect(new URL('/sign-in', request.url))
+    return NextResponse.redirect(new URL('/login', request.url))
   }
 
-  // Récupère le redirect_url passé en query param (ex: /:username)
+  // Récupérer les query params
   const { searchParams } = new URL(request.url)
+  const expectedRole = searchParams.get('role') || 'pro'
   const rawRedirect = searchParams.get('redirect_url') ?? ''
+  
   // Sécurité : on n'accepte que les URLs relatives commençant par /
   const safeRedirect =
     rawRedirect.startsWith('/') && !rawRedirect.startsWith('//')
@@ -41,21 +43,21 @@ export async function GET(request: NextRequest) {
     .eq('id', userId)
     .maybeSingle()
 
-  // Aucun profil → créer automatiquement le profil
+  // Aucun profil → créer automatiquement le profil avec le rôle attendu
   if (!profile) {
-    // Récupérer les metadata de l'utilisateur Clerk pour déterminer le rôle
+    // Récupérer l'email de l'utilisateur Clerk via clerkClient
     const client = await clerkClient()
     const user = await client.users.getUser(userId)
-    const userMetadata = user.unsafeMetadata || {}
-    const role = userMetadata.role === 'client' ? 'client' : 'pro'
+    const email = user.emailAddresses[0]?.emailAddress
+    const fullName = user.fullName
 
     // Créer le profil dans Supabase
     const { error: insertError } = await supabase.from('profiles').insert({
       id: userId,
-      email: user.emailAddresses[0]?.emailAddress,
-      full_name: user.fullName,
-      role,
-      onboarding_completed: role === 'client', // Les clients n'ont pas d'onboarding
+      email,
+      full_name: fullName,
+      role: expectedRole,
+      onboarding_completed: expectedRole === 'client', // Les clients n'ont pas d'onboarding
     })
 
     if (insertError) {
@@ -63,17 +65,29 @@ export async function GET(request: NextRequest) {
     }
 
     // Rediriger selon le rôle
-    if (role === 'client') {
+    if (expectedRole === 'client') {
       const destination = safeRedirect ?? '/marketplace'
       return NextResponse.redirect(new URL(destination, request.url))
     }
     return NextResponse.redirect(new URL('/onboarding', request.url))
   }
 
-  const role = profile.role ?? 'pro'
+  // Profil existe : vérifier le role mismatch
+  const currentRole = profile.role ?? 'pro'
+  
+  if (currentRole !== expectedRole) {
+    // Role mismatch : l'utilisateur a un compte PRO mais essaie de se connecter en CLIENT
+    const errorUrl = new URL('/auth-error', request.url)
+    errorUrl.searchParams.set('error', 'role_mismatch')
+    errorUrl.searchParams.set('current_role', currentRole)
+    errorUrl.searchParams.set('expected_role', expectedRole)
+    return NextResponse.redirect(errorUrl)
+  }
+
+  // Role correct : rediriger selon onboarding
   const onboardingCompleted = profile.onboarding_completed ?? false
 
-  if (role === 'client') {
+  if (expectedRole === 'client') {
     // CLIENT : retour vers la page du pro consultée, ou la marketplace
     const destination = safeRedirect ?? '/marketplace'
     return NextResponse.redirect(new URL(destination, request.url))

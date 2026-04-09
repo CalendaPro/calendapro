@@ -12,20 +12,15 @@ function safeRelativeRedirect(raw: string | null): string | undefined {
 function ClientSignUpWithRedirect() {
   const searchParams = useSearchParams()
   
-  // Si un redirect_url est fourni (ex: depuis /:username), on le passe au callback client
+  // Si un redirect_url est fourni (ex: depuis /:username), on le passe au callback
   // pour que le client soit renvoyé vers la page du pro après inscription.
   const redirectUrl = safeRelativeRedirect(searchParams.get('redirect_url'))
 
   const callbackUrl = redirectUrl
-    ? `/api/auth/client-callback?redirect_url=${encodeURIComponent(redirectUrl)}`
-    : '/api/auth/client-callback'
+    ? `/api/auth/callback?role=client&redirect_url=${encodeURIComponent(redirectUrl)}`
+    : '/api/auth/callback?role=client'
 
-  return (
-    <SignUp 
-      forceRedirectUrl={callbackUrl}
-      unsafeMetadata={{ role: 'client' }}
-    />
-  )
+  return <SignUp forceRedirectUrl={callbackUrl} />
 }
 
 export default function ClientSignUpPage() {
