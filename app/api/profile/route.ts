@@ -1,7 +1,6 @@
 import { auth } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
-import { sanitizePaymentSettingsFromForm } from '@/lib/booking-payment-settings'
 import { getUserPlan } from '@/lib/subscription'
 
 export async function GET() {
@@ -25,16 +24,8 @@ export async function POST(request: Request) {
   if (!userId) return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
 
   const body = await request.json()
-  const { username, full_name, bio } = body
+  const { username, full_name, bio, email, role, onboarding_completed } = body
   if (!username) return NextResponse.json({ error: 'Username requis' }, { status: 400 })
-
-  const payment = sanitizePaymentSettingsFromForm({
-    online_payment_enabled: body.online_payment_enabled === true,
-    deposit_required: !!body.deposit_required,
-    deposit_type: body.deposit_type === 'fixed' ? 'fixed' : 'percent',
-    deposit_value: Number(body.deposit_value),
-    allow_full_online_payment: !!body.allow_full_online_payment,
-  })
 
   const supabase = createServerSupabaseClient()
   const { data, error } = await supabase
@@ -44,7 +35,9 @@ export async function POST(request: Request) {
       username,
       full_name,
       bio,
-      ...payment,
+      email,
+      role,
+      onboarding_completed,
     })
     .select()
     .single()
