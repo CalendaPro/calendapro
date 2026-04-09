@@ -20,7 +20,12 @@ function SignUpWithRedirect() {
     ? `/api/auth/callback?role=pro&redirect_url=${encodeURIComponent(redirectUrl)}`
     : '/api/auth/callback?role=pro'
 
-  return <SignUp forceRedirectUrl={callbackUrl} />
+  return (
+    <SignUp 
+      forceRedirectUrl={callbackUrl}
+      unsafeMetadata={{ role: 'pro' }}
+    />
+  )
 }
 
 export default function SignUpPage() {

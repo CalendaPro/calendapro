@@ -18,10 +18,14 @@ import { createServerSupabaseClient } from '@/lib/supabase-server'
  *   Profil inexistant → Créer le profil automatiquement puis rediriger
  */
 export async function GET(request: NextRequest) {
+  console.log('🔄 CALLBACK CALLED')
+  
   const { userId } = await auth()
+  console.log('👤 userId:', userId)
 
   // Pas connecté → retour au sign-in
   if (!userId) {
+    console.log('❌ No userId, redirecting to /login')
     return NextResponse.redirect(new URL('/login', request.url))
   }
 
@@ -29,6 +33,9 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   const expectedRole = searchParams.get('role') || 'pro'
   const rawRedirect = searchParams.get('redirect_url') ?? ''
+  
+  console.log('🎯 expectedRole:', expectedRole)
+  console.log('🔗 rawRedirect:', rawRedirect)
   
   // Sécurité : on n'accepte que les URLs relatives commençant par /
   const safeRedirect =
@@ -42,14 +49,22 @@ export async function GET(request: NextRequest) {
     .select('role, onboarding_completed')
     .eq('id', userId)
     .maybeSingle()
+  
+  console.log('📊 profile:', profile)
 
   // Aucun profil → créer automatiquement le profil avec le rôle attendu
   if (!profile) {
+    console.log('🆕 No profile found, creating one...')
+    
     // Récupérer l'email de l'utilisateur Clerk via clerkClient
     const client = await clerkClient()
     const user = await client.users.getUser(userId)
     const email = user.emailAddresses[0]?.emailAddress
     const fullName = user.fullName
+
+    console.log('📧 email:', email)
+    console.log('👤 fullName:', fullName)
+    console.log('🎯 Creating profile with role:', expectedRole)
 
     // Créer le profil dans Supabase
     const { error: insertError } = await supabase.from('profiles').insert({
@@ -61,14 +76,18 @@ export async function GET(request: NextRequest) {
     })
 
     if (insertError) {
-      console.error('Erreur création automatique profil:', insertError)
+      console.error('❌ Erreur création automatique profil:', insertError)
+    } else {
+      console.log('✅ Profile created successfully')
     }
 
     // Rediriger selon le rôle
     if (expectedRole === 'client') {
       const destination = safeRedirect ?? '/marketplace'
+      console.log('🚀 Redirecting CLIENT to:', destination)
       return NextResponse.redirect(new URL(destination, request.url))
     }
+    console.log('🚀 Redirecting PRO to /onboarding')
     return NextResponse.redirect(new URL('/onboarding', request.url))
   }
 
