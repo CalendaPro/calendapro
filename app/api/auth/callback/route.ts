@@ -1,6 +1,7 @@
 import { auth, clerkClient } from '@clerk/nextjs/server'
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { generateUsername } from '@/lib/generateUsername'
 
 /**
  * GET /api/auth/callback
@@ -66,9 +67,13 @@ export async function GET(request: NextRequest) {
     console.log('👤 fullName:', fullName)
     console.log('🎯 Creating profile with role:', expectedRole)
 
+    const username = generateUsername(fullName)
+    console.log('👤 Generated username:', username)
+
     // Créer le profil dans Supabase
     const { error: insertError } = await supabase.from('profiles').insert({
       id: userId,
+      username,
       email,
       full_name: fullName,
       role: expectedRole,
@@ -83,9 +88,8 @@ export async function GET(request: NextRequest) {
 
     // Rediriger selon le rôle
     if (expectedRole === 'client') {
-      const destination = safeRedirect ?? '/marketplace'
-      console.log('🚀 Redirecting CLIENT to:', destination)
-      return NextResponse.redirect(new URL(destination, request.url))
+      console.log('🚀 Redirecting CLIENT to /client/onboarding')
+      return NextResponse.redirect(new URL('/client/onboarding', request.url))
     }
     console.log('🚀 Redirecting PRO to /onboarding')
     return NextResponse.redirect(new URL('/onboarding', request.url))

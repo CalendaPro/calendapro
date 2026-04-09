@@ -2,6 +2,7 @@ import { headers } from 'next/headers'
 import { NextResponse } from 'next/server'
 import { Webhook } from 'svix'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { generateUsername } from '@/lib/generateUsername'
  
 const clerkWebhookSecret = process.env.CLERK_WEBHOOK_SECRET
  
@@ -64,19 +65,23 @@ export async function POST(req: Request) {
     
     const fullName = [first_name, last_name].filter(Boolean).join(' ')
  
-    console.log('👤 user.id:', id)
-    console.log('📧 email:', email)
-    console.log('🏷️ unsafe_metadata:', unsafe_metadata)
+    console.log(' user.id:', id)
+    console.log(' email:', email)
+    console.log(' unsafe_metadata:', unsafe_metadata)
  
     // Déterminer le rôle depuis les metadata (par défaut 'pro')
     const role = unsafe_metadata?.role === 'client' ? 'client' : 'pro'
-    console.log('🎯 role:', role)
- 
+    console.log(' role:', role)
+
+    const username = generateUsername(fullName)
+    console.log(' Generated username:', username)
+
     const supabase = createServerSupabaseClient()
     
     // Créer le profil dans Supabase avec le rôle approprié
     const { error } = await supabase.from('profiles').insert({
       id,
+      username,
       email,
       full_name: fullName || null,
       role,
