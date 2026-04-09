@@ -4,6 +4,9 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import UserMenuButton from '@/components/UserMenuButton'
 import { BrandLogo } from '@/components/BrandLogo'
+import StepOne from './_components/StepOne'
+import StepTwo from './_components/StepTwo'
+import StepThree from './_components/StepThree'
 
 export default function ClientOnboardingPage() {
   const router = useRouter()
@@ -12,18 +15,31 @@ export default function ClientOnboardingPage() {
 
   // Étape 1 : Comment avez-vous trouvé CalendaPro ?
   const [howFound, setHowFound] = useState('')
+  const [howFoundOther, setHowFoundOther] = useState('')
 
   // Étape 2 : Quels services vous intéressent ?
   const [interests, setInterests] = useState<string[]>([])
 
   // Étape 3 : Votre profil (optionnel)
   const [bio, setBio] = useState('')
+  const [location, setLocation] = useState('')
+  const [phone, setPhone] = useState('')
+  const [availability, setAvailability] = useState<string[]>([])
 
   const toggleInterest = (interest: string) => {
+    if (interests.length >= 8 && !interests.includes(interest)) return
     setInterests(prev =>
       prev.includes(interest)
         ? prev.filter(i => i !== interest)
         : [...prev, interest]
+    )
+  }
+
+  const toggleAvailability = (value: string) => {
+    setAvailability(prev =>
+      prev.includes(value)
+        ? prev.filter(i => i !== value)
+        : [...prev, value]
     )
   }
 
@@ -37,7 +53,7 @@ export default function ClientOnboardingPage() {
 
   const handleSubmit = async () => {
     setLoading(true)
-    // TODO: Sauvegarder les données en BD (howFound, interests, bio)
+    // TODO: Sauvegarder les données en BD (howFound, howFoundOther, interests, bio, location, phone, availability)
     // TODO: Mettre onboarding_completed = true
     
     setTimeout(() => {
@@ -52,7 +68,7 @@ export default function ClientOnboardingPage() {
       <header className="bg-white border-b border-stone-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
-            <BrandLogo />
+            <BrandLogo href="/client" />
             <UserMenuButton />
           </div>
         </div>
@@ -87,115 +103,41 @@ export default function ClientOnboardingPage() {
 
           {/* Step 1 */}
           {step === 1 && (
-            <div className="space-y-6">
-              <div>
+            <div>
+              <div className="mb-6">
                 <h1 className="text-2xl font-semibold text-stone-900 mb-2">
                   Bienvenue sur CalendaPro !
                 </h1>
-                <p className="text-stone-600">
-                  Comment avez-vous trouvé CalendaPro ?
-                </p>
               </div>
-
-              <div className="space-y-3">
-                {[
-                  { value: 'google', label: 'Google Search' },
-                  { value: 'recommendation', label: 'Recommandation' },
-                  { value: 'social', label: 'Réseaux sociaux' },
-                  { value: 'other', label: 'Autre' },
-                ].map((option) => (
-                  <label
-                    key={option.value}
-                    className={`flex items-center p-4 border rounded-xl cursor-pointer transition-colors ${
-                      howFound === option.value
-                        ? 'border-violet-500 bg-violet-50'
-                        : 'border-stone-200 hover:border-stone-300'
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="howFound"
-                      value={option.value}
-                      checked={howFound === option.value}
-                      onChange={(e) => setHowFound(e.target.value)}
-                      className="w-4 h-4 text-violet-600"
-                    />
-                    <span className="ml-3 text-stone-700">{option.label}</span>
-                  </label>
-                ))}
-              </div>
+              <StepOne
+                howFound={howFound}
+                howFoundOther={howFoundOther}
+                onHowFoundChange={setHowFound}
+                onHowFoundOtherChange={setHowFoundOther}
+              />
             </div>
           )}
 
           {/* Step 2 */}
           {step === 2 && (
-            <div className="space-y-6">
-              <div>
-                <h2 className="text-2xl font-semibold text-stone-900 mb-2">
-                  Quels services vous intéressent ?
-                </h2>
-                <p className="text-stone-600">
-                  Sélectionnez les catégories qui vous intéressent
-                </p>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                {[
-                  { value: 'coiffure', label: 'Coiffure' },
-                  { value: 'coaching', label: 'Coaching' },
-                  { value: 'photographie', label: 'Photographie' },
-                  { value: 'beaute', label: 'Beauté' },
-                  { value: 'sante', label: 'Santé' },
-                  { value: 'sport', label: 'Sport' },
-                  { value: 'massage', label: 'Massage' },
-                  { value: 'autre', label: 'Autre' },
-                ].map((category) => (
-                  <label
-                    key={category.value}
-                    className={`flex items-center p-4 border rounded-xl cursor-pointer transition-colors ${
-                      interests.includes(category.value)
-                        ? 'border-violet-500 bg-violet-50'
-                        : 'border-stone-200 hover:border-stone-300'
-                    }`}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={interests.includes(category.value)}
-                      onChange={() => toggleInterest(category.value)}
-                      className="w-4 h-4 text-violet-600 rounded"
-                    />
-                    <span className="ml-3 text-stone-700">{category.label}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
+            <StepTwo
+              interests={interests}
+              onToggleInterest={toggleInterest}
+            />
           )}
 
           {/* Step 3 */}
           {step === 3 && (
-            <div className="space-y-6">
-              <div>
-                <h2 className="text-2xl font-semibold text-stone-900 mb-2">
-                  Votre profil (optionnel)
-                </h2>
-                <p className="text-stone-600">
-                  Ajoutez une bio pour personnaliser votre expérience
-                </p>
-              </div>
-
-              <div>
-                <textarea
-                  value={bio}
-                  onChange={(e) => setBio(e.target.value)}
-                  placeholder="Parlez-nous un peu de vous..."
-                  rows={4}
-                  className="w-full px-4 py-3 border border-stone-200 rounded-xl focus:outline-none focus:border-violet-500 resize-none"
-                />
-                <p className="text-xs text-stone-500 mt-2">
-                  {bio.length}/500 caractères
-                </p>
-              </div>
-            </div>
+            <StepThree
+              bio={bio}
+              location={location}
+              phone={phone}
+              availability={availability}
+              onBioChange={setBio}
+              onLocationChange={setLocation}
+              onPhoneChange={setPhone}
+              onToggleAvailability={toggleAvailability}
+            />
           )}
 
           {/* Navigation */}

@@ -1,12 +1,10 @@
 'use client'
 
 import { useUser } from '@clerk/nextjs'
-import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 
 export default function ClientDashboardPage() {
   const { user } = useUser()
-  const router = useRouter()
 
   return (
     <div>
@@ -24,7 +22,7 @@ export default function ClientDashboardPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
         <Link
           href="/client/marketplace"
-          className="bg-gradient-to-br from-violet-600 to-rose-500 text-white p-6 rounded-2xl hover:shadow-lg transition-all"
+          className="bg-gradient-to-br from-violet-600 to-rose-500 text-white p-6 rounded-2xl shadow-sm hover:shadow-lg transition-all duration-200"
         >
           <div className="flex items-center justify-between">
             <div>
@@ -49,7 +47,7 @@ export default function ClientDashboardPage() {
 
         <Link
           href="/client/profile"
-          className="bg-white border border-stone-200 p-6 rounded-2xl hover:border-violet-400 transition-all"
+          className="bg-white border border-stone-200 p-6 rounded-2xl shadow-sm hover:shadow-md hover:border-violet-400 transition-all duration-200"
         >
           <div className="flex items-center justify-between">
             <div>
@@ -74,18 +72,18 @@ export default function ClientDashboardPage() {
       </div>
 
       {/* Stats Section */}
-      <div className="bg-white rounded-2xl border border-stone-200 p-6">
+      <div className="bg-white rounded-2xl shadow-sm border border-stone-200 p-6">
         <h2 className="text-xl font-semibold text-stone-900 mb-4">Vos statistiques</h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="text-center">
+          <div className="text-center p-4 bg-gradient-to-br from-violet-50 to-rose-50 rounded-xl">
             <div className="text-3xl font-bold text-violet-600">0</div>
             <div className="text-sm text-stone-600">Rendez-vous à venir</div>
           </div>
-          <div className="text-center">
+          <div className="text-center p-4 bg-gradient-to-br from-rose-50 to-pink-50 rounded-xl">
             <div className="text-3xl font-bold text-rose-600">0</div>
             <div className="text-sm text-stone-600">Profils favoris</div>
           </div>
-          <div className="text-center">
+          <div className="text-center p-4 bg-gradient-to-br from-stone-50 to-stone-100 rounded-xl">
             <div className="text-3xl font-bold text-stone-900">0</div>
             <div className="text-sm text-stone-600">Recherches</div>
           </div>
