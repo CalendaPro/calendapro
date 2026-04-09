@@ -97,6 +97,14 @@ function ProCard({ pro, idx }: { pro: Pro; idx: number }) {
   const [hovered, setHovered] = useState(false)
   const catObj = CATEGORIES.find(c => c.id === pro.category)
 
+  // Mock badges - in real app, these would come from the pro data
+  const badges = {
+    topPro: pro.plan === 'infinity' || pro.plan === 'premium',
+    fastResponse: Math.random() > 0.5,
+    available: Math.random() > 0.3,
+    trending: Math.random() > 0.7,
+  }
+
   return (
     <motion.div
       layout
@@ -106,12 +114,40 @@ function ProCard({ pro, idx }: { pro: Pro; idx: number }) {
       transition={{ duration: 0.4, delay: idx * 0.05, ease: [0.22, 1, 0.36, 1] } as Transition}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
-      className="bg-white border border-stone-200 rounded-2xl p-6 hover:border-violet-400 hover:shadow-lg transition-all cursor-pointer"
+      className="bg-white/70 backdrop-blur-sm border border-violet-100 rounded-2xl p-6 hover:border-violet-400 hover:shadow-xl transition-all cursor-pointer relative overflow-hidden"
+      style={{
+        boxShadow: hovered ? '0 16px 48px rgba(124,58,237,0.12)' : '0 2px 8px rgba(0,0,0,0.04)',
+        transform: hovered ? 'translateY(-4px)' : 'translateY(0)',
+      }}
     >
       {/* Top accent bar pour infinity */}
       {pro.plan === 'infinity' && (
         <div className="absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r from-violet-600 to-rose-500 rounded-t-2xl" />
       )}
+
+      {/* Badges */}
+      <div className="flex gap-2 mb-3 flex-wrap">
+        {badges.topPro && (
+          <span className="px-2 py-1 bg-gradient-to-r from-amber-400 to-orange-500 text-white text-xs font-semibold rounded-full flex items-center gap-1">
+            ⭐ Top Pro
+          </span>
+        )}
+        {badges.fastResponse && (
+          <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs font-semibold rounded-full flex items-center gap-1">
+            ⚡ Réponse rapide
+          </span>
+        )}
+        {badges.available && (
+          <span className="px-2 py-1 bg-green-100 text-green-700 text-xs font-semibold rounded-full flex items-center gap-1">
+            🟢 Disponible
+          </span>
+        )}
+        {badges.trending && (
+          <span className="px-2 py-1 bg-rose-100 text-rose-700 text-xs font-semibold rounded-full flex items-center gap-1">
+            🔥 Trending
+          </span>
+        )}
+      </div>
 
       {/* ── HEADER ── */}
       <div className="flex items-start gap-3">
@@ -174,13 +210,13 @@ function ProCard({ pro, idx }: { pro: Pro; idx: number }) {
       {/* ── CTA ── */}
       <div className="flex gap-2">
         <Link
-          href={`/${pro.username}`}
+          href={`/client/${pro.username}`}
           className="flex-1 text-center py-2 px-3 bg-gradient-to-r from-violet-600 to-rose-500 text-white rounded-xl font-semibold text-sm hover:opacity-90 transition-opacity"
         >
           Prendre RDV →
         </Link>
         <Link
-          href={`/${pro.username}`}
+          href={`/client/${pro.username}`}
           title="Voir le profil"
           className="py-2 px-2 bg-violet-50 text-violet-600 rounded-xl border border-violet-200 hover:bg-violet-100 transition-colors flex items-center justify-center"
         >
@@ -196,20 +232,22 @@ function ProCard({ pro, idx }: { pro: Pro; idx: number }) {
 // ─── SKELETON ─────────────────────────────────────────────────────────────────
 function SkeletonCard() {
   return (
-    <div className="bg-white border border-stone-200 rounded-2xl p-6 space-y-4">
+    <div className="bg-white/70 backdrop-blur-sm border border-violet-100 rounded-2xl p-6 space-y-4 overflow-hidden relative">
+      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-violet-100/30 to-transparent animate-[shimmer_1.5s_infinite] -translate-x-full" />
       <div className="flex gap-3">
-        <div className="w-12 h-12 rounded-full bg-stone-100 animate-pulse flex-shrink-0" />
+        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-violet-100 to-rose-100 flex-shrink-0" />
         <div className="flex-1 space-y-2">
-          <div className="h-3.5 bg-stone-100 rounded w-1/2 animate-pulse" />
-          <div className="h-2.5 bg-stone-100 rounded w-1/3 animate-pulse" />
+          <div className="h-3.5 bg-gradient-to-r from-violet-100 to-rose-100 rounded w-1/2" />
+          <div className="h-2.5 bg-gradient-to-r from-violet-100 to-rose-100 rounded w-1/3" />
         </div>
       </div>
-      <div className="h-px bg-stone-100" />
+      <div className="h-px bg-violet-50" />
       <div className="space-y-2">
-        <div className="h-2.5 bg-stone-100 rounded w-full animate-pulse" />
-        <div className="h-2.5 bg-stone-100 rounded w-3/4 animate-pulse" />
+        <div className="h-2.5 bg-gradient-to-r from-violet-100 to-rose-100 rounded w-full" />
+        <div className="h-2.5 bg-gradient-to-r from-violet-100 to-rose-100 rounded w-3/4" />
+        <div className="h-2.5 bg-gradient-to-r from-violet-100 to-rose-100 rounded w-5/6" />
       </div>
-      <div className="h-10 bg-stone-100 rounded-xl animate-pulse" />
+      <div className="h-10 bg-gradient-to-r from-violet-100 to-rose-100 rounded-xl" />
     </div>
   )
 }
@@ -318,6 +356,12 @@ export default function ClientMarketplacePage() {
 
   return (
     <div>
+      <style>{`
+        @keyframes shimmer {
+          0% { transform: translateX(-100%); }
+          100% { transform: translateX(100%); }
+        }
+      `}</style>
       <div className="mb-8">
         <h1 className="text-3xl font-semibold text-stone-900 mb-2">
           Marketplace

@@ -77,7 +77,7 @@ export async function GET(request: NextRequest) {
       email,
       full_name: fullName,
       role: expectedRole,
-      onboarding_completed: expectedRole === 'client', // Les clients n'ont pas d'onboarding
+      onboarding_completed: false, // Les clients doivent aussi compléter l'onboarding
     })
 
     if (insertError) {
@@ -111,9 +111,12 @@ export async function GET(request: NextRequest) {
   const onboardingCompleted = profile.onboarding_completed ?? false
 
   if (expectedRole === 'client') {
-    // CLIENT : retour vers la page du pro consultée, ou la marketplace
-    const destination = safeRedirect ?? '/marketplace'
-    return NextResponse.redirect(new URL(destination, request.url))
+    // CLIENT : si onboarding terminé → dashboard client, sinon onboarding
+    if (onboardingCompleted) {
+      const destination = safeRedirect ?? '/client'
+      return NextResponse.redirect(new URL(destination, request.url))
+    }
+    return NextResponse.redirect(new URL('/client/onboarding', request.url))
   }
 
   // PRO

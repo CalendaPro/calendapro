@@ -2,8 +2,6 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import UserMenuButton from '@/components/UserMenuButton'
-import { BrandLogo } from '@/components/BrandLogo'
 import StepOne from './_components/StepOne'
 import StepTwo from './_components/StepTwo'
 import StepThree from './_components/StepThree'
@@ -63,17 +61,7 @@ export default function ClientOnboardingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-stone-50 to-stone-100">
-      {/* Header */}
-      <header className="bg-white border-b border-stone-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <BrandLogo href="/client" />
-            <UserMenuButton />
-          </div>
-        </div>
-      </header>
-
+    <div>
       {/* Main Content */}
       <div className="max-w-2xl mx-auto px-4 py-12">
         <div className="bg-white rounded-2xl shadow-lg p-8">
