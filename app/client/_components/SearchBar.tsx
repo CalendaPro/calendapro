@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { motion } from 'framer-motion'
+import { useState, useEffect, useRef, useCallback } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 
 interface SearchBarProps {
   onSearch: (query: string) => void
@@ -12,16 +12,23 @@ interface SearchBarProps {
   onAvailabilityChange: (availability: string) => void
 }
 
+interface Suggestions {
+  categories: { id: string; label: string; icon: React.ReactNode }[]
+  cities: { city: string }[]
+  history: { query: string }[]
+  popular: { query: string }[]
+}
+
 const CATEGORIES = [
-  { id: 'all', label: 'Tous', emoji: '✦' },
-  { id: 'barbier', label: 'Barbiers', emoji: '✂️' },
-  { id: 'coach', label: 'Coachs', emoji: '🎯' },
-  { id: 'photo', label: 'Photographes', emoji: '📸' },
-  { id: 'freelance', label: 'Freelances', emoji: '💻' },
-  { id: 'therapeute', label: 'Thérapeutes', emoji: '💆' },
-  { id: 'sport', label: 'Coachs sportifs', emoji: '🏋️' },
-  { id: 'consultant', label: 'Consultants', emoji: '📊' },
-  { id: 'creatif', label: 'Créatifs', emoji: '🎨' },
+  { id: 'all', label: 'Tous', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/><line x1="2" y1="12" x2="22" y2="12"/></svg> },
+  { id: 'barbier', label: 'Barbiers', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="6" cy="6" r="3"/><path d="M8.5 6.5 11 9"/><path d="m13 13 4 4"/><path d="M20 20h-6"/><path d="M20 14v6"/></svg> },
+  { id: 'coach', label: 'Coachs', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2a10 10 0 1 0 10 10 4 4 0 0 1-5-5 4 4 0 0 1-5-5"/><path d="M8.5 8.5 12 12"/><path d="m12 12 4 4"/><path d="m12 12-3-3"/></svg> },
+  { id: 'photo', label: 'Photographes', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg> },
+  { id: 'freelance', label: 'Freelances', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" x2="16" y1="21" y2="21"/><line x1="12" x2="12" y1="17" y2="21"/></svg> },
+  { id: 'therapeute', label: 'Thérapeutes', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/><path d="M2 8c0-2.2.7-4.3 2-6"/><path d="M22 8a10 10 0 0 0-2-6"/></svg> },
+  { id: 'sport', label: 'Coachs sportifs', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6.5 6.5 17.5 17.5"/><path d="M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/><path d="m15 15 3-3"/><path d="m9 9-3 3"/></svg> },
+  { id: 'consultant', label: 'Consultants', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" x2="18" y1="20" y2="10"/><line x1="12" x2="12" y1="20" y2="4"/><line x1="6" x2="6" y1="20" y2="14"/></svg> },
+  { id: 'creatif', label: 'Créatifs', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg> },
 ]
 
 const POPULAR_CITIES = ['Paris', 'Lyon', 'Marseille', 'Toulouse', 'Nice', 'Nantes']
@@ -36,6 +43,7 @@ export default function SearchBar({
 }: SearchBarProps) {
   const [query, setQuery] = useState('')
   const [showSuggestions, setShowSuggestions] = useState(false)
+  const [suggestions, setSuggestions] = useState<Suggestions>({ categories: [], cities: [], history: [], popular: [] })
   const [category, setCategory] = useState('all')
   const [city, setCity] = useState('Toutes les villes')
   const [price, setPrice] = useState(200)
@@ -43,34 +51,61 @@ export default function SearchBar({
   const [availability, setAvailability] = useState('all')
   const [showFilters, setShowFilters] = useState(false)
   const [loading, setLoading] = useState(false)
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const suggestions = query.length > 0
-    ? [
-        { type: 'category', label: `Coiffeur à ${query}`, icon: '✂️' },
-        { type: 'category', label: `Coach ${query}`, icon: '🎯' },
-        { type: 'city', label: `${query} (ville)`, icon: '📍' },
-      ]
-    : []
+  const fetchSuggestions = useCallback(async (q: string) => {
+    try {
+      const res = await fetch(`/api/search/suggestions?q=${encodeURIComponent(q)}`)
+      if (res.ok) setSuggestions(await res.json())
+    } catch {}
+  }, [])
+
+  useEffect(() => {
+    if (!showSuggestions) return
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    debounceRef.current = setTimeout(() => fetchSuggestions(query), 300)
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current) }
+  }, [query, showSuggestions, fetchSuggestions])
+
+  const logSearch = useCallback(async (q: string) => {
+    if (!q.trim() || q.trim().length < 2) return
+    await fetch('/api/search/log', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query: q.trim() }),
+    }).catch(() => {})
+  }, [])
 
   const handleSearch = (value: string) => {
     setQuery(value)
     onSearch(value)
   }
 
-  const handleSuggestionClick = (suggestion: any) => {
-    setQuery(suggestion.label)
+  const handleSubmit = () => {
+    setLoading(true)
     setShowSuggestions(false)
-    onSearch(suggestion.label)
+    void logSearch(query)
+    setTimeout(() => { setLoading(false) }, 400)
+  }
+
+  const handleSuggestionClick = (label: string) => {
+    setQuery(label)
+    setShowSuggestions(false)
+    onSearch(label)
+    void logSearch(label)
   }
 
   const handleFilterSubmit = () => {
     setLoading(true)
-    // Simulate API call
-    setTimeout(() => {
-      setLoading(false)
-      setShowFilters(false)
-    }, 500)
+    setShowFilters(false)
+    setTimeout(() => setLoading(false), 400)
   }
+
+  const hasSuggestions =
+    suggestions.categories.length > 0 ||
+    suggestions.cities.length > 0 ||
+    suggestions.history.length > 0 ||
+    suggestions.popular.length > 0
 
   return (
     <div className="space-y-4">
@@ -121,7 +156,7 @@ export default function SearchBar({
             Filtres
           </button>
           <button
-            onClick={handleFilterSubmit}
+            onClick={handleSubmit}
             disabled={loading}
             className="px-6 py-3 bg-gradient-to-r from-violet-600 to-rose-500 text-white font-semibold rounded-xl hover:shadow-lg transition-all disabled:opacity-50 flex items-center gap-2"
           >
@@ -142,20 +177,58 @@ export default function SearchBar({
         </div>
 
         {/* Suggestions Dropdown */}
-        {showSuggestions && suggestions.length > 0 && (
-          <div className="absolute top-full left-0 right-0 mt-2 bg-white/95 backdrop-blur-sm border border-violet-100 rounded-xl shadow-xl z-50 overflow-hidden">
-            {suggestions.map((suggestion, index) => (
-              <button
-                key={index}
-                onClick={() => handleSuggestionClick(suggestion)}
-                className="w-full px-4 py-3 flex items-center gap-3 hover:bg-violet-50 transition-colors text-left"
-              >
-                <span className="text-lg">{suggestion.icon}</span>
-                <span className="text-stone-700">{suggestion.label}</span>
-              </button>
-            ))}
-          </div>
-        )}
+        <AnimatePresence>
+          {showSuggestions && hasSuggestions && (
+            <motion.div
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.15 }}
+              className="absolute top-full left-0 right-64 mt-2 bg-white/98 backdrop-blur-sm border border-violet-100 rounded-xl shadow-xl z-50 overflow-hidden"
+            >
+              {suggestions.categories.length > 0 && (
+                <div className="px-4 pt-3 pb-1">
+                  <div className="text-xs font-700 text-stone-400 uppercase tracking-wider mb-1">Catégories</div>
+                  {suggestions.categories.map(c => (
+                    <button key={c.id} onClick={() => handleSuggestionClick(c.label)} className="w-full flex items-center gap-2 px-2 py-2 rounded-lg hover:bg-violet-50 transition-colors text-left">
+                      <span>{c.icon}</span><span className="text-stone-700 text-sm">{c.label}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+              {suggestions.cities.length > 0 && (
+                <div className="px-4 pt-2 pb-1">
+                  <div className="text-xs font-700 text-stone-400 uppercase tracking-wider mb-1">Villes</div>
+                  {suggestions.cities.map(c => (
+                    <button key={c.city} onClick={() => handleSuggestionClick(c.city)} className="w-full flex items-center gap-2 px-2 py-2 rounded-lg hover:bg-violet-50 transition-colors text-left">
+                      <span>📍</span><span className="text-stone-700 text-sm">{c.city}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+              {suggestions.history.length > 0 && (
+                <div className="px-4 pt-2 pb-1">
+                  <div className="text-xs font-700 text-stone-400 uppercase tracking-wider mb-1">Récentes</div>
+                  {suggestions.history.map((h, i) => (
+                    <button key={i} onClick={() => handleSuggestionClick(h.query)} className="w-full flex items-center gap-2 px-2 py-2 rounded-lg hover:bg-violet-50 transition-colors text-left">
+                      <span>🕑</span><span className="text-stone-700 text-sm">{h.query}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+              {suggestions.popular.length > 0 && !query && (
+                <div className="px-4 pt-2 pb-3">
+                  <div className="text-xs font-700 text-stone-400 uppercase tracking-wider mb-1">Populaires cette semaine</div>
+                  {suggestions.popular.map((p, i) => (
+                    <button key={i} onClick={() => handleSuggestionClick(p.query)} className="w-full flex items-center gap-2 px-2 py-2 rounded-lg hover:bg-violet-50 transition-colors text-left">
+                      <span>🔥</span><span className="text-stone-700 text-sm">{p.query}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       {/* Advanced Filters Panel */}
@@ -180,7 +253,7 @@ export default function SearchBar({
               >
                 {CATEGORIES.map((cat) => (
                   <option key={cat.id} value={cat.id}>
-                    {cat.emoji} {cat.label}
+                    {cat.label}
                   </option>
                 ))}
               </select>
@@ -294,7 +367,7 @@ export default function SearchBar({
                   : 'bg-white/70 backdrop-blur-sm border border-violet-100 text-stone-600 hover:border-violet-400'
               }`}
             >
-              {cat.emoji} {cat.label}
+              <span className="inline-flex items-center">{cat.icon}</span> {cat.label}
             </button>
           ))}
         </div>

@@ -1,7 +1,7 @@
 import { auth } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
 import { stripe } from '@/lib/stripe'
-import { supabase } from '@/lib/supabase'
+import { createServerSupabaseClient } from '@/lib/supabase-server'
 
 export async function POST(request: Request) {
   const { userId } = await auth()
@@ -9,6 +9,7 @@ export async function POST(request: Request) {
 
   const { priceId } = await request.json()
 
+  const supabase = createServerSupabaseClient()
   const { data: subscription } = await supabase
     .from('subscriptions')
     .select('*')

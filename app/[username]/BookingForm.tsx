@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import { Check } from 'lucide-react'
 import type { BookingPaymentSettings } from '@/lib/booking-payment-settings'
 
 type PublicBookingSettings = BookingPaymentSettings & {
@@ -8,7 +9,7 @@ type PublicBookingSettings = BookingPaymentSettings & {
   professionalName?: string | null
 }
 
-export default function BookingForm({ username }: { username: string }) {
+export default function BookingForm({ username, trackingSource }: { username: string; trackingSource?: string }) {
   const [form, setForm] = useState({
     clientName: '',
     clientEmail: '',
@@ -80,6 +81,9 @@ export default function BookingForm({ username }: { username: string }) {
   }, [settings, paymentChoice])
 
   const canPayOnline = !!settings?.online_payment_enabled && (!!settings?.deposit_required || !!settings?.allow_full_online_payment)
+  
+  // Paiement obligatoire = online_payment_enabled ET deposit_required
+  const paymentRequired = !!settings?.online_payment_enabled && !!settings?.deposit_required
 
   const primaryLabel = useMemo(() => {
     if (!settings) return 'Chargement...'
@@ -97,8 +101,8 @@ export default function BookingForm({ username }: { username: string }) {
   if (status === 'success') {
     return (
       <div className="text-center py-8">
-        <div className="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center mx-auto mb-4">
-          <span className="text-3xl">✓</span>
+        <div className="w-16 h-16 rounded-full bg-[var(--accent-100)] flex items-center justify-center mx-auto mb-4">
+          <Check className="w-8 h-8 text-[var(--accent-600)]" strokeWidth={2.5} />
         </div>
         <h3 className="text-lg font-bold text-stone-900 mb-1">Demande enregistrée !</h3>
         <p className="text-stone-500 text-sm">
@@ -113,7 +117,7 @@ export default function BookingForm({ username }: { username: string }) {
             setForm({ clientName: '', clientEmail: '', clientPhone: '', date: '', notes: '' })
             setEstimatedEur('')
           }}
-          className="mt-6 text-emerald-600 text-sm font-medium hover:underline"
+          className="mt-6 text-[var(--accent-600)] text-sm font-medium hover:underline"
         >
           Faire une autre demande
         </button>
@@ -124,76 +128,76 @@ export default function BookingForm({ username }: { username: string }) {
   return (
     <div className="flex flex-col gap-4">
       {loadingSettings && (
-        <p className="text-stone-400 text-sm">Chargement des options de réservation...</p>
+        <p className="text-[var(--cl-text-muted)] text-sm">Chargement des options de réservation...</p>
       )}
       {settingsError && !loadingSettings && (
-        <p className="text-amber-700 text-sm bg-amber-50 px-3 py-2 rounded-xl border border-amber-100">{settingsError}</p>
+        <p className="text-amber-700 text-sm bg-amber-50/80 px-3 py-2 rounded-xl border border-amber-200">{settingsError}</p>
       )}
       {settings && !settings.online_payment_enabled && (
-        <p className="text-stone-600 text-sm bg-stone-50 border border-stone-200 rounded-xl px-3 py-2">
+        <p className="text-[var(--cl-text-muted)] text-sm bg-[var(--cl-glass-sidebar)] border border-[var(--accent-20)] rounded-xl px-3 py-2">
           {settings.professionalName || 'Ce professionnel'} a choisi le règlement hors ligne : vous réservez ici, le paiement se
           fait directement avec lui.
         </p>
       )}
       {settings && settings.online_payment_enabled && canPayOnline && (
-        <div className="text-stone-600 text-sm bg-emerald-50 border border-emerald-100 rounded-xl px-3 py-2">
+        <div className="text-[var(--cl-text-primary)] text-sm bg-[var(--accent-50)] border border-[var(--accent-200)] rounded-xl px-3 py-2">
           Paiement sécurisé sur CalendaPro (Stripe). Montant calculé selon les règles définies par le professionnel.
         </div>
       )}
       {settings && settings.online_payment_enabled && !canPayOnline && (
-        <p className="text-stone-600 text-sm bg-stone-50 border border-stone-200 rounded-xl px-3 py-2">
+        <p className="text-[var(--cl-text-muted)] text-sm bg-[var(--cl-glass-sidebar)] border border-[var(--accent-20)] rounded-xl px-3 py-2">
           Aucun encaissement en ligne n&apos;est activé pour le moment : réservation simple, règlement avec le professionnel.
         </p>
       )}
 
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className="text-sm text-stone-600 mb-1 block font-medium">Votre nom *</label>
+          <label className="text-sm text-[var(--cl-text-primary)] mb-1 block font-medium">Votre nom *</label>
           <input
             type="text"
             placeholder="Marie Dupont"
             value={form.clientName}
             onChange={e => setForm({ ...form, clientName: e.target.value })}
-            className="w-full bg-stone-50 border border-stone-200 rounded-xl px-4 py-2.5 text-stone-900 placeholder-stone-400 focus:outline-none focus:border-emerald-400 focus:bg-white transition-colors text-sm"
+            className="w-full bg-[var(--cl-glass-sidebar)] border border-[var(--accent-20)] rounded-xl px-4 py-2.5 text-[var(--cl-text-primary)] placeholder-[var(--cl-text-muted)] focus:outline-none focus:border-[var(--accent-400)] focus:bg-[var(--cl-bg)] transition-colors text-sm"
           />
         </div>
         <div>
-          <label className="text-sm text-stone-600 mb-1 block font-medium">Votre email *</label>
+          <label className="text-sm text-[var(--cl-text-primary)] mb-1 block font-medium">Votre email *</label>
           <input
             type="email"
             placeholder="marie@email.com"
             value={form.clientEmail}
             onChange={e => setForm({ ...form, clientEmail: e.target.value })}
-            className="w-full bg-stone-50 border border-stone-200 rounded-xl px-4 py-2.5 text-stone-900 placeholder-stone-400 focus:outline-none focus:border-emerald-400 focus:bg-white transition-colors text-sm"
+            className="w-full bg-[var(--cl-glass-sidebar)] border border-[var(--accent-20)] rounded-xl px-4 py-2.5 text-[var(--cl-text-primary)] placeholder-[var(--cl-text-muted)] focus:outline-none focus:border-[var(--accent-400)] focus:bg-[var(--cl-bg)] transition-colors text-sm"
           />
         </div>
       </div>
       <div>
-        <label className="text-sm text-stone-600 mb-1 block font-medium">
+        <label className="text-sm text-[var(--cl-text-primary)] mb-1 block font-medium">
           Votre téléphone
-          <span className="text-stone-400 font-normal ml-1">(SMS de confirmation si activé par le pro)</span>
+          <span className="text-[var(--cl-text-muted)] font-normal ml-1">(SMS de confirmation si activé par le pro)</span>
         </label>
         <input
           type="tel"
           placeholder="+33 6 12 34 56 78"
           value={form.clientPhone}
           onChange={e => setForm({ ...form, clientPhone: e.target.value })}
-          className="w-full bg-stone-50 border border-stone-200 rounded-xl px-4 py-2.5 text-stone-900 placeholder-stone-400 focus:outline-none focus:border-emerald-400 focus:bg-white transition-colors text-sm"
+          className="w-full bg-[var(--cl-glass-sidebar)] border border-[var(--accent-20)] rounded-xl px-4 py-2.5 text-[var(--cl-text-primary)] placeholder-[var(--cl-text-muted)] focus:outline-none focus:border-[var(--accent-400)] focus:bg-[var(--cl-bg)] transition-colors text-sm"
         />
       </div>
       <div>
-        <label className="text-sm text-stone-600 mb-1 block font-medium">Date et heure souhaitée *</label>
+        <label className="text-sm text-[var(--cl-text-primary)] mb-1 block font-medium">Date et heure souhaitée *</label>
         <input
           type="datetime-local"
           value={form.date}
           onChange={e => setForm({ ...form, date: e.target.value })}
-          className="w-full bg-stone-50 border border-stone-200 rounded-xl px-4 py-2.5 text-stone-900 focus:outline-none focus:border-emerald-400 focus:bg-white transition-colors text-sm"
+          className="w-full bg-[var(--cl-glass-sidebar)] border border-[var(--accent-20)] rounded-xl px-4 py-2.5 text-[var(--cl-text-primary)] focus:outline-none focus:border-[var(--accent-400)] focus:bg-[var(--cl-bg)] transition-colors text-sm"
         />
       </div>
 
       {needsEstimated && (
         <div>
-          <label className="text-sm text-stone-600 mb-1 block font-medium">Montant estimé de la prestation (€) *</label>
+          <label className="text-sm text-[var(--cl-text-primary)] mb-1 block font-medium">Montant estimé de la prestation (€) *</label>
           <input
             type="number"
             inputMode="decimal"
@@ -202,9 +206,9 @@ export default function BookingForm({ username }: { username: string }) {
             placeholder="Ex. 80"
             value={estimatedEur}
             onChange={e => setEstimatedEur(e.target.value)}
-            className="w-full bg-stone-50 border border-stone-200 rounded-xl px-4 py-2.5 text-stone-900 placeholder-stone-400 focus:outline-none focus:border-emerald-400 focus:bg-white transition-colors text-sm"
+            className="w-full bg-[var(--cl-glass-sidebar)] border border-[var(--accent-20)] rounded-xl px-4 py-2.5 text-[var(--cl-text-primary)] placeholder-[var(--cl-text-muted)] focus:outline-none focus:border-[var(--accent-400)] focus:bg-[var(--cl-bg)] transition-colors text-sm"
           />
-          <p className="text-stone-400 text-xs mt-1">
+          <p className="text-[var(--cl-text-muted)] text-xs mt-1">
             Sert au calcul de l&apos;acompte (%) ou du paiement intégral. Le tarif final peut être ajusté avec le professionnel.
           </p>
         </div>
@@ -213,9 +217,9 @@ export default function BookingForm({ username }: { username: string }) {
       {settings?.online_payment_enabled &&
         settings.deposit_required &&
         settings.allow_full_online_payment && (
-          <fieldset className="border border-stone-200 rounded-xl p-3 flex flex-col gap-2">
-            <legend className="text-xs font-semibold text-stone-500 px-1">Paiement en ligne</legend>
-            <label className="flex items-center gap-2 text-sm text-stone-800 cursor-pointer">
+          <fieldset className="border border-[var(--accent-20)] rounded-xl p-3 flex flex-col gap-2">
+            <legend className="text-xs font-semibold text-[var(--cl-text-muted)] px-1">Paiement en ligne</legend>
+            <label className="flex items-center gap-2 text-sm text-[var(--cl-text-primary)] cursor-pointer">
               <input
                 type="radio"
                 name="pay"
@@ -225,7 +229,7 @@ export default function BookingForm({ username }: { username: string }) {
               Acompte seulement
               {settings.deposit_type === 'percent' ? ` (${settings.deposit_value}%)` : ` (${settings.deposit_value} €)`}
             </label>
-            <label className="flex items-center gap-2 text-sm text-stone-800 cursor-pointer">
+            <label className="flex items-center gap-2 text-sm text-[var(--cl-text-primary)] cursor-pointer">
               <input type="radio" name="pay" checked={paymentChoice === 'full'} onChange={() => setPaymentChoice('full')} />
               Paiement intégral en ligne
             </label>
@@ -233,18 +237,18 @@ export default function BookingForm({ username }: { username: string }) {
         )}
 
       <div>
-        <label className="text-sm text-stone-600 mb-1 block font-medium">Message</label>
+        <label className="text-sm text-[var(--cl-text-primary)] mb-1 block font-medium">Message</label>
         <textarea
           placeholder="Décrivez votre besoin en quelques mots..."
           value={form.notes}
           onChange={e => setForm({ ...form, notes: e.target.value })}
           rows={3}
-          className="w-full bg-stone-50 border border-stone-200 rounded-xl px-4 py-2.5 text-stone-900 placeholder-stone-400 focus:outline-none focus:border-emerald-400 focus:bg-white transition-colors text-sm resize-none"
+          className="w-full bg-[var(--cl-glass-sidebar)] border border-[var(--accent-20)] rounded-xl px-4 py-2.5 text-[var(--cl-text-primary)] placeholder-[var(--cl-text-muted)] focus:outline-none focus:border-[var(--accent-400)] focus:bg-[var(--cl-bg)] transition-colors text-sm resize-none"
         />
       </div>
 
       {status === 'error' && (
-        <p className="text-red-500 text-sm bg-red-50 px-4 py-2 rounded-xl border border-red-100">
+        <p className="text-red-500 text-sm bg-red-500/10 px-4 py-2 rounded-xl border border-red-500/20">
           Une erreur est survenue. Vérifiez les champs ou réessayez.
         </p>
       )}
@@ -263,17 +267,30 @@ export default function BookingForm({ username }: { username: string }) {
           if (!settings) return
 
           if (!settings.online_payment_enabled || !canPayOnline) {
+            // Si paiement obligatoire mais impossible (pas de Stripe configuré), bloquer
+            if (paymentRequired) {
+              setStatus('error')
+              console.error('Paiement obligatoire mais Stripe non configuré')
+              return
+            }
+
             setStatus('loading')
             try {
               const res = await fetch('/api/booking', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username, ...form }),
+                body: JSON.stringify({ username, ...form, source_channel: trackingSource }),
               })
               if (res.ok) {
                 setSuccessKind('direct')
                 setStatus('success')
-              } else setStatus('error')
+              } else {
+                const data = await res.json().catch(() => ({}))
+                if (data.error?.includes('Paiement requis')) {
+                  alert('Ce professionnel exige un paiement en ligne. Veuillez contacter le support.')
+                }
+                setStatus('error')
+              }
             } catch {
               setStatus('error')
             }
@@ -292,6 +309,7 @@ export default function BookingForm({ username }: { username: string }) {
                   ? Number(String(estimatedEur).replace(',', '.'))
                   : undefined,
                 paymentChoice,
+                source_channel: trackingSource,
               }),
             })
             const data = await res.json()
@@ -304,13 +322,13 @@ export default function BookingForm({ username }: { username: string }) {
             setStatus('error')
           }
         }}
-        disabled={status === 'loading' || loadingSettings}
-        className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white py-3 rounded-xl font-semibold transition-colors text-sm"
+        disabled={status === 'loading' || loadingSettings || (paymentRequired && !canPayOnline)}
+        className="w-full bg-[var(--accent-500)] hover:bg-[var(--accent-600)] disabled:opacity-50 text-white py-3 rounded-xl font-semibold transition-colors text-sm"
       >
         {status === 'loading' ? 'Patientez...' : primaryLabel}
       </button>
 
-      <p className="text-stone-400 text-xs text-center">* Champs obligatoires</p>
+      <p className="text-[var(--cl-text-muted)] text-xs text-center">* Champs obligatoires</p>
     </div>
   )
 }

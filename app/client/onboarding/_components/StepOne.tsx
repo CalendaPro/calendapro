@@ -1,70 +1,95 @@
 'use client'
 
+import { motion, AnimatePresence } from 'framer-motion'
+import { Search, Users, Hash, Megaphone, MoreHorizontal } from 'lucide-react'
+import type { OnboardingData } from '../page'
+
 interface StepOneProps {
-  howFound: string
-  howFoundOther: string
-  onHowFoundChange: (value: string) => void
-  onHowFoundOtherChange: (value: string) => void
+  source: string
+  sourceOther: string
+  onChange: (updates: Partial<OnboardingData>) => void
 }
 
-export default function StepOne({ howFound, howFoundOther, onHowFoundChange, onHowFoundOtherChange }: StepOneProps) {
-  const options = [
-    { value: 'google', label: 'Google Search' },
-    { value: 'recommendation', label: 'Recommandation' },
-    { value: 'social', label: 'Réseaux sociaux' },
-    { value: 'friend_family', label: 'Ami/Famille' },
-    { value: 'advertising', label: 'Publicité' },
-    { value: 'other', label: 'Autre' },
-  ]
+const options = [
+  { value: 'google', label: 'Via Google', icon: Search },
+  { value: 'recommendation', label: "Recommandation d'un ami", icon: Users },
+  { value: 'social', label: 'Réseaux sociaux', icon: Hash },
+  { value: 'advertising', label: 'Publicité', icon: Megaphone },
+  { value: 'other', label: 'Autre', icon: MoreHorizontal },
+]
 
+export function StepOne({ source, sourceOther, onChange }: StepOneProps) {
   return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-semibold text-stone-900 mb-2">
-          Comment avez-vous trouvé CalendaPro ?
-        </h2>
-        <p className="text-stone-600">
-          Sélectionnez une option pour nous aider à améliorer notre service
-        </p>
-      </div>
+    <div>
+      <h1 className="step-title">Bienvenue sur CalendaPro</h1>
+      <p className="step-subtitle">
+        Trouvez et réservez les meilleurs professionnels près de chez vous
+      </p>
 
-      <div className="space-y-3">
-        {options.map((option) => (
-          <label
-            key={option.value}
-            className={`flex items-center p-4 border rounded-xl cursor-pointer transition-colors ${
-              howFound === option.value
-                ? 'border-violet-500 bg-violet-50'
-                : 'border-stone-200 hover:border-stone-300'
-            }`}
-          >
-            <input
-              type="radio"
-              name="howFound"
-              value={option.value}
-              checked={howFound === option.value}
-              onChange={(e) => onHowFoundChange(e.target.value)}
-              className="w-4 h-4 text-violet-600"
-            />
-            <span className="ml-3 text-stone-700">{option.label}</span>
-          </label>
-        ))}
-      </div>
+      <div className="form-section">
+        <p className="form-section-title">Comment avez-vous découvert CalendaPro ?</p>
+        <div className="selection-grid single">
+          {options.map((option, i) => {
+            const Icon = option.icon
+            const isSelected = source === option.value
 
-      {howFound === 'other' && (
-        <div className="mt-4">
-          <label className="block text-sm font-medium text-stone-700 mb-2">
-            Pouvez-vous nous en dire plus ?
-          </label>
-          <textarea
-            value={howFoundOther}
-            onChange={(e) => onHowFoundOtherChange(e.target.value)}
-            placeholder="Expliquez comment vous avez trouvé CalendaPro..."
-            rows={3}
-            className="w-full px-4 py-3 border border-stone-200 rounded-xl focus:outline-none focus:border-violet-500 resize-none"
-          />
+            return (
+              <motion.div
+                key={option.value}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.06, duration: 0.28, ease: 'easeOut' }}
+                className={`selection-card ${isSelected ? 'selected' : ''}`}
+                onClick={() => onChange({ source: option.value, sourceOther: '' })}
+                whileHover={{ scale: 1.015 }}
+                whileTap={{ scale: 0.985 }}
+                style={{ originX: 0.5 }}
+              >
+                <div className="selection-icon">
+                  <Icon size={17} />
+                </div>
+                <span className="selection-label">{option.label}</span>
+                <AnimatePresence>
+                  {isSelected && (
+                    <motion.div
+                      className="selection-check"
+                      initial={{ scale: 0, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      exit={{ scale: 0, opacity: 0 }}
+                      transition={{ type: 'spring', stiffness: 500, damping: 25 }}
+                    >
+                      ✓
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </motion.div>
+            )
+          })}
         </div>
-      )}
+      </div>
+
+      <AnimatePresence mode="wait">
+        {source === 'other' && (
+          <motion.div
+            key="other"
+            initial={{ opacity: 0, height: 0, marginTop: 0 }}
+            animate={{ opacity: 1, height: 'auto', marginTop: '0.5rem' }}
+            exit={{ opacity: 0, height: 0, marginTop: 0 }}
+            transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+            className="form-section"
+          >
+            <p className="form-section-title">Précisez comment vous nous avez découvert</p>
+            <textarea
+              value={sourceOther}
+              onChange={(e) => onChange({ sourceOther: e.target.value })}
+              placeholder="Expliquez brièvement..."
+              rows={3}
+              className="cb-input"
+              style={{ resize: 'none' }}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }

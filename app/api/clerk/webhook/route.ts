@@ -1,8 +1,7 @@
 import { headers } from 'next/headers'
 import { NextResponse } from 'next/server'
 import { Webhook } from 'svix'
-import { createServerSupabaseClient } from '@/lib/supabase-server'
-import { generateUsername } from '@/lib/generateUsername'
+import { ensureProfile } from '@/lib/auth/ensure-profile'
  
 const clerkWebhookSecret = process.env.CLERK_WEBHOOK_SECRET
  
@@ -41,60 +40,30 @@ export async function POST(req: Request) {
  
   const eventType = evt.type
   const { data } = evt
- 
-  console.log('📨 eventType:', eventType)
- 
+
+  console.log(' eventType:', eventType)
+
   if (eventType === 'user.created') {
     const { id, email_addresses, first_name, last_name, unsafe_metadata } = data
-    
-    // DEBUG: voir la structure exacte
-    console.log('📊 FULL DATA:', JSON.stringify(data, null, 2))
-    console.log('📧 email_addresses:', JSON.stringify(email_addresses, null, 2))
-    
-    // Essayer différentes façons de récupérer l'email
-    let email = email_addresses?.[0]?.email_address
-    
-    // Si toujours pas d'email, retourner une erreur
-    if (!email) {
-      console.error('❌ Pas d\'email trouvé dans Clerk data')
-      console.error('email_addresses structure:', JSON.stringify(email_addresses))
-      return NextResponse.json({ 
-        error: 'Pas d\'email fourni par Clerk' 
-      }, { status: 400 })
-    }
-    
-    const fullName = [first_name, last_name].filter(Boolean).join(' ')
- 
-    console.log(' user.id:', id)
-    console.log(' email:', email)
-    console.log(' unsafe_metadata:', unsafe_metadata)
- 
-    // Déterminer le rôle depuis les metadata (par défaut 'pro')
-    const role = unsafe_metadata?.role === 'client' ? 'client' : 'pro'
-    console.log(' role:', role)
 
-    const username = generateUsername(fullName)
-    console.log(' Generated username:', username)
+    const email = email_addresses?.[0]?.email_address as string | undefined
+    const fullName = [first_name, last_name].filter(Boolean).join(' ') || null
+    const role: 'pro' | 'client' = unsafe_metadata?.role === 'client' ? 'client' : 'pro'
 
-    const supabase = createServerSupabaseClient()
-    
-    // Créer le profil dans Supabase avec le rôle approprié
-    const { error } = await supabase.from('profiles').insert({
-      id,
-      username,
-      email,
-      full_name: fullName || null,
-      role,
-      onboarding_completed: role === 'client', // Les clients n'ont pas d'onboarding
-    })
- 
-    if (error) {
-      console.error('❌ Erreur création profil Supabase:', error)
-      return NextResponse.json({ error: 'Erreur création profil' }, { status: 500 })
+    console.log(` user.created → id=${id} role=${role} email=${email}`)
+
+    try {
+      await ensureProfile(id, {
+        role,
+        emailOverride: email,
+        fullNameOverride: fullName ?? undefined,
+      })
+      console.log(` ensureProfile OK pour ${id}`)
+    } catch (err) {
+      console.error(' ensureProfile failed in webhook:', err)
+      return NextResponse.json({ error: 'Profile creation failed' }, { status: 500 })
     }
- 
-    console.log(`✅ Profil créé pour ${email} (ID: ${id}, rôle: ${role})`)
   }
- 
+
   return NextResponse.json({ received: true })
 }

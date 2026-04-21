@@ -15,6 +15,13 @@ export async function GET(request: Request) {
     const search = searchParams.get('search')
     const latStr = searchParams.get('lat')
     const lngStr = searchParams.get('lng')
+    const minPriceStr = searchParams.get('min_price')
+    const maxPriceStr = searchParams.get('max_price')
+    const minRatingStr = searchParams.get('min_rating')
+    const sortBy = searchParams.get('sort') ?? 'relevance'
+    const minPrice = minPriceStr ? parseFloat(minPriceStr) : null
+    const maxPrice = maxPriceStr ? parseFloat(maxPriceStr) : null
+    const minRating = minRatingStr ? parseFloat(minRatingStr) : null
 
     let userLat: number | null = null
     let userLng: number | null = null
@@ -103,8 +110,86 @@ export async function GET(request: Request) {
       }
     })
 
+    // ── Enrich with min service price ─────────────────────────
+    const { data: servicesRows } = await supabase
+      .from('services')
+      .select('user_id, price')
+      .in('user_id', userIds)
+
+    const minPriceById: Record<string, number> = {}
+    if (servicesRows) {
+      for (const s of servicesRows) {
+        const p = Number(s.price)
+        if (!Number.isFinite(p)) continue
+        if (minPriceById[s.user_id] == null || p < minPriceById[s.user_id]) {
+          minPriceById[s.user_id] = p
+        }
+      }
+    }
+
+    // ── Enrich with average rating ─────────────────────────────
+    const { data: reviewsRows } = await supabase
+      .from('reviews')
+      .select('pro_id, rating')
+      .in('pro_id', userIds)
+
+    const ratingById: Record<string, { sum: number; count: number }> = {}
+    if (reviewsRows) {
+      for (const r of reviewsRows) {
+        if (!ratingById[r.pro_id]) ratingById[r.pro_id] = { sum: 0, count: 0 }
+        ratingById[r.pro_id].sum += r.rating
+        ratingById[r.pro_id].count += 1
+      }
+    }
+    const avgRatingById: Record<string, number> = {}
+    for (const [id, { sum, count }] of Object.entries(ratingById)) {
+      avgRatingById[id] = Math.round((sum / count) * 10) / 10
+    }
+
+    // ── Attach enriched fields ────────────────────────────────
+    const enrichedPros = pros.map(p => ({
+      ...p,
+      min_price: minPriceById[p.id] ?? null,
+      avg_rating: avgRatingById[p.id] ?? null,
+      review_count: ratingById[p.id]?.count ?? 0,
+    }))
+
+    // ── Price filter ──────────────────────────────────────────
+    let filtered = enrichedPros
+    if (minPrice != null || maxPrice != null) {
+      filtered = filtered.filter(p => {
+        const mp = p.min_price
+        if (mp == null) return false
+        if (minPrice != null && mp < minPrice) return false
+        if (maxPrice != null && mp > maxPrice) return false
+        return true
+      })
+    }
+
+    // ── Rating filter ─────────────────────────────────────────
+    if (minRating != null) {
+      filtered = filtered.filter(p => p.avg_rating != null && p.avg_rating >= minRating)
+    }
+
+    // ── Sorting ───────────────────────────────────────────────
     const tieDist = userLat != null && userLng != null
-    pros.sort((a, b) => {
+    filtered.sort((a, b) => {
+      if (sortBy === 'rating_desc') {
+        const ra = a.avg_rating ?? 0
+        const rb = b.avg_rating ?? 0
+        if (rb !== ra) return rb - ra
+      } else if (sortBy === 'price_asc') {
+        const pa = a.min_price ?? Infinity
+        const pb = b.min_price ?? Infinity
+        if (pa !== pb) return pa - pb
+      } else if (sortBy === 'price_desc') {
+        const pa = a.min_price ?? 0
+        const pb = b.min_price ?? 0
+        if (pa !== pb) return pb - pa
+      } else if (sortBy === 'newest') {
+        // Use plan/distance as tiebreak for now (created_at not in select)
+      }
+      // Default: plan + distance (relevance)
       const c = compareMarketplacePros(
         { plan: a.plan, distance: a.distance },
         { plan: b.plan, distance: b.distance },
@@ -139,7 +224,7 @@ export async function GET(request: Request) {
       uniqueCities: uniqueCities ?? 0,
     }
 
-    return NextResponse.json({ pros, stats })
+    return NextResponse.json({ pros: filtered, stats })
   } catch (err) {
     console.error('Marketplace API error:', err)
     return NextResponse.json({ pros: [], stats: null }, { status: 500 })

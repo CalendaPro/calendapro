@@ -17,7 +17,7 @@ export type MapPro = {
   distance?: number
 }
 
-type Cat = { id: string; emoji: string; color: string; label: string }
+type Cat = { id: string; label: string; color?: string }
 
 function formatDistance(km: number) {
   if (km < 1) return `${Math.round(km * 1000)} m`
@@ -156,7 +156,7 @@ export default function MarketplaceMap({
                       <div style={{ fontWeight: 700, fontSize: 13, color: '#1e1336' }}>{pro.full_name || pro.username}</div>
                       <div style={{ marginTop: 4, display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
                         <PlanBadge plan={pro.plan} variant="compact" />
-                        {cat && <span style={{ fontSize: 11, color: cat.color }}>{cat.emoji} {cat.label}</span>}
+                        {cat && <span style={{ fontSize: 11, color: '#4f46e5' }}>{cat.label}</span>}
                       </div>
                       {pro.distance != null && <div style={{ marginTop: 4, fontSize: 11, color: '#64748b' }}>A {formatDistance(pro.distance)}</div>}
                     </div>
@@ -267,16 +267,18 @@ export default function MarketplaceMap({
                 <span
                   style={{
                     position: 'absolute',
-                    top: -18,
+                    top: -20,
                     left: '50%',
                     transform: 'translateX(-50%)',
-                    fontSize: 11,
+                    fontSize: 10,
                     color: '#ddd6fe',
                     whiteSpace: 'nowrap',
-                    fontFamily: "'Outfit', sans-serif",
+                    fontFamily: "'DM Sans', sans-serif",
+                    fontWeight: 600,
+                    letterSpacing: '0.02em',
                   }}
                 >
-                  {cat?.emoji ?? '✦'}
+                  {cat?.label ?? 'Pro'}
                 </span>
               </Link>
             )

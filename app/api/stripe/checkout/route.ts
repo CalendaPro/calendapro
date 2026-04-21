@@ -13,7 +13,7 @@ export async function POST(request: Request) {
     payment_method_types: ['card'],
     mode: 'subscription',
     line_items: [{ price: priceId, quantity: 1 }],
-    success_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard?upgrade=success`,
+    success_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard?upgrade=success&session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/pricing`,
     metadata: { userId },
   })

@@ -1,0 +1,1488 @@
+'use client'
+
+import React, { useEffect, useState, useRef } from 'react'
+import Link from 'next/link'
+import { BrandLogo } from '@/components/BrandLogo'
+import { motion, useScroll, useTransform, useSpring, useMotionValue } from 'framer-motion'
+import type { Variants, Transition } from 'framer-motion'
+import {
+  Search,
+  Calendar,
+  MapPin,
+  Star,
+  ArrowRight,
+  Sparkles,
+  Check,
+  Clock,
+  Shield,
+  Zap,
+  User,
+  Scissors,
+  Camera,
+  Heart,
+  Briefcase,
+  Dumbbell,
+  BrainCircuit,
+  ChevronLeft,
+  ChevronRight,
+  BadgeCheck,
+  TrendingUp,
+  Wallet,
+  Bell,
+  CreditCard
+} from 'lucide-react'
+
+// ─── DATA ─────────────────────────────────────────────────────────────────────
+const ELITE_EXPERTS = [
+  {
+    id: 1,
+    name: 'Alexandre Martin',
+    profession: 'Barbier Élite',
+    city: 'Paris 8ème',
+    rating: 4.9,
+    reviews: 127,
+    image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=500&fit=crop&crop=face',
+    badge: 'Vérifié Elite',
+    specialty: 'Coupes premium & barbe'
+  },
+  {
+    id: 2,
+    name: 'Sarah Chen',
+    profession: 'Coach Bien-être',
+    city: 'Lyon',
+    rating: 4.8,
+    reviews: 89,
+    image: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=400&h=500&fit=crop&crop=face',
+    badge: 'Vérifié Elite',
+    specialty: 'Yoga & Méditation'
+  },
+  {
+    id: 3,
+    name: 'Marc Dubois',
+    profession: 'Photographe Pro',
+    city: 'Bordeaux',
+    rating: 5.0,
+    reviews: 203,
+    image: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=400&h=500&fit=crop&crop=face',
+    badge: 'Vérifié Elite',
+    specialty: 'Portrait & Corporate'
+  },
+]
+
+const CATEGORIES = [
+  { id: 'barbier', label: 'Barbiers', icon: Scissors, color: '#db2777', desc: 'Coupe & barbe' },
+  { id: 'coach', label: 'Coachs', icon: BrainCircuit, color: '#ea580c', desc: 'Développement' },
+  { id: 'photo', label: 'Photographes', icon: Camera, color: '#059669', desc: 'Shooting pro' },
+  { id: 'therapeute', label: 'Thérapeutes', icon: Heart, color: '#ec4899', desc: 'Bien-être' },
+  { id: 'sport', label: 'Coachs sportifs', icon: Dumbbell, color: '#dc2626', desc: 'Fitness' },
+  { id: 'consultant', label: 'Consultants', icon: Briefcase, color: '#d97706', desc: 'Conseil' },
+]
+
+// ─── ANIMATED COUNTER ─────────────────────────────────────────────────────────
+function AnimatedCounter({ value, suffix = '' }: { value: number; suffix?: string }) {
+  const [count, setCount] = useState(0)
+  const ref = useRef<HTMLSpanElement>(null)
+  const [hasAnimated, setHasAnimated] = useState(false)
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting && !hasAnimated) {
+          setHasAnimated(true)
+          let start = 0
+          const end = value
+          const duration = 2000
+          const increment = end / (duration / 16)
+          const timer = setInterval(() => {
+            start += increment
+            if (start >= end) {
+              setCount(end)
+              clearInterval(timer)
+            } else {
+              setCount(Math.floor(start))
+            }
+          }, 16)
+        }
+      },
+      { threshold: 0.5 }
+    )
+    if (ref.current) observer.observe(ref.current)
+    return () => observer.disconnect()
+  }, [value, hasAnimated])
+
+  return (
+    <span ref={ref} style={{ fontVariantNumeric: 'tabular-nums' }}>
+      {count.toLocaleString()}{suffix}
+    </span>
+  )
+}
+
+// ─── NAV ─────────────────────────────────────────────────────────────────────
+function Nav() {
+  const [scrolled, setScrolled] = useState(false)
+  useEffect(() => {
+    const fn = () => setScrolled(window.scrollY > 20)
+    window.addEventListener('scroll', fn)
+    return () => window.removeEventListener('scroll', fn)
+  }, [])
+
+  return (
+    <motion.nav
+      initial={{ y: -20, opacity: 0 }}
+      animate={{ y: 0, opacity: 1 }}
+      transition={{ duration: 0.6, ease: 'easeOut' }}
+      style={{
+        position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100,
+        padding: '0 1.5rem', height: '72px',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        background: scrolled ? 'rgba(255,255,255,0.85)' : 'transparent',
+        backdropFilter: scrolled ? 'blur(24px) saturate(180%)' : 'none',
+        borderBottom: scrolled ? '1px solid rgba(0,0,0,0.06)' : '1px solid transparent',
+        transition: 'all 0.4s ease',
+      }}
+    >
+      <BrandLogo />
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+        <Link href="/client-sign-in" className="nav-btn-ghost">
+          Connexion
+        </Link>
+        <Link href="/client-sign-up" className="nav-btn-gradient">
+          <span>M&apos;inscrire</span>
+          <ArrowRight size={14} strokeWidth={2.5} />
+        </Link>
+      </div>
+    </motion.nav>
+  )
+}
+
+// ─── HERO ────────────────────────────────────────────────────────────────────
+function Hero() {
+  const c: Variants = { hidden: {}, visible: { transition: { staggerChildren: 0.1, delayChildren: 0.2 } } }
+  const i: Variants = { hidden: { opacity: 0, y: 28 }, visible: { opacity: 1, y: 0, transition: { duration: 0.7, ease: 'easeOut' } } }
+
+  return (
+    <section className="hero-section">
+      {/* Background gradient orbs */}
+      <div className="orb orb-1" />
+      <div className="orb orb-2" />
+      
+      <motion.div variants={c} initial="hidden" animate="visible" className="hero-content">
+        {/* Badge */}
+        <motion.div variants={i}>
+          <span className="premium-badge">
+            <Sparkles size={14} strokeWidth={1.5} />
+            Marketplace Premium
+          </span>
+        </motion.div>
+
+        {/* Headline */}
+        <motion.h1 variants={i} className="hero-title">
+          <span className="gradient-text-animated">L&apos;excellence à portée de clic.</span>
+        </motion.h1>
+
+        {/* Subtitle */}
+        <motion.p variants={i} className="hero-subtitle">
+          Découvrez des professionnels d&apos;exception près de chez vous.
+          Réservez en quelques secondes, sans appel, sans attente.
+        </motion.p>
+
+        {/* CTA Principal */}
+        <motion.div variants={i}>
+          <Link href="/marketplace" className="hero-cta">
+            <Search size={20} strokeWidth={1.5} />
+            <span>Trouver un professionnel</span>
+            <ArrowRight size={18} strokeWidth={2} />
+          </Link>
+        </motion.div>
+
+        {/* Trust signals */}
+        <motion.div variants={i} className="trust-signals">
+          {[
+            { icon: Check, text: 'Gratuit pour les clients' },
+            { icon: Shield, text: 'Pros vérifiés' },
+            { icon: Clock, text: 'Réservation 24/7' },
+          ].map(({ icon: Icon, text }) => (
+            <div key={text} className="trust-item">
+              <Icon size={14} strokeWidth={1.5} />
+              <span>{text}</span>
+            </div>
+          ))}
+        </motion.div>
+      </motion.div>
+    </section>
+  )
+}
+
+// ─── CATEGORIES GLASS ─────────────────────────────────────────────────────────
+function CategoriesSection() {
+  return (
+    <section className="categories-section">
+      <div className="categories-container">
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: '-100px' }}
+          transition={{ duration: 0.6 }}
+          className="section-header"
+        >
+          <span className="section-badge">Catégories</span>
+          <h2 className="section-title">Trouvez votre expert</h2>
+          <p className="section-subtitle">Des professionnels qualifiés dans toutes les catégories</p>
+        </motion.div>
+
+        <div className="categories-grid">
+          {CATEGORIES.map((cat, idx) => (
+            <motion.div
+              key={cat.id}
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: '-50px' }}
+              transition={{ duration: 0.5, delay: idx * 0.1 }}
+            >
+              <Link href={`/marketplace?category=${cat.id}`} className="category-card">
+                <div className="shimmer-overlay" />
+                <div className="category-icon" style={{ '--cat-color': cat.color } as React.CSSProperties}>
+                  <cat.icon size={26} strokeWidth={1.5} />
+                </div>
+                <span className="category-label">{cat.label}</span>
+                <span className="category-desc">{cat.desc}</span>
+              </Link>
+            </motion.div>
+          ))}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+// ─── EXPERTS CAROUSEL ────────────────────────────────────────────────────────
+function ExpertsSection() {
+  const [activeIndex, setActiveIndex] = useState(0)
+  const containerRef = useRef<HTMLDivElement>(null)
+
+  const next = () => setActiveIndex((prev) => (prev + 1) % ELITE_EXPERTS.length)
+  const prev = () => setActiveIndex((prev) => (prev - 1 + ELITE_EXPERTS.length) % ELITE_EXPERTS.length)
+
+  return (
+    <section className="experts-section">
+      <div className="experts-container">
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: '-100px' }}
+          transition={{ duration: 0.6 }}
+          className="section-header"
+        >
+          <span className="section-badge gold">Les Experts Recommandés</span>
+          <h2 className="section-title">L&apos;excellence professionnelle</h2>
+          <p className="section-subtitle">Des talents d&apos;exception sélectionnés pour vous</p>
+        </motion.div>
+
+        {/* Impact Counter */}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          whileInView={{ opacity: 1, scale: 1 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.6, delay: 0.2 }}
+          className="impact-counter"
+        >
+          <div className="counter-line">
+            <span className="counter-label">DÉJÀ</span>
+            <span className="counter-value">
+              <AnimatedCounter value={1247} />
+            </span>
+            <span className="counter-label">RENDEZ-VOUS HONORÉS CETTE SEMAINE</span>
+          </div>
+          <div className="counter-glow" />
+        </motion.div>
+
+        {/* Carousel */}
+        <div className="carousel-wrapper" ref={containerRef}>
+          <button onClick={prev} className="carousel-btn prev">
+            <ChevronLeft size={24} />
+          </button>
+          
+          <div className="carousel-track">
+            {ELITE_EXPERTS.map((expert, idx) => {
+              const isActive = idx === activeIndex
+              return (
+                <motion.div
+                  key={expert.id}
+                  className={`expert-card ${isActive ? 'active' : ''}`}
+                  animate={{
+                    scale: isActive ? 1 : 0.9,
+                    opacity: isActive ? 1 : 0.5,
+                    x: (idx - activeIndex) * 320,
+                  }}
+                  transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+                >
+                  <div className="expert-image-wrapper">
+                    <img src={expert.image} alt={expert.name} className="expert-image" />
+                    <div className="expert-badge">
+                      <BadgeCheck size={14} />
+                      <span>{expert.badge}</span>
+                    </div>
+                  </div>
+                  <div className="expert-info">
+                    <div className="expert-rating">
+                      <Star size={14} fill="#fbbf24" stroke="#fbbf24" />
+                      <span>{expert.rating}</span>
+                      <span className="reviews">({expert.reviews})</span>
+                    </div>
+                    <h3 className="expert-name">{expert.name}</h3>
+                    <p className="expert-profession">{expert.profession}</p>
+                    <div className="expert-meta">
+                      <MapPin size={12} />
+                      <span>{expert.city}</span>
+                    </div>
+                    <p className="expert-specialty">{expert.specialty}</p>
+                  </div>
+                </motion.div>
+              )
+            })}
+          </div>
+          
+          <button onClick={next} className="carousel-btn next">
+            <ChevronRight size={24} />
+          </button>
+        </div>
+
+        {/* Dots */}
+        <div className="carousel-dots">
+          {ELITE_EXPERTS.map((_, idx) => (
+            <button
+              key={idx}
+              onClick={() => setActiveIndex(idx)}
+              className={`dot ${idx === activeIndex ? 'active' : ''}`}
+            />
+          ))}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+// ─── HOW IT WORKS IMMERSIVE ─────────────────────────────────────────────────
+function HowItWorks() {
+  const [activeStep, setActiveStep] = useState(0)
+
+  const steps = [
+    {
+      icon: Search,
+      title: 'Cherchez',
+      desc: 'Trouvez le pro idéal près de chez vous',
+      mockup: (
+        <div className="mockup-search">
+          <div className="mockup-header">
+            <Search size={14} />
+            <span>Rechercher...</span>
+          </div>
+          <div className="mockup-suggestions">
+            <div className="suggestion active">
+              <Scissors size={14} />
+              <span>Coiffeur Lyon</span>
+              <ArrowRight size={12} />
+            </div>
+            <div className="suggestion">
+              <Heart size={14} />
+              <span>Massage Paris</span>
+            </div>
+            <div className="suggestion">
+              <Camera size={14} />
+              <span>Photographe Bordeaux</span>
+            </div>
+          </div>
+        </div>
+      )
+    },
+    {
+      icon: Calendar,
+      title: 'Réservez',
+      desc: 'Choisissez votre créneau en temps réel',
+      mockup: (
+        <div className="mockup-booking">
+          <div className="mockup-calendar">
+            <div className="cal-header">
+              <span>Décembre 2026</span>
+            </div>
+            <div className="cal-days">
+              {['L', 'M', 'M', 'J', 'V', 'S', 'D'].map((d, i) => (
+                <span key={i} className="cal-day-label">{d}</span>
+              ))}
+            </div>
+            <div className="cal-grid">
+              {Array.from({ length: 31 }, (_, i) => (
+                <div key={i} className={`cal-day ${i === 14 ? 'selected' : ''}`}>
+                  {i + 1}
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="mockup-wallet">
+            <Wallet size={18} />
+            <div className="wallet-info">
+              <span className="wallet-label">Acompte sécurisé</span>
+              <span className="wallet-amount">50,00 €</span>
+            </div>
+            <Shield size={16} className="wallet-shield" />
+          </div>
+        </div>
+      )
+    },
+    {
+      icon: Star,
+      title: 'Profitez',
+      desc: 'Recevez vos rappels automatiques',
+      mockup: (
+        <div className="mockup-notification">
+          <div className="notif-header">
+            <Bell size={14} />
+            <span>Maintenant</span>
+          </div>
+          <div className="notif-card">
+            <div className="notif-avatar">
+              <img src={ELITE_EXPERTS[0].image} alt="" />
+            </div>
+            <div className="notif-content">
+              <p className="notif-title">Rappel : Rendez-vous demain</p>
+              <p className="notif-desc">14h00 avec Alexandre Martin</p>
+            </div>
+          </div>
+          <div className="notif-card secondary">
+            <CreditCard size={14} />
+            <span>Paiement confirmé</span>
+          </div>
+        </div>
+      )
+    },
+  ]
+
+  return (
+    <section className="how-it-works-section">
+      <div className="hiw-container">
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: '-100px' }}
+          transition={{ duration: 0.6 }}
+          className="section-header"
+        >
+          <span className="section-badge">Comment ça marche</span>
+          <h2 className="section-title">Simple. Rapide. Efficace.</h2>
+        </motion.div>
+
+        <div className="hiw-content">
+          {/* Steps Navigation */}
+          <div className="hiw-steps-nav">
+            {steps.map((step, idx) => (
+              <button
+                key={idx}
+                onClick={() => setActiveStep(idx)}
+                className={`hiw-step-btn ${activeStep === idx ? 'active' : ''}`}
+              >
+                <div className="step-number">{idx + 1}</div>
+                <div className="step-info">
+                  <span className="step-title">{step.title}</span>
+                  <span className="step-desc">{step.desc}</span>
+                </div>
+              </button>
+            ))}
+          </div>
+
+          {/* Mockup Display */}
+          <div className="hiw-mockup-wrapper">
+            <motion.div
+              key={activeStep}
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.4 }}
+              className="hiw-mockup"
+            >
+              {steps[activeStep].mockup}
+            </motion.div>
+            
+            {/* Decorative elements */}
+            <div className="mockup-glow" />
+            <div className="mockup-phone-frame" />
+          </div>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+// ─── FOOTER ──────────────────────────────────────────────────────────────────
+function Footer() {
+  return (
+    <footer className="footer-section">
+      <div className="footer-container">
+        <div className="footer-top">
+          <BrandLogo variant="dark" />
+          <div className="footer-links">
+            <Link href="/marketplace">Marketplace</Link>
+            <Link href="/client-sign-in">Connexion</Link>
+            <Link href="/client-sign-up" className="footer-cta">M&apos;inscrire</Link>
+          </div>
+        </div>
+        <div className="footer-bottom">
+          <span>© 2026 CalendaPro. Tous droits réservés.</span>
+          <span>Conçu à Paris pour les clients exigeants</span>
+        </div>
+      </div>
+    </footer>
+  )
+}
+
+// ─── MAIN PAGE ──────────────────────────────────────────────────────────────
+export default function ExplorePage() {
+  return (
+    <>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300&display=swap');
+        @import url('https://api.fontshare.com/v2/css?f[]=clash-display@400,500,600,700&display=swap');
+        
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        html { scroll-behavior: smooth; }
+        body { font-family: 'DM Sans', sans-serif; }
+        
+        /* ─── GLOBAL STYLES ─────────────────────────────────────────────── */
+        .page-wrapper {
+          min-height: 100vh;
+          background: radial-gradient(ellipse at 50% 0%, #ffffff 0%, #f1f5f9 50%, #e2e8f0 100%);
+          overflow-x: hidden;
+        }
+        
+        /* ─── NAV STYLES ────────────────────────────────────────────────── */
+        .nav-btn-ghost {
+          font-size: 0.85rem;
+          font-weight: 500;
+          color: #64748b;
+          text-decoration: none;
+          padding: 0.5rem 1.25rem;
+          border-radius: 100px;
+          font-family: 'DM Sans', sans-serif;
+          transition: all 0.3s;
+          border: 1px solid transparent;
+          position: relative;
+        }
+        .nav-btn-ghost:hover {
+          color: #7c3aed;
+          border-color: rgba(124, 58, 237, 0.3);
+          box-shadow: 0 0 20px rgba(124, 58, 237, 0.15);
+        }
+        
+        .nav-btn-gradient {
+          font-size: 0.85rem;
+          font-weight: 600;
+          color: white;
+          text-decoration: none;
+          padding: 0.55rem 1.4rem;
+          border-radius: 100px;
+          background: linear-gradient(135deg, #7c3aed, #ec4899);
+          font-family: 'DM Sans', sans-serif;
+          box-shadow: 0 4px 20px rgba(124, 58, 237, 0.35), 0 0 0 1px rgba(255,255,255,0.2) inset;
+          transition: all 0.3s;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          position: relative;
+          overflow: hidden;
+        }
+        .nav-btn-gradient::before {
+          content: '';
+          position: absolute;
+          inset: 0;
+          background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+          transform: translateX(-100%);
+          transition: transform 0.6s;
+        }
+        .nav-btn-gradient:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 8px 28px rgba(124, 58, 237, 0.45), 0 0 30px rgba(236, 72, 153, 0.3), 0 0 0 1px rgba(255,255,255,0.3) inset;
+        }
+        .nav-btn-gradient:hover::before {
+          transform: translateX(100%);
+        }
+        
+        /* ─── HERO STYLES ──────────────────────────────────────────────── */
+        .hero-section {
+          min-height: 100vh;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          padding: 8rem 1.5rem 6rem;
+          position: relative;
+          overflow: hidden;
+        }
+        
+        .orb {
+          position: absolute;
+          border-radius: 50%;
+          filter: blur(80px);
+          pointer-events: none;
+        }
+        .orb-1 {
+          top: -10%;
+          left: -5%;
+          width: 50vw;
+          height: 50vw;
+          background: radial-gradient(circle, rgba(124, 58, 237, 0.08) 0%, transparent 60%);
+        }
+        .orb-2 {
+          bottom: -5%;
+          right: -10%;
+          width: 40vw;
+          height: 40vw;
+          background: radial-gradient(circle, rgba(236, 72, 153, 0.06) 0%, transparent 55%);
+        }
+        
+        .hero-content {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          text-align: center;
+          max-width: 720px;
+          position: relative;
+          z-index: 1;
+        }
+        
+        .premium-badge {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          background: rgba(124, 58, 237, 0.08);
+          border: 1px solid rgba(124, 58, 237, 0.15);
+          color: #7c3aed;
+          font-size: 0.75rem;
+          font-weight: 600;
+          letter-spacing: 0.06em;
+          text-transform: uppercase;
+          padding: 0.5rem 1rem;
+          border-radius: 100px;
+          font-family: 'DM Sans', sans-serif;
+          margin-bottom: 2rem;
+          backdrop-filter: blur(8px);
+        }
+        
+        .hero-title {
+          font-family: 'Clash Display', sans-serif;
+          font-size: clamp(2.5rem, 6vw, 4.5rem);
+          font-weight: 700;
+          line-height: 1.05;
+          letter-spacing: -0.04em;
+          margin: 0 0 1.5rem;
+        }
+        
+        .gradient-text-animated {
+          background: linear-gradient(90deg, #7c3aed, #ec4899, #a855f7, #7c3aed);
+          background-size: 300% 100%;
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          background-clip: text;
+          animation: gradient-shift 4s ease infinite;
+        }
+        
+        @keyframes gradient-shift {
+          0% { background-position: 0% 50%; }
+          50% { background-position: 100% 50%; }
+          100% { background-position: 0% 50%; }
+        }
+        
+        .hero-subtitle {
+          font-size: 1.15rem;
+          color: #64748b;
+          line-height: 1.75;
+          font-family: 'DM Sans', sans-serif;
+          font-weight: 400;
+          max-width: 520px;
+          margin: 0 0 2.5rem;
+        }
+        
+        .hero-cta {
+          display: inline-flex;
+          align-items: center;
+          gap: 10px;
+          padding: 1.1rem 2.5rem;
+          background: linear-gradient(135deg, #7c3aed 0%, #ec4899 100%);
+          color: white;
+          border-radius: 100px;
+          font-weight: 700;
+          font-size: 1.05rem;
+          text-decoration: none;
+          font-family: 'DM Sans', sans-serif;
+          box-shadow: 0 8px 32px rgba(124, 58, 237, 0.4), 0 16px 48px rgba(124, 58, 237, 0.15);
+          transition: all 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+          position: relative;
+          overflow: hidden;
+        }
+        .hero-cta:hover {
+          transform: translateY(-3px) scale(1.02);
+          box-shadow: 0 12px 40px rgba(124, 58, 237, 0.5), 0 20px 60px rgba(124, 58, 237, 0.2);
+        }
+        
+        .trust-signals {
+          display: flex;
+          align-items: center;
+          gap: 1.5rem;
+          flex-wrap: wrap;
+          justify-content: center;
+          margin-top: 2.5rem;
+        }
+        .trust-item {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          font-size: 0.8rem;
+          font-weight: 500;
+          color: #94a3b8;
+          font-family: 'DM Sans', sans-serif;
+        }
+        .trust-item svg {
+          color: #7c3aed;
+        }
+        
+        /* ─── CATEGORIES GLASS ───────────────────────────────────────────── */
+        .categories-section {
+          padding: 0 1.5rem 4rem;
+          position: relative;
+          z-index: 10;
+          margin-top: -4rem;
+        }
+        .categories-container {
+          max-width: 1100px;
+          margin: 0 auto;
+          background: rgba(255, 255, 255, 0.6);
+          backdrop-filter: blur(24px) saturate(180%);
+          border: 1px solid rgba(255, 255, 255, 0.4);
+          border-radius: 32px;
+          padding: 3rem;
+          box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(255,255,255,0.5) inset;
+        }
+        
+        .section-header {
+          text-align: center;
+          margin-bottom: 2.5rem;
+        }
+        .section-badge {
+          display: inline-block;
+          font-size: 0.7rem;
+          font-weight: 700;
+          letter-spacing: 0.12em;
+          text-transform: uppercase;
+          color: #7c3aed;
+          background: rgba(124, 58, 237, 0.08);
+          padding: 0.4rem 1rem;
+          border-radius: 100px;
+          font-family: 'DM Sans', sans-serif;
+          margin-bottom: 1rem;
+        }
+        .section-badge.gold {
+          color: #d97706;
+          background: rgba(217, 119, 6, 0.1);
+        }
+        .section-title {
+          font-family: 'Clash Display', sans-serif;
+          font-size: clamp(1.8rem, 3vw, 2.4rem);
+          font-weight: 600;
+          letter-spacing: -0.02em;
+          color: #0f172a;
+          margin: 0.5rem 0;
+        }
+        .section-subtitle {
+          font-size: 1rem;
+          color: #64748b;
+          font-family: 'DM Sans', sans-serif;
+          max-width: 400px;
+          margin: 0 auto;
+        }
+        
+        .categories-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+          gap: 1rem;
+        }
+        
+        .category-card {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 0.75rem;
+          padding: 1.75rem 1rem;
+          background: rgba(255, 255, 255, 0.4);
+          backdrop-filter: blur(12px);
+          border: 1px solid rgba(255, 255, 255, 0.2);
+          border-radius: 24px;
+          text-decoration: none;
+          transition: all 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+          position: relative;
+          overflow: hidden;
+        }
+        .category-card:hover {
+          transform: translateY(-8px);
+          border-color: rgba(255, 255, 255, 0.4);
+          box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        }
+        
+        .shimmer-overlay {
+          position: absolute;
+          inset: 0;
+          background: linear-gradient(90deg, transparent, rgba(251, 191, 36, 0.15), transparent);
+          transform: translateX(-100%);
+          transition: transform 0.6s;
+        }
+        .category-card:hover .shimmer-overlay {
+          transform: translateX(100%);
+        }
+        
+        .category-icon {
+          width: 56px;
+          height: 56px;
+          border-radius: 16px;
+          background: linear-gradient(135deg, var(--cat-color)20, var(--cat-color)10);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: var(--cat-color);
+          transition: all 0.3s;
+        }
+        .category-card:hover .category-icon {
+          transform: scale(1.1);
+          filter: drop-shadow(0 4px 12px var(--cat-color)40);
+        }
+        
+        .category-label {
+          font-family: 'Clash Display', sans-serif;
+          font-weight: 600;
+          font-size: 0.95rem;
+          color: #0f172a;
+          letter-spacing: -0.01em;
+        }
+        .category-desc {
+          font-size: 0.75rem;
+          color: #94a3b8;
+          font-family: 'DM Sans', sans-serif;
+        }
+        
+        /* ─── EXPERTS SECTION ───────────────────────────────────────────── */
+        .experts-section {
+          padding: 6rem 1.5rem;
+          background: linear-gradient(180deg, transparent, rgba(124, 58, 237, 0.03) 50%, transparent);
+        }
+        .experts-container {
+          max-width: 1100px;
+          margin: 0 auto;
+        }
+        
+        .impact-counter {
+          background: rgba(255, 255, 255, 0.6);
+          backdrop-filter: blur(12px);
+          border: 1px solid rgba(124, 58, 237, 0.1);
+          border-radius: 16px;
+          padding: 1rem 2rem;
+          margin: 2rem auto 3rem;
+          max-width: fit-content;
+          position: relative;
+          overflow: hidden;
+        }
+        .counter-line {
+          display: flex;
+          align-items: center;
+          gap: 0.75rem;
+          font-family: 'Clash Display', sans-serif;
+        }
+        .counter-label {
+          font-size: 0.7rem;
+          font-weight: 600;
+          letter-spacing: 0.1em;
+          color: #94a3b8;
+          text-transform: uppercase;
+        }
+        .counter-value {
+          font-size: 1.5rem;
+          font-weight: 700;
+          color: #7c3aed;
+          text-shadow: 0 0 30px rgba(124, 58, 237, 0.3);
+        }
+        .counter-glow {
+          position: absolute;
+          inset: 0;
+          background: linear-gradient(90deg, transparent, rgba(124, 58, 237, 0.1), transparent);
+          animation: shimmer 3s infinite;
+        }
+        
+        .carousel-wrapper {
+          position: relative;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 1rem;
+          perspective: 1000px;
+        }
+        .carousel-track {
+          position: relative;
+          width: 300px;
+          height: 450px;
+        }
+        
+        .carousel-btn {
+          width: 44px;
+          height: 44px;
+          border-radius: 50%;
+          background: rgba(255, 255, 255, 0.8);
+          border: 1px solid rgba(0, 0, 0, 0.08);
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: #64748b;
+          transition: all 0.3s;
+          z-index: 10;
+        }
+        .carousel-btn:hover {
+          background: white;
+          color: #7c3aed;
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+          transform: scale(1.1);
+        }
+        
+        .expert-card {
+          position: absolute;
+          width: 280px;
+          background: rgba(255, 255, 255, 0.8);
+          backdrop-filter: blur(12px);
+          border: 1px solid rgba(255, 255, 255, 0.3);
+          border-radius: 24px;
+          overflow: hidden;
+          box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+          transition: all 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+        .expert-card.active {
+          box-shadow: 0 25px 50px rgba(0, 0, 0, 0.15);
+        }
+        
+        .expert-image-wrapper {
+          position: relative;
+          height: 200px;
+          overflow: hidden;
+        }
+        .expert-image {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+          transition: transform 0.5s;
+        }
+        .expert-card:hover .expert-image {
+          transform: scale(1.05);
+        }
+        
+        .expert-badge {
+          position: absolute;
+          top: 12px;
+          right: 12px;
+          display: flex;
+          align-items: center;
+          gap: 4px;
+          background: linear-gradient(135deg, #fbbf24, #f59e0b);
+          color: white;
+          padding: 0.35rem 0.75rem;
+          border-radius: 100px;
+          font-size: 0.65rem;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+          box-shadow: 0 4px 12px rgba(251, 191, 36, 0.3);
+          animation: gold-pulse 2s ease-in-out infinite;
+        }
+        @keyframes gold-pulse {
+          0%, 100% { box-shadow: 0 4px 12px rgba(251, 191, 36, 0.3); }
+          50% { box-shadow: 0 4px 20px rgba(251, 191, 36, 0.5); }
+        }
+        
+        .expert-info {
+          padding: 1.25rem;
+        }
+        .expert-rating {
+          display: flex;
+          align-items: center;
+          gap: 4px;
+          margin-bottom: 0.5rem;
+        }
+        .expert-rating span:first-of-type {
+          font-weight: 700;
+          color: #0f172a;
+          font-size: 0.9rem;
+        }
+        .reviews {
+          font-size: 0.75rem;
+          color: #94a3b8;
+        }
+        .expert-name {
+          font-family: 'Clash Display', sans-serif;
+          font-size: 1.1rem;
+          font-weight: 600;
+          color: #0f172a;
+          margin-bottom: 0.25rem;
+        }
+        .expert-profession {
+          font-size: 0.85rem;
+          color: #7c3aed;
+          font-weight: 500;
+          margin-bottom: 0.5rem;
+        }
+        .expert-meta {
+          display: flex;
+          align-items: center;
+          gap: 4px;
+          font-size: 0.75rem;
+          color: #94a3b8;
+          margin-bottom: 0.75rem;
+        }
+        .expert-specialty {
+          font-size: 0.8rem;
+          color: #64748b;
+          font-style: italic;
+        }
+        
+        .carousel-dots {
+          display: flex;
+          justify-content: center;
+          gap: 0.5rem;
+          margin-top: 2rem;
+        }
+        .dot {
+          width: 8px;
+          height: 8px;
+          border-radius: 50%;
+          background: rgba(124, 58, 237, 0.2);
+          border: none;
+          cursor: pointer;
+          transition: all 0.3s;
+        }
+        .dot.active {
+          background: #7c3aed;
+          width: 24px;
+          border-radius: 4px;
+        }
+        
+        /* ─── HOW IT WORKS ──────────────────────────────────────────────── */
+        .how-it-works-section {
+          padding: 6rem 1.5rem;
+          background: #f8fafc;
+        }
+        .hiw-container {
+          max-width: 1000px;
+          margin: 0 auto;
+        }
+        
+        .hiw-content {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 4rem;
+          align-items: center;
+          margin-top: 3rem;
+        }
+        @media (max-width: 768px) {
+          .hiw-content {
+            grid-template-columns: 1fr;
+            gap: 2rem;
+          }
+        }
+        
+        .hiw-steps-nav {
+          display: flex;
+          flex-direction: column;
+          gap: 1rem;
+        }
+        .hiw-step-btn {
+          display: flex;
+          align-items: center;
+          gap: 1rem;
+          padding: 1.25rem;
+          background: rgba(255, 255, 255, 0.6);
+          border: 1px solid rgba(0, 0, 0, 0.06);
+          border-radius: 16px;
+          cursor: pointer;
+          transition: all 0.3s;
+          text-align: left;
+          width: 100%;
+        }
+        .hiw-step-btn:hover {
+          background: rgba(255, 255, 255, 0.9);
+          transform: translateX(4px);
+        }
+        .hiw-step-btn.active {
+          background: white;
+          border-color: rgba(124, 58, 237, 0.2);
+          box-shadow: 0 10px 30px rgba(124, 58, 237, 0.1);
+        }
+        
+        .step-number {
+          width: 40px;
+          height: 40px;
+          border-radius: 12px;
+          background: linear-gradient(135deg, rgba(124, 58, 237, 0.1), rgba(236, 72, 153, 0.1));
+          border: 1.5px solid rgba(124, 58, 237, 0.15);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-family: 'Clash Display', sans-serif;
+          font-weight: 700;
+          color: #7c3aed;
+        }
+        .hiw-step-btn.active .step-number {
+          background: linear-gradient(135deg, #7c3aed, #ec4899);
+          color: white;
+          border-color: transparent;
+        }
+        
+        .step-info {
+          display: flex;
+          flex-direction: column;
+        }
+        .step-title {
+          font-family: 'Clash Display', sans-serif;
+          font-weight: 600;
+          font-size: 1.1rem;
+          color: #0f172a;
+        }
+        .step-desc {
+          font-size: 0.8rem;
+          color: #94a3b8;
+          margin-top: 2px;
+        }
+        
+        .hiw-mockup-wrapper {
+          position: relative;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+        .hiw-mockup {
+          background: white;
+          border-radius: 32px;
+          padding: 1.5rem;
+          box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15);
+          border: 1px solid rgba(0, 0, 0, 0.06);
+          width: 280px;
+          min-height: 380px;
+          position: relative;
+          z-index: 1;
+        }
+        
+        .mockup-glow {
+          position: absolute;
+          width: 300px;
+          height: 400px;
+          background: radial-gradient(circle, rgba(124, 58, 237, 0.15) 0%, transparent 70%);
+          filter: blur(40px);
+          animation: glow-pulse 4s ease-in-out infinite;
+        }
+        @keyframes glow-pulse {
+          0%, 100% { opacity: 0.5; transform: scale(1); }
+          50% { opacity: 0.8; transform: scale(1.05); }
+        }
+        
+        /* Mockup Search */
+        .mockup-search {
+          display: flex;
+          flex-direction: column;
+          gap: 1rem;
+        }
+        .mockup-header {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          padding: 0.75rem 1rem;
+          background: #f1f5f9;
+          border-radius: 12px;
+          color: #64748b;
+          font-size: 0.85rem;
+        }
+        .mockup-suggestions {
+          display: flex;
+          flex-direction: column;
+          gap: 0.5rem;
+        }
+        .suggestion {
+          display: flex;
+          align-items: center;
+          gap: 0.75rem;
+          padding: 0.75rem 1rem;
+          background: rgba(124, 58, 237, 0.05);
+          border-radius: 12px;
+          font-size: 0.85rem;
+          color: #0f172a;
+          transition: all 0.2s;
+        }
+        .suggestion.active {
+          background: rgba(124, 58, 237, 0.1);
+          color: #7c3aed;
+        }
+        
+        /* Mockup Calendar */
+        .mockup-booking {
+          display: flex;
+          flex-direction: column;
+          gap: 1rem;
+        }
+        .mockup-calendar {
+          background: #f8fafc;
+          border-radius: 16px;
+          padding: 1rem;
+        }
+        .cal-header {
+          text-align: center;
+          font-weight: 600;
+          color: #0f172a;
+          margin-bottom: 0.75rem;
+          font-size: 0.85rem;
+        }
+        .cal-days {
+          display: grid;
+          grid-template-columns: repeat(7, 1fr);
+          text-align: center;
+          font-size: 0.65rem;
+          color: #94a3b8;
+          margin-bottom: 0.5rem;
+        }
+        .cal-grid {
+          display: grid;
+          grid-template-columns: repeat(7, 1fr);
+          gap: 2px;
+        }
+        .cal-day {
+          aspect-ratio: 1;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 0.7rem;
+          border-radius: 6px;
+          color: #0f172a;
+        }
+        .cal-day.selected {
+          background: #7c3aed;
+          color: white;
+        }
+        .mockup-wallet {
+          display: flex;
+          align-items: center;
+          gap: 0.75rem;
+          padding: 1rem;
+          background: linear-gradient(135deg, rgba(34, 197, 94, 0.1), rgba(34, 197, 94, 0.05));
+          border: 1px solid rgba(34, 197, 94, 0.2);
+          border-radius: 12px;
+          color: #16a34a;
+        }
+        .wallet-info {
+          display: flex;
+          flex-direction: column;
+          flex: 1;
+        }
+        .wallet-label {
+          font-size: 0.7rem;
+          color: #16a34a;
+        }
+        .wallet-amount {
+          font-weight: 700;
+          font-size: 1rem;
+          color: #16a34a;
+        }
+        .wallet-shield {
+          opacity: 0.5;
+        }
+        
+        /* Mockup Notification */
+        .mockup-notification {
+          display: flex;
+          flex-direction: column;
+          gap: 0.75rem;
+        }
+        .notif-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding-bottom: 0.75rem;
+          border-bottom: 1px solid #f1f5f9;
+          font-size: 0.75rem;
+          color: #94a3b8;
+        }
+        .notif-card {
+          display: flex;
+          align-items: center;
+          gap: 0.75rem;
+          padding: 1rem;
+          background: white;
+          border-radius: 16px;
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+          border: 1px solid rgba(0, 0, 0, 0.04);
+        }
+        .notif-card.secondary {
+          background: rgba(124, 58, 237, 0.05);
+          color: #7c3aed;
+          font-size: 0.8rem;
+          justify-content: center;
+        }
+        .notif-avatar {
+          width: 40px;
+          height: 40px;
+          border-radius: 50%;
+          overflow: hidden;
+          flex-shrink: 0;
+        }
+        .notif-avatar img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+        }
+        .notif-content {
+          display: flex;
+          flex-direction: column;
+        }
+        .notif-title {
+          font-weight: 600;
+          font-size: 0.85rem;
+          color: #0f172a;
+        }
+        .notif-desc {
+          font-size: 0.75rem;
+          color: #94a3b8;
+        }
+        
+        /* ─── FOOTER ───────────────────────────────────────────────────── */
+        .footer-section {
+          background: #0f172a;
+          padding: 4rem 1.5rem 2rem;
+        }
+        .footer-container {
+          max-width: 1100px;
+          margin: 0 auto;
+        }
+        .footer-top {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          flex-wrap: wrap;
+          gap: 1.5rem;
+          padding-bottom: 2rem;
+          border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .footer-links {
+          display: flex;
+          gap: 2rem;
+          align-items: center;
+        }
+        .footer-links a {
+          font-size: 0.85rem;
+          color: #94a3b8;
+          text-decoration: none;
+          font-family: 'DM Sans', sans-serif;
+          transition: color 0.2s;
+        }
+        .footer-links a:hover {
+          color: #a78bfa;
+        }
+        .footer-cta {
+          color: #7c3aed !important;
+          font-weight: 600;
+        }
+        .footer-bottom {
+          padding-top: 2rem;
+          display: flex;
+          justify-content: space-between;
+          flex-wrap: wrap;
+          gap: 1rem;
+          font-size: 0.8rem;
+          color: #475569;
+          font-family: 'DM Sans', sans-serif;
+        }
+        
+        /* ─── MOBILE RESPONSIVE ─────────────────────────────────────────── */
+        @media (max-width: 768px) {
+          .hero-section {
+            padding: 7rem 1rem 4rem;
+            min-height: auto;
+          }
+          .hero-title {
+            font-size: 2rem;
+          }
+          .hero-cta {
+            padding: 0.9rem 1.75rem;
+            font-size: 0.95rem;
+          }
+          .trust-signals {
+            gap: 1rem;
+          }
+          
+          .categories-container {
+            padding: 1.5rem;
+            border-radius: 24px;
+          }
+          .categories-grid {
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.75rem;
+          }
+          .category-card {
+            padding: 1.25rem 0.75rem;
+          }
+          
+          .carousel-track {
+            width: 260px;
+            height: 400px;
+          }
+          .expert-card {
+            width: 240px;
+          }
+          .carousel-btn {
+            display: none;
+          }
+          
+          .experts-section, .how-it-works-section {
+            padding: 3rem 1rem;
+          }
+          
+          .hiw-mockup {
+            width: 100%;
+            max-width: 280px;
+          }
+          
+          .footer-top {
+            flex-direction: column;
+            text-align: center;
+          }
+          .footer-links {
+            flex-wrap: wrap;
+            justify-content: center;
+          }
+          .footer-bottom {
+            flex-direction: column;
+            text-align: center;
+          }
+        }
+        
+        @media (max-width: 480px) {
+          .categories-grid {
+            grid-template-columns: repeat(2, 1fr);
+          }
+          .category-icon {
+            width: 48px;
+            height: 48px;
+          }
+          .category-label {
+            font-size: 0.85rem;
+          }
+        }
+      `}</style>
+      
+      <div className="page-wrapper">
+        <Nav />
+        <Hero />
+        <CategoriesSection />
+        <ExpertsSection />
+        <HowItWorks />
+        <Footer />
+      </div>
+    </>
+  )
+}

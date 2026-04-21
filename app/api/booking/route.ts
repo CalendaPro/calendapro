@@ -3,14 +3,14 @@ import { createBookingAndNotify } from '@/lib/booking-pipeline'
 
 export async function POST(request: Request) {
   const payload = await request.json()
-  const { username, clientName, date } = payload
+  const { username, clientName, date, source_channel } = payload
 
   if (!username || !clientName || !date) {
     return NextResponse.json({ error: 'Champs requis manquants' }, { status: 400 })
   }
 
   try {
-    const { appointment } = await createBookingAndNotify(payload)
+    const { appointment } = await createBookingAndNotify({ ...payload, source_channel })
     return NextResponse.json({ success: true, appointment })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Erreur booking'

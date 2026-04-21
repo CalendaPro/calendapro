@@ -28,11 +28,12 @@ export const PLANS = {
       'Services illimités',
       'Statistiques avancées',
       'Marketplace CalendaPro',
+      'CalendaPay — Paiements et acomptes',
     ],
     limit: null,
   },
   infinity: {
-    name: 'Infinity ✦',
+    name: 'Infinity',
     price: 49,
     priceId: process.env.NEXT_PUBLIC_STRIPE_INFINITY_PRICE_ID,
     features: [

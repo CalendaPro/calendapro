@@ -2,6 +2,9 @@ import { ClerkProvider } from '@clerk/nextjs'
 import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
+import { ThemeProvider } from '@/lib/theme-provider'
+import { AccentColorProvider } from '@/lib/accent-color-provider'
+import { LayoutProvider } from '@/lib/layout-provider'
 
 const inter = Inter({
   subsets: ['latin'],
@@ -22,7 +25,13 @@ export default function RootLayout({
     <ClerkProvider afterSignOutUrl="/">
       <html lang="fr" className={inter.variable}>
         <body className={`${inter.variable} font-sans antialiased`}>
-          {children}
+          <ThemeProvider>
+            <AccentColorProvider>
+              <LayoutProvider>
+                {children}
+              </LayoutProvider>
+            </AccentColorProvider>
+          </ThemeProvider>
         </body>
       </html>
     </ClerkProvider>

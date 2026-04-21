@@ -1,7 +1,3 @@
--- PostGIS: distance utilisateur → chaque profil géolocalisé
--- Exécuter dans Supabase SQL Editor si les migrations ne sont pas appliquées automatiquement.
--- Prérequis: extension postgis activée sur le projet.
-
 DROP FUNCTION IF EXISTS public.marketplace_pros_near(double precision, double precision);
 
 CREATE OR REPLACE FUNCTION public.marketplace_pros_near(
@@ -16,7 +12,7 @@ LANGUAGE sql
 STABLE
 AS $$
   SELECT
-    p.id AS profile_id,
+    p.id::uuid AS profile_id,
     ST_Distance(
       ST_SetSRID(ST_MakePoint(p.longitude, p.latitude), 4326)::geography,
       ST_SetSRID(ST_MakePoint(user_lng, user_lat), 4326)::geography

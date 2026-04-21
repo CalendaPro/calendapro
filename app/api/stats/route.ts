@@ -1,6 +1,6 @@
 import { auth } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { createServerSupabaseClient } from '@/lib/supabase-server'
 
 export async function GET() {
   const { userId } = await auth()
@@ -12,6 +12,8 @@ export async function GET() {
   tomorrow.setDate(tomorrow.getDate() + 1)
 
   const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1)
+
+  const supabase = createServerSupabaseClient()
 
   // RDV aujourd'hui
   const { count: todayCount } = await supabase

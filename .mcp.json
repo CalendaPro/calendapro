@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "aidesigner": {
+      "type": "http",
+      "url": "https://api.aidesigner.ai/api/v1/mcp",
+      "oauth": {
+        "clientName": "AIDesigner for Windsurf",
+        "clientUri": "https://aidesigner.ai",
+        "scopes": ["design:read", "design:write", "resource:read"]
+      }
+    }
+  }
+}

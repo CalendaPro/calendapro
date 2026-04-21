@@ -16,6 +16,7 @@ const isPublicRoute = createRouteMatcher([
   '/api/marketplace(.*)',
   '/api/auth/client-callback(.*)',
   '/api/auth/check(.*)',
+  '/api/auth/sync(.*)',  // Sync route for post-signup flow
   '/:username',
 ])
 

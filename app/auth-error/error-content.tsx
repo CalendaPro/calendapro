@@ -10,6 +10,15 @@ export default function ErrorContent() {
   const error = searchParams.get('error')
   const currentRole = searchParams.get('current_role')
   const expectedRole = searchParams.get('expected_role')
+  const planId = searchParams.get('planId') || 'starter'
+
+  // Construire les liens avec planId préservé
+  const buildLink = (basePath: string) => {
+    if (planId && planId !== 'starter') {
+      return `${basePath}?planId=${encodeURIComponent(planId)}`
+    }
+    return basePath
+  }
 
   const getErrorMessage = () => {
     if (error === 'role_mismatch') {
@@ -18,7 +27,7 @@ export default function ErrorContent() {
           title: 'Vous avez déjà un compte PRO',
           message: 'Cet email est associé à un compte professionnel. Voulez-vous vous connecter en tant que PRO ?',
           cta: 'Se connecter en tant que PRO',
-          ctaLink: '/sign-in',
+          ctaLink: buildLink('/sign-in'),
           secondary: 'Créer un compte CLIENT avec un autre email',
           secondaryLink: '/client-sign-up',
         }
@@ -28,9 +37,9 @@ export default function ErrorContent() {
           title: 'Vous avez déjà un compte CLIENT',
           message: 'Cet email est associé à un compte client. Voulez-vous vous connecter en tant que CLIENT ?',
           cta: 'Se connecter en tant que CLIENT',
-          ctaLink: '/client-sign-in',
+          ctaLink: buildLink('/client-sign-in'),
           secondary: 'Créer un compte PRO avec un autre email',
-          secondaryLink: '/sign-up',
+          secondaryLink: buildLink('/sign-up'),
         }
       }
     }
@@ -38,7 +47,7 @@ export default function ErrorContent() {
       title: 'Erreur d\'authentification',
       message: 'Une erreur est survenue lors de votre connexion.',
       cta: 'Retour à la page de connexion',
-      ctaLink: '/login',
+      ctaLink: buildLink('/login'),
       secondary: 'Retour à l\'accueil',
       secondaryLink: '/',
     }

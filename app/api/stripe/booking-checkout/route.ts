@@ -21,6 +21,8 @@ export async function POST(request: Request) {
     notes,
     estimatedServiceTotalEur,
     paymentChoice,
+    source_channel,
+    durationMinutes,
   } = body
 
   if (!username || !clientName || !date) {
@@ -33,17 +35,27 @@ export async function POST(request: Request) {
   }
 
   const supabase = createServerSupabaseClient()
+  console.log(`[booking-checkout] 🔍 Recherche du pro: ${username}`)
+  
   const { data: profile, error } = await supabase
     .from('profiles')
     .select(
-      'username, full_name, online_payment_enabled, deposit_required, deposit_type, deposit_value, allow_full_online_payment'
+      'id, username, full_name, online_payment_enabled, deposit_required, deposit_type, deposit_value, allow_full_online_payment'
     )
-    .eq('username', username)
-    .single()
+    .ilike('username', username)
+    .maybeSingle()
 
-  if (error || !profile) {
+  if (error) {
+    console.error(`[booking-checkout] ❌ Erreur Supabase:`, error)
+    return NextResponse.json({ error: 'Erreur base de données', details: error.message }, { status: 500 })
+  }
+  
+  if (!profile) {
+    console.error(`[booking-checkout] ❌ Profil introuvable: ${username}`)
     return NextResponse.json({ error: 'Professionnel introuvable' }, { status: 404 })
   }
+  
+  console.log(`[booking-checkout] ✅ Profil trouvé: ${profile.username}`)
 
   const s = normalizeBookingPaymentSettings(profile)
 
@@ -128,6 +140,11 @@ export async function POST(request: Request) {
     paymentKind: effectiveChoice,
     amountEur: String(amountEur),
     paymentLabel,
+    serviceName: notes?.includes('Service:') ? notes.split('Service:')[1]?.split('\n')[0]?.trim() || '' : '',
+    sourceChannel: String(source_channel || ''),
+    proId: String(profile.id),
+    scheduledAt: String(date),
+    durationMinutes: String(durationMinutes || 60),
   }
 
   try {
@@ -147,7 +164,7 @@ export async function POST(request: Request) {
           quantity: 1,
         },
       ],
-      success_url: `${appUrl}/${encodeURIComponent(username)}?booking=success`,
+      success_url: `${appUrl}/booking/success?session_id={CHECKOUT_SESSION_ID}&username=${encodeURIComponent(username)}`,
       cancel_url: `${appUrl}/${encodeURIComponent(username)}?booking=cancel`,
       metadata: meta,
       payment_intent_data: { metadata: meta },

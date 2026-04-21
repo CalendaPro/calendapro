@@ -7,6 +7,12 @@ import { PlanBadge } from '@/components/marketplace/PlanBadge'
 import { compareMarketplacePros } from '@/lib/geo'
 import { motion, AnimatePresence } from 'framer-motion'
 import type { Transition } from 'framer-motion'
+import InfinityMatch from '@/components/marketplace/InfinityMatch'
+import {
+  LayoutGrid, Scissors, Target, Camera, Laptop, Sparkles,
+  Dumbbell, TrendingUp, Palette, MapPin, ArrowRight, Heart,
+  Locate, RotateCcw, Grid2X2, Map,
+} from 'lucide-react'
 
 const MarketplaceMap = dynamic(() => import('@/components/marketplace/MarketplaceMap'), { ssr: false })
 
@@ -34,16 +40,18 @@ type Stats = {
 type ViewMode = 'grid' | 'map'
 
 // ─── CATEGORIES ───────────────────────────────────────────────────────────────
-const CATEGORIES = [
-  { id: 'all',        label: 'Tous',           emoji: '✦',  color: '#7c3aed' },
-  { id: 'barbier',    label: 'Barbiers',        emoji: '✂️', color: '#db2777' },
-  { id: 'coach',      label: 'Coachs',          emoji: '🎯', color: '#ea580c' },
-  { id: 'photo',      label: 'Photographes',    emoji: '📸', color: '#059669' },
-  { id: 'freelance',  label: 'Freelances',      emoji: '💻', color: '#2563eb' },
-  { id: 'therapeute', label: 'Thérapeutes',     emoji: '💆', color: '#7c3aed' },
-  { id: 'sport',      label: 'Coachs sportifs', emoji: '🏋️', color: '#dc2626' },
-  { id: 'consultant', label: 'Consultants',     emoji: '📊', color: '#d97706' },
-  { id: 'creatif',    label: 'Créatifs',        emoji: '🎨', color: '#0891b2' },
+type Category = { id: string; label: string; icon: React.ElementType; color: string }
+
+const CATEGORIES: Category[] = [
+  { id: 'all',        label: 'Tous',           icon: LayoutGrid,  color: '#4F46E5' },
+  { id: 'barbier',    label: 'Barbiers',        icon: Scissors,    color: '#db2777' },
+  { id: 'coach',      label: 'Coachs',          icon: Target,      color: '#ea580c' },
+  { id: 'photo',      label: 'Photographes',    icon: Camera,      color: '#059669' },
+  { id: 'freelance',  label: 'Freelances',      icon: Laptop,      color: '#2563eb' },
+  { id: 'therapeute', label: 'Thérapeutes',     icon: Sparkles,    color: '#7c3aed' },
+  { id: 'sport',      label: 'Coachs sportifs', icon: Dumbbell,    color: '#dc2626' },
+  { id: 'consultant', label: 'Consultants',     icon: TrendingUp,  color: '#d97706' },
+  { id: 'creatif',    label: 'Créatifs',        icon: Palette,     color: '#0891b2' },
 ]
 
 const CITIES = [
@@ -93,18 +101,9 @@ function Avatar({ name, size = 48, avatarUrl }: { name: string; size?: number; a
 }
 
 // ─── PRO CARD ─────────────────────────────────────────────────────────────────
-function ProCard({ pro, idx }: { pro: Pro; idx: number }) {
-  const [hovered, setHovered] = useState(false)
+function ProCard({ pro, idx, isFav, onToggleFav }: { pro: Pro; idx: number; isFav: boolean; onToggleFav: (pro: Pro) => void }) {
   const catObj = CATEGORIES.find(c => c.id === pro.category)
-
-  // Mock badges - in real app, these would come from the pro data
-  const badges = {
-    topPro: pro.plan === 'infinity' || pro.plan === 'premium',
-    fastResponse: Math.random() > 0.5,
-    available: Math.random() > 0.3,
-    trending: Math.random() > 0.7,
-  }
-
+  const CatIcon = catObj?.icon
   return (
     <motion.div
       layout
@@ -112,118 +111,80 @@ function ProCard({ pro, idx }: { pro: Pro; idx: number }) {
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, scale: 0.96 }}
       transition={{ duration: 0.4, delay: idx * 0.05, ease: [0.22, 1, 0.36, 1] } as Transition}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      className="bg-white/70 backdrop-blur-sm border border-violet-100 rounded-2xl p-6 hover:border-violet-400 hover:shadow-xl transition-all cursor-pointer relative overflow-hidden"
+      className="glass-card-white"
       style={{
-        boxShadow: hovered ? '0 16px 48px rgba(124,58,237,0.12)' : '0 2px 8px rgba(0,0,0,0.04)',
-        transform: hovered ? 'translateY(-4px)' : 'translateY(0)',
+        overflow: 'hidden', position: 'relative', display: 'flex', flexDirection: 'column', cursor: 'pointer',
+        border: `1.5px solid ${pro.plan === 'infinity' ? '#c7d2fe' : 'var(--cl-border)'}`,
+      }}
+      whileHover={{
+        y: -5,
+        boxShadow: '0 24px 56px rgba(79,70,229,0.10), 0 4px 16px rgba(79,70,229,0.06)',
+        borderColor: pro.plan === 'infinity' ? '#a5b4fc' : 'rgba(79,70,229,0.2)',
       }}
     >
-      {/* Top accent bar pour infinity */}
       {pro.plan === 'infinity' && (
-        <div className="absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r from-violet-600 to-rose-500 rounded-t-2xl" />
+        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: 'linear-gradient(90deg, #4F46E5, #6366f1, #8B5CF6)' }} />
       )}
-
-      {/* Badges */}
-      <div className="flex gap-2 mb-3 flex-wrap">
-        {badges.topPro && (
-          <span className="px-2 py-1 bg-gradient-to-r from-amber-400 to-orange-500 text-white text-xs font-semibold rounded-full flex items-center gap-1">
-            ⭐ Top Pro
-          </span>
-        )}
-        {badges.fastResponse && (
-          <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs font-semibold rounded-full flex items-center gap-1">
-            ⚡ Réponse rapide
-          </span>
-        )}
-        {badges.available && (
-          <span className="px-2 py-1 bg-green-100 text-green-700 text-xs font-semibold rounded-full flex items-center gap-1">
-            🟢 Disponible
-          </span>
-        )}
-        {badges.trending && (
-          <span className="px-2 py-1 bg-rose-100 text-rose-700 text-xs font-semibold rounded-full flex items-center gap-1">
-            🔥 Trending
-          </span>
-        )}
-      </div>
-
-      {/* ── HEADER ── */}
-      <div className="flex items-start gap-3">
-        <div className="relative flex-shrink-0">
-          <Avatar name={pro.full_name || pro.username} size={48} avatarUrl={pro.avatar_url} />
-          {pro.plan !== 'starter' && (
-            <motion.div
-              animate={{ scale: [1, 1.3, 1] }}
-              transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
-              className="absolute bottom-1 right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-white shadow-sm"
-            />
-          )}
-        </div>
-
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1 flex-wrap">
-            <span className="font-semibold text-stone-900 truncate max-w-[140px]">
-              {pro.full_name || pro.username}
-            </span>
-            <PlanBadge plan={pro.plan} />
+      <div style={{ padding: '1.2rem 1.2rem 0.75rem' }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem', marginBottom: '0.75rem' }}>
+          <div style={{ position: 'relative', flexShrink: 0 }}>
+            <Avatar name={pro.full_name || pro.username} size={48} avatarUrl={pro.avatar_url} />
+            {pro.plan !== 'starter' && (
+              <motion.div
+                animate={{ scale: [1, 1.3, 1] }}
+                transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' } as Transition}
+                style={{ position: 'absolute', bottom: 1, right: 1, width: 11, height: 11, borderRadius: '50%', background: '#22c55e', border: '2px solid white' }}
+              />
+            )}
           </div>
-
-          {pro.category && catObj && (
-            <div className="inline-flex items-center gap-1 text-xs font-semibold text-violet-600 bg-violet-50 border border-violet-200 px-2 py-0.5 rounded-full mb-1">
-              <span>{catObj.emoji}</span> {catObj.label}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.25rem', flexWrap: 'wrap' as const }}>
+              <span style={{ fontFamily: "'Clash Display', sans-serif", fontWeight: 600, fontSize: '0.9rem', color: 'var(--cl-text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const, maxWidth: 140 }}>
+                {pro.full_name || pro.username}
+              </span>
+              <PlanBadge plan={pro.plan} />
             </div>
-          )}
-
-          <div className="flex items-center gap-2 flex-wrap text-sm text-stone-500">
-            {pro.city && (
-              <span className="flex items-center gap-1">
-                <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                  <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
-                  <circle cx="12" cy="10" r="3"/>
-                </svg>
-                {pro.city}
-              </span>
+            {catObj && CatIcon && (
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: '0.68rem', fontWeight: 600, color: catObj.color, background: `${catObj.color}14`, border: `1px solid ${catObj.color}28`, padding: '0.18rem 0.5rem', borderRadius: 100, marginBottom: '0.25rem', fontFamily: "'DM Sans', sans-serif" }}>
+                <CatIcon size={10} strokeWidth={2} /> {catObj.label}
+              </div>
             )}
-            {pro.distance != null && (
-              <span className="font-semibold text-xs px-2 py-0.5 rounded-full bg-green-50 text-green-600 border border-green-200">
-                {formatDistance(pro.distance)}
-              </span>
-            )}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' as const }}>
+              {pro.city && (
+                <span style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: '0.7rem', color: 'var(--cl-text-muted)', fontFamily: "'DM Sans', sans-serif" }}>
+                  <MapPin size={9} strokeWidth={2} />
+                  {pro.city}
+                </span>
+              )}
+              {pro.distance != null && (
+                <span style={{ fontSize: '0.65rem', fontWeight: 600, padding: '0.12rem 0.4rem', borderRadius: 100, background: '#f0fdf4', color: '#16a34a', border: '1px solid #bbf7d0', fontFamily: "'DM Sans', sans-serif" }}>
+                  {formatDistance(pro.distance)}
+                </span>
+              )}
+            </div>
           </div>
         </div>
+        <div style={{ height: 1, background: 'var(--cl-border)', marginBottom: '0.65rem' }} />
+        <p style={{ fontSize: '0.78rem', color: 'var(--cl-text-muted)', lineHeight: 1.65, display: '-webkit-box' as const, WebkitLineClamp: 3, WebkitBoxOrient: 'vertical' as const, overflow: 'hidden', minHeight: '3.75em', fontFamily: "'DM Sans', sans-serif" }}>
+          {pro.bio || <span style={{ color: '#CBD5E1', fontStyle: 'italic' }}>Aucune description renseignée.</span>}
+        </p>
       </div>
-
-      {/* ── SÉPARATEUR ── */}
-      <div className="h-px bg-stone-100 my-3" />
-
-      {/* ── BIO ── */}
-      <p className="text-sm text-stone-600 line-clamp-3 flex-1 min-h-[3.5em]">
-        {pro.bio || (
-          <span className="text-stone-300 italic text-xs">
-            Aucune description renseignée.
-          </span>
-        )}
-      </p>
-
-      {/* ── CTA ── */}
-      <div className="flex gap-2">
+      <div style={{ padding: '0.75rem 1.2rem', marginTop: 'auto', display: 'flex', gap: '0.5rem' }}>
         <Link
           href={`/client/${pro.username}`}
-          className="flex-1 text-center py-2 px-3 bg-gradient-to-r from-violet-600 to-rose-500 text-white rounded-xl font-semibold text-sm hover:opacity-90 transition-opacity"
+          className="btn-glow"
+          style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '0.65rem 1rem', background: 'linear-gradient(135deg, #4F46E5, #6366f1)', color: 'white', borderRadius: 12, fontWeight: 700, fontSize: '0.78rem', textDecoration: 'none', fontFamily: "'DM Sans', sans-serif", boxShadow: '0 4px 16px rgba(79,70,229,0.2)' }}
         >
-          Prendre RDV →
+          Prendre RDV
+          <ArrowRight size={11} strokeWidth={2.5} />
         </Link>
-        <Link
-          href={`/client/${pro.username}`}
-          title="Voir le profil"
-          className="py-2 px-2 bg-violet-50 text-violet-600 rounded-xl border border-violet-200 hover:bg-violet-100 transition-colors flex items-center justify-center"
+        <button
+          onClick={() => onToggleFav(pro)}
+          title={isFav ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+          style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 40, height: 40, borderRadius: 11, border: `1.5px solid ${isFav ? '#fecdd3' : 'var(--cl-border)'}`, background: isFav ? '#fff1f2' : 'var(--cl-surface)', color: isFav ? '#f43f5e' : 'var(--cl-text-muted)', transition: 'all 0.18s', cursor: 'pointer', flexShrink: 0 }}
         >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
-          </svg>
-        </Link>
+          <Heart size={15} strokeWidth={2} fill={isFav ? 'currentColor' : 'none'} />
+        </button>
       </div>
     </motion.div>
   )
@@ -232,22 +193,68 @@ function ProCard({ pro, idx }: { pro: Pro; idx: number }) {
 // ─── SKELETON ─────────────────────────────────────────────────────────────────
 function SkeletonCard() {
   return (
-    <div className="bg-white/70 backdrop-blur-sm border border-violet-100 rounded-2xl p-6 space-y-4 overflow-hidden relative">
-      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-violet-100/30 to-transparent animate-[shimmer_1.5s_infinite] -translate-x-full" />
-      <div className="flex gap-3">
-        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-violet-100 to-rose-100 flex-shrink-0" />
-        <div className="flex-1 space-y-2">
-          <div className="h-3.5 bg-gradient-to-r from-violet-100 to-rose-100 rounded w-1/2" />
-          <div className="h-2.5 bg-gradient-to-r from-violet-100 to-rose-100 rounded w-1/3" />
+    <div style={{
+      background: 'var(--cl-surface)',
+      border: '1.5px solid var(--cl-border)',
+      borderRadius: 20, overflow: 'hidden',
+      padding: '1.2rem',
+      boxShadow: 'var(--cl-shadow-soft)',
+    }}>
+      <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '0.75rem' }}>
+        {/* Avatar skeleton */}
+        <div style={{
+          width: 48, height: 48, borderRadius: '50%',
+          background: 'linear-gradient(90deg, var(--cl-border) 0%, var(--cl-bg) 50%, var(--cl-border) 100%)',
+          backgroundSize: '400% 100%',
+          animation: 'skeletonPulse 1.8s ease infinite',
+          flexShrink: 0,
+        }} />
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+          {/* Name skeleton */}
+          <div style={{
+            height: 14, borderRadius: 6,
+            background: 'linear-gradient(90deg, var(--cl-border) 0%, var(--cl-bg) 50%, var(--cl-border) 100%)',
+            backgroundSize: '400% 100%',
+            animation: 'skeletonPulse 1.8s ease infinite 0.1s',
+            width: '65%',
+          }} />
+          {/* Category skeleton */}
+          <div style={{
+            height: 11, borderRadius: 6,
+            background: 'linear-gradient(90deg, var(--cl-border) 0%, var(--cl-bg) 50%, var(--cl-border) 100%)',
+            backgroundSize: '400% 100%',
+            animation: 'skeletonPulse 1.8s ease infinite 0.2s',
+            width: '40%',
+          }} />
+          {/* City skeleton */}
+          <div style={{
+            height: 10, borderRadius: 6,
+            background: 'linear-gradient(90deg, var(--cl-border) 0%, var(--cl-bg) 50%, var(--cl-border) 100%)',
+            backgroundSize: '400% 100%',
+            animation: 'skeletonPulse 1.8s ease infinite 0.3s',
+            width: '50%',
+          }} />
         </div>
       </div>
-      <div className="h-px bg-violet-50" />
-      <div className="space-y-2">
-        <div className="h-2.5 bg-gradient-to-r from-violet-100 to-rose-100 rounded w-full" />
-        <div className="h-2.5 bg-gradient-to-r from-violet-100 to-rose-100 rounded w-3/4" />
-        <div className="h-2.5 bg-gradient-to-r from-violet-100 to-rose-100 rounded w-5/6" />
-      </div>
-      <div className="h-10 bg-gradient-to-r from-violet-100 to-rose-100 rounded-xl" />
+      {/* Separator */}
+      <div style={{ height: 1, background: 'var(--cl-border)', marginBottom: '0.75rem' }} />
+      {/* Bio skeleton : 3 lignes */}
+      {[100, 92, 75].map((w, i) => (
+        <div key={i} style={{
+          height: 10, borderRadius: 5, marginBottom: 6,
+          background: 'linear-gradient(90deg, var(--cl-border) 0%, var(--cl-bg) 50%, var(--cl-border) 100%)',
+          backgroundSize: '400% 100%',
+          animation: `skeletonPulse 1.8s ease infinite ${0.1 * i}s`,
+          width: `${w}%`,
+        }} />
+      ))}
+      {/* CTA skeleton */}
+      <div style={{
+        height: 40, borderRadius: 12, marginTop: '0.75rem',
+        background: 'linear-gradient(90deg, var(--cl-border) 0%, var(--cl-bg) 50%, var(--cl-border) 100%)',
+        backgroundSize: '400% 100%',
+        animation: 'skeletonPulse 1.8s ease infinite 0.4s',
+      }} />
     </div>
   )
 }
@@ -257,16 +264,14 @@ function EmptyState({ query }: { query: string }) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
-      className="col-span-full text-center py-20 flex flex-col items-center gap-4"
+      style={{ gridColumn: '1 / -1', textAlign: 'center' as const, padding: '5rem 1rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}
     >
-      <div className="w-16 h-16 rounded-2xl bg-violet-50 border border-violet-200 flex items-center justify-center text-3xl">🔍</div>
-      <h3 className="text-xl font-bold text-stone-900">
-        Aucun résultat
-      </h3>
-      <p className="text-stone-500 max-w-sm leading-relaxed">
-        {query
-          ? `Aucun professionnel ne correspond à « ${query} ». Essayez un autre terme ou réinitialisez les filtres.`
-          : 'Aucun professionnel dans cette catégorie pour le moment.'}
+      <div style={{ width: 64, height: 64, borderRadius: 18, background: 'var(--cl-accent-soft)', border: '1.5px solid var(--cl-accent-20)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--cl-accent)" strokeWidth="1.5" strokeLinecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      </div>
+      <h3 style={{ fontFamily: "'Clash Display', sans-serif", fontSize: '1.1rem', fontWeight: 700, color: 'var(--cl-text-primary)' }}>Aucun résultat</h3>
+      <p style={{ fontFamily: "'DM Sans', sans-serif", color: 'var(--cl-text-muted)', fontSize: '0.85rem', maxWidth: 340, lineHeight: 1.65 }}>
+        {query ? `Aucun professionnel ne correspond à « ${query} ». Essayez un autre terme.` : 'Aucun professionnel dans cette catégorie pour le moment.'}
       </p>
     </motion.div>
   )
@@ -282,8 +287,22 @@ export default function ClientMarketplacePage() {
   const [sortBy, setSortBy] = useState<'plan' | 'name' | 'distance'>('plan')
   const [availableNow, setAvailableNow] = useState(false)
   const [userCoords, setUserCoords] = useState<{ lat: number; lng: number } | null>(null)
+  const [viewMode, setViewMode] = useState<'grid' | 'map'>('grid')
+  const [searchFocused, setSearchFocused] = useState(false)
+  const [geoLoading, setGeoLoading] = useState(false)
+  const [geoError, setGeoError] = useState(false)
+  const [favIds, setFavIds] = useState<Set<string>>(new Set())
 
   // ── FETCH ─────────────────────────────────────────────────────────────
+  useEffect(() => {
+    fetch('/api/favorites')
+      .then(r => r.json())
+      .then((favs: { pro_id: string }[]) => {
+        if (Array.isArray(favs)) setFavIds(new Set(favs.map(f => f.pro_id)))
+      })
+      .catch(() => {})
+  }, [])
+
   useEffect(() => {
     let cancelled = false
     setLoading(true)
@@ -306,15 +325,49 @@ export default function ClientMarketplacePage() {
     }
   }, [userCoords])
 
+  const handleToggleFav = useCallback(async (pro: Pro) => {
+    // Update optimiste immédiat
+    const wasAlreadyFav = favIds.has(pro.id)
+    setFavIds(prev => {
+      const next = new Set(prev)
+      if (wasAlreadyFav) next.delete(pro.id)
+      else next.add(pro.id)
+      return next
+    })
+
+    try {
+      const res = await fetch('/api/favorites', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pro_id: pro.id, pro_username: pro.username }),
+      })
+      if (!res.ok) throw new Error('Echec')
+      const data = await res.json()
+      // Sync avec la vraie valeur serveur
+      setFavIds(prev => {
+        const next = new Set(prev)
+        if (data.action === 'added') next.add(pro.id)
+        if (data.action === 'removed') next.delete(pro.id)
+        return next
+      })
+    } catch {
+      // Rollback si echec
+      setFavIds(prev => {
+        const next = new Set(prev)
+        if (wasAlreadyFav) next.add(pro.id)
+        else next.delete(pro.id)
+        return next
+      })
+    }
+  }, [favIds])
+
   // ── GÉOLOC ───────────────────────────────────────────────────────────────
   const handleGeolocate = useCallback(() => {
-    if (!navigator.geolocation) return
+    if (!navigator.geolocation) { setGeoError(true); return }
+    setGeoLoading(true); setGeoError(false)
     navigator.geolocation.getCurrentPosition(
-      pos => {
-        setUserCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude })
-        setSortBy('distance')
-      },
-      () => {},
+      pos => { setUserCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude }); setSortBy('distance'); setGeoLoading(false) },
+      () => { setGeoLoading(false); setGeoError(true) },
       { timeout: 8000 }
     )
   }, [])
@@ -354,115 +407,156 @@ export default function ClientMarketplacePage() {
     return result
   }, [pros, search, category, city, sortBy, userCoords, availableNow])
 
+  const hasActiveFilters = !!(search || category !== 'all' || city !== 'Toutes les villes' || availableNow)
+
   return (
-    <div>
+    <>
       <style>{`
-        @keyframes shimmer {
-          0% { transform: translateX(-100%); }
-          100% { transform: translateX(100%); }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes skeletonPulse {
+          0% { background-position: 200% 0; }
+          100% { background-position: -200% 0; }
         }
+        .cat-pill { display: inline-flex; align-items: center; gap: 5px; padding: 0.3rem 0.7rem; border-radius: 100px; border: 1.5px solid var(--cl-border); background: var(--cl-surface); color: var(--cl-text-muted); font-size: 0.71rem; font-family: 'DM Sans', sans-serif; font-weight: 600; cursor: pointer; transition: all 0.18s; white-space: nowrap; }
+        .cat-pill:hover { border-color: rgba(79,70,229,0.3); color: var(--cl-accent); background: var(--cl-accent-soft); }
+        .cat-pill.active { background: var(--cl-accent-soft); border-color: var(--cl-accent-20); color: var(--cl-accent); }
+        .select-styled { padding: 0.48rem 0.8rem; border-radius: 10px; border: 1.5px solid var(--cl-border); background: var(--cl-surface); color: var(--cl-text-primary); font-size: 0.72rem; font-family: 'DM Sans', sans-serif; font-weight: 500; cursor: pointer; outline: none; transition: all 0.18s; }
+        .select-styled:hover { border-color: rgba(79,70,229,0.3); }
+        .select-styled:focus { border-color: var(--cl-accent); box-shadow: 0 0 0 3px var(--cl-accent-soft); }
+        .view-btn { display: flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 9px; border: 1.5px solid var(--cl-border); background: var(--cl-surface); color: var(--cl-text-muted); cursor: pointer; transition: all 0.18s; }
+        .view-btn:hover, .view-btn.active { border-color: rgba(79,70,229,0.3); color: var(--cl-accent); background: var(--cl-accent-soft); }
+        .toggle-switch { display: flex; align-items: center; gap: 8px; cursor: pointer; user-select: none; }
+        .toggle-track { width: 38px; height: 20px; border-radius: 100px; transition: background 0.25s; position: relative; flex-shrink: 0; }
+        .toggle-thumb { position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: white; box-shadow: 0 1px 3px rgba(0,0,0,0.15); transition: transform 0.25s; }
       `}</style>
-      <div className="mb-8">
-        <h1 className="text-3xl font-semibold text-stone-900 mb-2">
-          Marketplace
-        </h1>
-        <p className="text-stone-600">
-          Trouvez le professionnel idéal pour vos besoins
-        </p>
-      </div>
 
-      {/* Search Form */}
-      <div className="bg-white rounded-2xl border border-stone-200 p-6 mb-8 shadow-sm">
-        <div className="flex flex-col md:flex-row gap-4 mb-4">
-          <div className="flex-1">
-            <input
-              type="text"
-              placeholder="Rechercher par catégorie, ville ou nom..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full px-4 py-3 border border-stone-200 rounded-xl focus:outline-none focus:border-violet-500"
-            />
-          </div>
-          <div className="w-full md:w-48">
-            <select
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              className="w-full px-4 py-3 border border-stone-200 rounded-xl focus:outline-none focus:border-violet-500 bg-white"
-            >
-              {CATEGORIES.map((cat) => (
-                <option key={cat.id} value={cat.id}>
-                  {cat.emoji} {cat.label}
-                </option>
-              ))}
+      <div>
+        {/* ── Header ── */}
+        <div style={{ marginBottom: '1.75rem' }}>
+          <div style={{ fontSize: '0.6rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase' as const, color: 'var(--cl-accent)', marginBottom: '0.3rem', fontFamily: "'DM Sans', sans-serif" }}>Marketplace</div>
+          <div style={{ fontSize: 'clamp(1.5rem, 2.2vw, 1.9rem)', fontWeight: 700, letterSpacing: '-0.03em', color: 'var(--cl-text-primary)', fontFamily: "'Clash Display', sans-serif", lineHeight: 1.2 }}>Trouver un professionnel</div>
+        </div>
+
+        {/* ── Search & Filters bar ── */}
+        <motion.div
+          initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] } as Transition}
+          style={{ background: 'var(--cl-surface)', border: '1.5px solid var(--cl-border)', borderRadius: 18, padding: '1rem 1.2rem', marginBottom: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem', boxShadow: 'var(--cl-shadow-soft)' }}
+        >
+          {/* Row 1: search + city + sort + geo + view toggle */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' as const }}>
+            <div style={{ flex: 1, minWidth: 200, position: 'relative' }}>
+              <svg style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: searchFocused ? 'var(--cl-accent)' : 'var(--cl-text-muted)', transition: 'color 0.18s', pointerEvents: 'none' }} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <input
+                value={search} onChange={e => setSearch(e.target.value)}
+                onFocus={() => setSearchFocused(true)} onBlur={() => setSearchFocused(false)}
+                placeholder="Nom, catégorie, ville…"
+                style={{ width: '100%', paddingLeft: 30, paddingRight: 12, paddingTop: '0.5rem', paddingBottom: '0.5rem', borderRadius: 10, border: `1.5px solid ${searchFocused ? 'var(--cl-accent)' : 'var(--cl-border)'}`, outline: 'none', fontSize: '0.78rem', fontFamily: "'DM Sans', sans-serif", color: 'var(--cl-text-primary)', transition: 'all 0.18s', background: 'var(--cl-bg)', boxShadow: searchFocused ? '0 0 0 3px var(--cl-accent-soft)' : 'none' }}
+              />
+            </div>
+            <button onClick={handleGeolocate} style={{ cursor: 'pointer', padding: '4px 8px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '4px', color: userCoords ? '#16a34a' : geoError ? '#dc2626' : 'var(--cl-text-muted)', fontSize: '0.68rem', fontFamily: "'DM Sans', sans-serif", fontWeight: 600, border: '1.5px solid var(--cl-border)', background: userCoords ? '#f0fdf4' : 'var(--cl-surface)', transition: 'all 0.18s' }}>
+              {geoLoading ? <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{ animation: 'spin 1s linear infinite' }}><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> : <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>}
+              {userCoords && <span>Activé</span>}
+            </button>
+            <select className="select-styled" value={city} onChange={e => setCity(e.target.value)}>
+              {CITIES.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
-          </div>
-          <div className="w-full md:w-48">
-            <select
-              value={city}
-              onChange={(e) => setCity(e.target.value)}
-              className="w-full px-4 py-3 border border-stone-200 rounded-xl focus:outline-none focus:border-violet-500 bg-white"
-            >
-              {CITIES.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
+            <select className="select-styled" value={sortBy} onChange={e => setSortBy(e.target.value as 'plan' | 'name' | 'distance')}>
+              <option value="plan">✦ Mis en avant</option>
+              <option value="name">A–Z Alphabétique</option>
+              {userCoords && <option value="distance">A proximité</option>}
             </select>
+            <div style={{ display: 'flex', gap: '4px', flexShrink: 0 }}>
+              <button className={`view-btn${viewMode === 'grid' ? ' active' : ''}`} onClick={() => setViewMode('grid')} title="Vue grille"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg></button>
+              <button className={`view-btn${viewMode === 'map' ? ' active' : ''}`} onClick={() => setViewMode('map')} title="Vue radar"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/><line x1="9" y1="3" x2="9" y2="18"/><line x1="15" y1="6" x2="15" y2="21"/></svg></button>
+            </div>
           </div>
-          <button
-            onClick={handleGeolocate}
-            className="px-4 py-3 border border-stone-200 rounded-xl hover:border-violet-400 transition-colors flex items-center gap-2"
-            title="Me localiser"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
-              <circle cx="12" cy="10" r="3"/>
-            </svg>
-            Localiser
-          </button>
-        </div>
 
-        <div className="flex items-center gap-4">
-          <label className="flex items-center gap-2 text-sm text-stone-600 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={availableNow}
-              onChange={(e) => setAvailableNow(e.target.checked)}
-              className="w-4 h-4 text-violet-600 rounded"
-            />
-            Disponibles maintenant
-          </label>
+          {/* Row 2: category pills + available toggle */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' as const }}>
+            <div style={{ display: 'flex', gap: '0.38rem', flex: 1, flexWrap: 'wrap' as const }}>
+              {CATEGORIES.map((cat, i) => {
+                const CatIcon = cat.icon
+                return (
+                  <motion.button key={cat.id} initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.22 + i * 0.03, duration: 0.25 } as Transition} className={`cat-pill${category === cat.id ? ' active' : ''}`} onClick={() => setCategory(cat.id)}>
+                    <CatIcon size={11} strokeWidth={2} style={{ color: category === cat.id ? cat.color : 'currentColor' }} />
+                    {cat.label}
+                  </motion.button>
+                )
+              })}
+            </div>
+            <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: '8px', paddingLeft: '0.75rem', borderLeft: '1.5px solid #f1f0f5' }}>
+              <label className="toggle-switch" onClick={() => setAvailableNow(v => !v)}>
+                <div className="toggle-track" style={{ background: availableNow ? 'linear-gradient(135deg, #16a34a, #22c55e)' : '#e2e0ea' }}>
+                  <div className="toggle-thumb" style={{ transform: availableNow ? 'translateX(18px)' : 'translateX(0)' }} />
+                </div>
+                <span style={{ fontSize: '0.73rem', fontWeight: 600, color: availableNow ? '#16a34a' : '#94a3b8', fontFamily: "'Outfit', sans-serif", whiteSpace: 'nowrap' as const }}>Disponible maintenant</span>
+              </label>
+            </div>
+          </div>
 
-          <select
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value as 'plan' | 'name' | 'distance')}
-            className="px-3 py-2 border border-stone-200 rounded-lg focus:outline-none focus:border-violet-500 bg-white text-sm"
-          >
-            <option value="plan">Trier par plan</option>
-            <option value="name">Trier par nom</option>
-            <option value="distance">Trier par distance</option>
-          </select>
-        </div>
-      </div>
-
-      {/* Results */}
-      {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {[...Array(6)].map((_, i) => (
-            <SkeletonCard key={i} />
-          ))}
-        </div>
-      ) : filtered.length === 0 ? (
-        <EmptyState query={search} />
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {/* Geo message */}
           <AnimatePresence>
-            {filtered.map((pro, idx) => (
-              <ProCard key={pro.id} pro={pro} idx={idx} />
-            ))}
+            {(userCoords || geoError) && (
+              <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} style={{ overflow: 'hidden' }}>
+                {userCoords && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '0.5rem 0.75rem', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '10px' }}>
+                    <span style={{ fontSize: '0.72rem', color: '#16a34a', fontFamily: "'Outfit', sans-serif", fontWeight: 600, flex: 1 }}>Position activée — les pros les plus proches apparaissent en priorité</span>
+                    <button onClick={() => { setUserCoords(null); setSortBy('plan') }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', fontSize: '0.7rem', fontFamily: "'Outfit', sans-serif", fontWeight: 600 }}>Désactiver ×</button>
+                  </div>
+                )}
+                {geoError && !userCoords && (
+                  <div style={{ padding: '0.5rem 0.75rem', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '10px', fontSize: '0.7rem', color: '#dc2626', fontFamily: "'Outfit', sans-serif" }}>Géolocalisation refusée. Sélectionnez une ville manuellement.</div>
+                )}
+              </motion.div>
+            )}
           </AnimatePresence>
-        </div>
-      )}
-    </div>
+        </motion.div>
+
+        {/* ── Results bar ── */}
+        <AnimatePresence>
+          {!loading && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ margin: '0 0 1rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' as const, gap: '0.5rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
+                <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 26, borderRadius: '8px', background: 'var(--cl-accent-soft)', border: '1.5px solid var(--cl-accent-20)', fontSize: '0.68rem', fontWeight: 800, color: 'var(--cl-accent)', fontFamily: "'DM Sans', sans-serif" }}>{filtered.length}</span>
+                <span style={{ fontSize: '0.75rem', color: 'var(--cl-text-muted)', fontFamily: "'DM Sans', sans-serif" }}>professionnel{filtered.length !== 1 ? 's' : ''} trouvé{filtered.length !== 1 ? 's' : ''}{category !== 'all' ? ` · ${CATEGORIES.find(c => c.id === category)?.label}` : ''}{city !== 'Toutes les villes' ? ` · ${city}` : ''}{availableNow ? ' · Disponible maintenant' : ''}</span>
+              </div>
+              {hasActiveFilters && (
+                <button onClick={() => { setSearch(''); setCategory('all'); setCity('Toutes les villes'); setAvailableNow(false) }} style={{ background: 'var(--cl-accent-soft)', border: '1.5px solid var(--cl-accent-20)', borderRadius: '8px', cursor: 'pointer', color: 'var(--cl-accent)', fontSize: '0.72rem', fontFamily: "'DM Sans', sans-serif", fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '0.26rem 0.65rem' }}>
+                  <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                  Réinitialiser
+                </button>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* ── Grid or Map ── */}
+        <AnimatePresence mode="wait">
+          {viewMode === 'map' ? (
+            <motion.div key="map" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+              <MarketplaceMap pros={filtered} userCoords={userCoords} categories={CATEGORIES} />
+            </motion.div>
+          ) : (
+            <motion.div key="grid" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1rem', paddingBottom: '2rem' }}>
+                {loading
+                  ? Array.from({ length: 9 }).map((_, i) => <SkeletonCard key={i} />)
+                  : (
+                    <AnimatePresence mode="popLayout">
+                      {filtered.length === 0
+                        ? <EmptyState query={search} />
+                        : filtered.map((pro, idx) => <ProCard key={pro.id} pro={pro} idx={idx} isFav={favIds.has(pro.id)} onToggleFav={handleToggleFav} />)
+                      }
+                    </AnimatePresence>
+                  )
+                }
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <InfinityMatch userCoords={userCoords} />
+      </div>
+    </>
   )
 }

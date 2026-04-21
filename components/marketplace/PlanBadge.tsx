@@ -3,16 +3,16 @@ import type { CSSProperties } from 'react'
 export type MarketplacePlan = 'starter' | 'premium' | 'infinity'
 
 const base: CSSProperties = {
-  fontSize: '0.58rem',
-  fontWeight: 800,
-  letterSpacing: '0.07em',
+  fontSize: '0.65rem',
+  fontWeight: 700,
+  letterSpacing: '0.06em',
   textTransform: 'uppercase',
-  padding: '0.2rem 0.55rem',
+  padding: '0.25rem 0.65rem',
   borderRadius: '100px',
-  fontFamily: "'Outfit', sans-serif",
+  fontFamily: "'DM Sans', sans-serif",
   display: 'inline-flex',
   alignItems: 'center',
-  gap: '3px',
+  gap: '4px',
 }
 
 export function PlanBadge({
@@ -23,8 +23,8 @@ export function PlanBadge({
   variant?: 'default' | 'compact'
 }) {
   const small = variant === 'compact'
-  const fs = small ? '0.52rem' : base.fontSize
-  const pad = small ? '0.14rem 0.4rem' : base.padding
+  const fs = small ? '0.6rem' : base.fontSize
+  const pad = small ? '0.18rem 0.5rem' : base.padding
 
   if (plan === 'infinity') {
     return (
@@ -33,12 +33,12 @@ export function PlanBadge({
           ...base,
           fontSize: fs,
           padding: pad,
-          background: 'linear-gradient(135deg, #7c3aed, #ec4899)',
+          background: 'linear-gradient(135deg, #7c3aed 0%, #ec4899 100%)',
           color: 'white',
-          boxShadow: '0 2px 8px rgba(124,58,237,0.3)',
+          boxShadow: '0 2px 10px rgba(124, 58, 237, 0.3)',
         }}
       >
-        + INFINITY
+        Infinity
       </span>
     )
   }
@@ -51,9 +51,9 @@ export function PlanBadge({
           padding: pad,
           fontWeight: 700,
           letterSpacing: '0.06em',
-          background: 'rgba(124,58,237,0.08)',
+          background: 'rgba(124, 58, 237, 0.08)',
           color: '#7c3aed',
-          border: '1px solid rgba(124,58,237,0.2)',
+          border: '1px solid rgba(124, 58, 237, 0.15)',
         }}
       >
         Premium

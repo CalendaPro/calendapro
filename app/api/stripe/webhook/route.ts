@@ -3,6 +3,8 @@ import { stripe } from '@/lib/stripe'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { addCredits, resetCredits } from '@/lib/sms-credits'
 import { createBookingAndNotify } from '@/lib/booking-pipeline'
+import { sendPaymentConfirmationWithReceipt } from '@/lib/emails'
+import { checkBookingConflict } from '@/lib/booking-conflict'
 import Stripe from 'stripe'
 
 export const runtime = 'nodejs'
@@ -64,10 +66,54 @@ export async function POST(request: Request) {
           const username = session.metadata?.username
           const clientName = session.metadata?.clientName
           const date = session.metadata?.date
+          const clientEmail = session.metadata?.clientEmail || ''
+          const proName = session.metadata?.proName || username || 'Professionnel'
+          const serviceName = session.metadata?.serviceName
+          const proId = session.metadata?.proId
+          const durationMinutes = session.metadata?.durationMinutes
 
           if (!username || !clientName || !date) {
             console.error('booking_deposit webhook: metadata manquante', session.metadata)
             break
+          }
+
+          // Verification de conflit APRES paiement (critique: eviter double booking)
+          if (proId && date) {
+            const hasConflict = await checkBookingConflict(
+              supabase,
+              proId,
+              date,
+              Number(durationMinutes) || 60
+            )
+
+            if (hasConflict) {
+              // Creneau deja pris - rembourser automatiquement
+              console.error(`[Webhook] Conflit detecte pour ${proId} a ${date}, remboursement auto`)
+              try {
+                const paymentIntent = session.payment_intent as string | null
+                if (paymentIntent) {
+                  await stripe.refunds.create({
+                    payment_intent: paymentIntent,
+                    reason: 'duplicate',
+                  })
+                  console.log(`[Webhook] Remboursement auto effectue pour session ${session.id}`)
+                }
+              } catch (refundError) {
+                console.error('[Webhook] Echec remboursement automatique:', refundError)
+                // Stocker pour traitement manuel
+                try {
+                  await supabase.from('failed_refunds').insert({
+                    stripe_session_id: session.id,
+                    payment_intent: session.payment_intent as string | null,
+                    reason: 'slot_conflict',
+                    metadata: session.metadata || null,
+                    created_at: new Date().toISOString(),
+                  })
+                } catch (e) { console.error('[Webhook] Failed to log failed_refund:', e) }
+              }
+              // Ne PAS creer le booking en cas de conflit
+              break
+            }
           }
 
           try {
@@ -80,12 +126,32 @@ export async function POST(request: Request) {
             await createBookingAndNotify({
               username,
               clientName,
-              clientEmail: session.metadata?.clientEmail || '',
+              clientEmail,
               clientPhone: session.metadata?.clientPhone || '',
               date,
               notes: mergedNotes,
+              payment_completed: true, // Paiement déjà vérifié par Stripe
+              source_channel: session.metadata?.sourceChannel || undefined,
             })
             console.log(`✅ booking_deposit cree pour ${username}`)
+
+            // Send payment confirmation email with PDF receipt
+            if (clientEmail && session.amount_total) {
+              try {
+                await sendPaymentConfirmationWithReceipt({
+                  clientEmail,
+                  clientName,
+                  professionalName: proName,
+                  amount: session.amount_total,
+                  date,
+                  transactionId: session.id,
+                  service: serviceName,
+                })
+                console.log(`✅ Email avec recu envoye a ${clientEmail}`)
+              } catch (emailError) {
+                console.error('❌ Erreur envoi email avec recu:', emailError)
+              }
+            }
           } catch (error) {
             console.error('❌ booking_deposit webhook:', error)
           }

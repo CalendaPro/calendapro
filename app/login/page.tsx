@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useEffect, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { BrandLogo } from '@/components/BrandLogo'
@@ -28,8 +28,17 @@ const cardVariants = {
   },
 }
 
-export default function LoginPage() {
+function buildLink(basePath: string, planId: string | null) {
+  if (planId && planId !== 'starter') {
+    return `${basePath}?planId=${encodeURIComponent(planId)}`
+  }
+  return basePath
+}
+
+function LoginContent() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const planId = searchParams.get('planId')
 
   useEffect(() => {
     // Vérifier si l'utilisateur est déjà connecté et rediriger selon son rôle
@@ -43,7 +52,7 @@ export default function LoginPage() {
   }, [router])
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-stone-50 to-stone-100 px-4">
+    <>
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -69,7 +78,7 @@ export default function LoginPage() {
         <div className="grid md:grid-cols-2 gap-6">
           <motion.div variants={cardVariants}>
             <Link
-              href="/sign-in"
+              href={buildLink('/sign-in', planId)}
               className="group block h-full"
             >
               <div className="h-full bg-white rounded-2xl p-8 border border-stone-200 hover:border-violet-400 hover:shadow-xl transition-all duration-300">
@@ -100,7 +109,7 @@ export default function LoginPage() {
 
           <motion.div variants={cardVariants}>
             <Link
-              href="/client-sign-in"
+              href={buildLink('/client-sign-in', planId)}
               className="group block h-full"
             >
               <div className="h-full bg-white rounded-2xl p-8 border border-stone-200 hover:border-rose-400 hover:shadow-xl transition-all duration-300">
@@ -145,6 +154,16 @@ export default function LoginPage() {
           </p>
         </motion.div>
       </motion.div>
+    </>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-stone-50 to-stone-100 px-4">
+      <Suspense fallback={<div>Chargement...</div>}>
+        <LoginContent />
+      </Suspense>
     </div>
   )
 }

@@ -1,11 +1,12 @@
 import { auth } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { createServerSupabaseClient } from '@/lib/supabase-server'
 
 export async function GET() {
   const { userId } = await auth()
   if (!userId) return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
 
+  const supabase = createServerSupabaseClient()
   const { data } = await supabase
     .from('notification_settings')
     .select('*')
@@ -21,6 +22,7 @@ export async function POST(request: Request) {
 
   const body = await request.json()
 
+  const supabase = createServerSupabaseClient()
   const { error } = await supabase
     .from('notification_settings')
     .upsert({

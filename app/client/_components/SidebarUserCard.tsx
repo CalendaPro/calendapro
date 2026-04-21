@@ -1,39 +1,89 @@
 'use client'
 
-import { useUser } from '@clerk/nextjs'
-import { useClerk } from '@clerk/nextjs'
+import { useUser, useClerk } from '@clerk/nextjs'
+import { LogOut } from 'lucide-react'
 
 export default function SidebarUserCard() {
   const { user } = useUser()
   const { signOut } = useClerk()
 
-  const handleSignOut = async () => {
-    await signOut({ redirectUrl: '/' })
-  }
+  const initial =
+    user?.firstName?.charAt(0) ||
+    user?.emailAddresses?.[0]?.emailAddress?.charAt(0) ||
+    'U'
 
   return (
-    <div className="p-4 border-t border-stone-200">
-      <div className="flex items-center gap-3 mb-3">
-        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-violet-500 to-rose-500 flex items-center justify-center text-white font-medium flex-shrink-0">
-          {user?.firstName?.charAt(0) || user?.emailAddresses?.[0]?.emailAddress?.charAt(0) || 'U'}
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-stone-900 truncate">
-            {user?.firstName || user?.fullName || 'Utilisateur'}
-          </p>
-          <p className="text-xs text-stone-500 truncate">
-            {user?.emailAddresses?.[0]?.emailAddress}
-          </p>
-        </div>
+    <div
+      style={{
+        padding: '0.85rem 1rem',
+        borderTop: '1px solid var(--cl-border)',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '0.65rem',
+        background: 'var(--cl-surface)',
+        flexShrink: 0,
+        transition: 'background 0.3s, border-color 0.3s',
+      }}
+    >
+      <div
+        style={{
+          width: 32, height: 32, borderRadius: '50%',
+          background: 'linear-gradient(135deg, #4F46E5, #6366f1)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          color: 'white', fontWeight: 700, fontSize: '0.7rem',
+          flexShrink: 0,
+          boxShadow: '0 0 0 2px var(--cl-surface), 0 0 0 4px var(--cl-accent-soft)',
+        }}
+      >
+        {initial.toUpperCase()}
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <p style={{
+          fontSize: '0.77rem',
+          fontWeight: 600,
+          color: 'var(--cl-text-primary)',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+          transition: 'color 0.3s',
+        }}>
+          {user?.firstName || user?.fullName || 'Utilisateur'}
+        </p>
+        <p style={{
+          fontSize: '0.65rem',
+          color: 'var(--cl-text-muted)',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+          transition: 'color 0.3s',
+        }}>
+          {user?.emailAddresses?.[0]?.emailAddress}
+        </p>
       </div>
       <button
-        onClick={handleSignOut}
-        className="w-full px-3 py-2 text-sm text-stone-600 hover:text-stone-900 hover:bg-stone-100 rounded-lg transition-colors text-left flex items-center gap-2"
+        onClick={() => signOut({ redirectUrl: '/' })}
+        title="Déconnexion"
+        style={{
+          flexShrink: 0,
+          color: 'var(--cl-text-muted)',
+          background: 'none',
+          border: 'none',
+          cursor: 'pointer',
+          padding: 4,
+          borderRadius: 6,
+          display: 'flex',
+          transition: 'color 0.2s, background 0.2s',
+        }}
+        onMouseEnter={e => {
+          e.currentTarget.style.color = '#ef4444'
+          e.currentTarget.style.background = 'rgba(239,68,68,0.08)'
+        }}
+        onMouseLeave={e => {
+          e.currentTarget.style.color = 'var(--cl-text-muted)'
+          e.currentTarget.style.background = 'transparent'
+        }}
       >
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-        </svg>
-        Déconnexion
+        <LogOut size={15} strokeWidth={1.5} />
       </button>
     </div>
   )

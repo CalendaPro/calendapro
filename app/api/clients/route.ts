@@ -1,18 +1,32 @@
 import { auth } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { createServerSupabaseClient } from '@/lib/supabase-server'
+
+export const dynamic = 'force-dynamic'
 
 export async function GET() {
   const { userId } = await auth()
   if (!userId) return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
 
-  const { data } = await supabase
-    .from('clients')
-    .select('*')
-    .eq('user_id', userId)
+  const supabase = createServerSupabaseClient()
+
+  // Get unique clients from bookings (not from legacy clients table)
+  const { data: bookings } = await supabase
+    .from('bookings')
+    .select('client_id, pro_name')
+    .eq('pro_id', userId)
+    .not('client_id', 'is', null)
     .order('created_at', { ascending: false })
 
-  return NextResponse.json(data || [])
+  if (!bookings) return NextResponse.json([])
+
+  // Deduplicate by client_id
+  const seen = new Set<string>()
+  const clients = bookings
+    .filter(b => b.client_id && !seen.has(b.client_id) && seen.add(b.client_id))
+    .map(b => ({ user_id: b.client_id, name: b.pro_name || b.client_id }))
+
+  return NextResponse.json(clients)
 }
 
 export async function POST(request: Request) {
@@ -22,6 +36,7 @@ export async function POST(request: Request) {
   const { name, email, phone } = await request.json()
   if (!name) return NextResponse.json({ error: 'Nom requis' }, { status: 400 })
 
+  const supabase = createServerSupabaseClient()
   const { data, error } = await supabase
     .from('clients')
     .insert({ user_id: userId, name, email, phone })
@@ -38,6 +53,7 @@ export async function DELETE(request: Request) {
 
   const { id } = await request.json()
 
+  const supabase = createServerSupabaseClient()
   await supabase.from('clients').delete().eq('id', id).eq('user_id', userId)
   return NextResponse.json({ success: true })
 }

@@ -12,18 +12,27 @@ function safeRelativeRedirect(raw: string | null): string | undefined {
 function SignUpWithRedirect() {
   const searchParams = useSearchParams()
   
-  // Si un redirect_url est fourni, on le passe au callback
-  // Sinon, on laisse le callback décider selon le rôle (PRO/CLIENT)
+  // Récupérer planId et redirect_url des query params
+  const planId = searchParams.get('planId')
   const redirectUrl = safeRelativeRedirect(searchParams.get('redirect_url'))
   
-  const callbackUrl = redirectUrl
-    ? `/api/auth/callback?role=pro&redirect_url=${encodeURIComponent(redirectUrl)}`
-    : '/api/auth/callback?role=pro'
+  // Construire le callback URL avec planId s'il existe
+  let finalRedirectUrl = redirectUrl || '/api/auth/sync'
+  
+  // Si on a un planId, l'ajouter au redirect_url (qui va vers /api/auth/sync)
+  if (planId) {
+    const separator = finalRedirectUrl.includes('?') ? '&' : '?'
+    finalRedirectUrl = `${finalRedirectUrl}${separator}planId=${encodeURIComponent(planId)}`
+  }
+  
+  const callbackUrl = `/api/auth/callback?role=pro&redirect_url=${encodeURIComponent(finalRedirectUrl)}`
 
   return (
     <SignUp 
-      forceRedirectUrl={callbackUrl}
-      unsafeMetadata={{ role: 'pro' }}
+      fallbackRedirectUrl={callbackUrl}
+      unsafeMetadata={{ role: 'pro', planId: planId || 'starter' }}
+      routing="path"
+      path="/sign-up"
     />
   )
 }

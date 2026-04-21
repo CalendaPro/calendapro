@@ -1,4 +1,6 @@
 import { Resend } from 'resend'
+import { generateReceiptPDF } from './generate-receipt'
+import twilio from 'twilio'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 
@@ -142,7 +144,202 @@ export async function sendBookingConfirmation({
     `,
   })
 }
-import twilio from 'twilio'
+
+export async function sendPaymentConfirmationWithReceipt({
+  clientEmail,
+  clientName,
+  professionalName,
+  amount,
+  date,
+  transactionId,
+  service,
+}: {
+  clientEmail: string
+  clientName: string
+  professionalName: string
+  amount: number // en centimes
+  date: string
+  transactionId: string
+  service?: string
+}) {
+  const formattedDate = new Date(date).toLocaleDateString('fr-FR', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+
+  const amountInEuros = (amount / 100).toFixed(2)
+
+  // Generate PDF receipt
+  let pdfBytes: Uint8Array
+  try {
+    pdfBytes = await generateReceiptPDF({
+      clientName,
+      clientEmail,
+      proName: professionalName,
+      amount,
+      date,
+      transactionId,
+      service,
+    })
+    console.log(`✅ PDF généré avec succès pour ${clientEmail}`)
+  } catch (pdfErr) {
+    console.error('❌ Erreur génération PDF:', pdfErr)
+    throw pdfErr
+  }
+
+  try {
+    await resend.emails.send({
+      from: 'CalendaPro <onboarding@resend.dev>',
+      to: clientEmail,
+      subject: `Votre paiement de ${amountInEuros} € a ete recu`,
+      html: `
+        <div style="font-family: Inter, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 20px; background: #ffffff;">
+          <div style="margin-bottom: 32px;">
+            <h1 style="font-size: 24px; font-weight: 700; color: #0f172a; margin: 0;">
+              Calenda<span style="color: #7c3aed;">Pro</span>
+            </h1>
+          </div>
+          <div style="background: #f0fdf4; border-radius: 16px; padding: 32px; margin-bottom: 24px; border: 1px solid #bbf7d0;">
+            <div style="text-align: center; margin-bottom: 20px;">
+              <div style="width: 56px; height: 56px; background: #dcfce7; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 24px;">✓</div>
+            </div>
+            <h2 style="font-size: 20px; font-weight: 600; color: #0f172a; margin: 0 0 8px 0; text-align: center;">Paiement confirme !</h2>
+            <p style="color: #64748b; margin: 0; text-align: center;">
+              Bonjour ${clientName}, votre paiement de <strong>${amountInEuros} €</strong> pour votre rendez-vous avec <strong>${professionalName}</strong> a bien ete recu.
+            </p>
+          </div>
+          <div style="background: #f8fafc; border-radius: 12px; padding: 20px; margin-bottom: 24px;">
+            <div style="font-size: 12px; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px;">Date du rendez-vous</div>
+            <div style="font-size: 18px; font-weight: 600; color: #7c3aed;">${formattedDate}</div>
+          </div>
+          <p style="color: #64748b; font-size: 14px; text-align: center;">Votre recu est en piece jointe. Conservez-le precieusement.</p>
+          <p style="text-align: center; color: #94a3b8; font-size: 12px; margin-top: 32px;">Propulse par CalendaPro</p>
+        </div>
+      `,
+      attachments: [
+        {
+          filename: `recu-${transactionId}.pdf`,
+          content: Buffer.from(pdfBytes).toString('base64'),
+        }
+      ]
+    })
+  } catch (emailErr) {
+    console.error(`❌ Erreur envoi email à ${clientEmail}:`, emailErr)
+    throw emailErr
+  }
+}
+
+// ... (rest of the code remains the same)
+export async function sendReminderEmail({
+  clientEmail,
+  clientName,
+  professionalName,
+  serviceName,
+  date,
+  proUsername,
+}: {
+  clientEmail: string
+  clientName: string
+  professionalName: string
+  serviceName?: string
+  date: string
+  proUsername: string
+}) {
+  const formattedDate = new Date(date).toLocaleDateString('fr-FR', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, '') ?? ''
+  const proUrl = `${appUrl}/${proUsername}`
+  const icsUrl = `${appUrl}/api/calendar/ics?title=${encodeURIComponent(`RDV ${serviceName ?? ''} avec ${professionalName}`)}&start=${encodeURIComponent(date)}&pro_name=${encodeURIComponent(professionalName)}`
+
+  await resend.emails.send({
+    from: 'CalendaPro <noreply@calendapro.fr>',
+    to: clientEmail,
+    subject: `⏰ Rappel : votre RDV demain avec ${professionalName}`,
+    html: `
+      <div style="font-family: Inter, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 20px; background: #ffffff;">
+        <div style="margin-bottom: 32px;">
+          <h1 style="font-size: 24px; font-weight: 700; color: #0f172a; margin: 0;">Calenda<span style="color: #7c3aed;">Pro</span></h1>
+        </div>
+        <div style="background: #faf5ff; border-radius: 16px; padding: 32px; margin-bottom: 24px; border: 1px solid #e9d5ff;">
+          <div style="text-align: center; font-size: 40px; margin-bottom: 16px;">⏰</div>
+          <h2 style="font-size: 20px; font-weight: 700; color: #0f172a; margin: 0 0 8px; text-align: center;">Votre RDV est demain !</h2>
+          <p style="color: #64748b; text-align: center; margin: 0;">Bonjour ${clientName}, rappel pour votre rendez-vous.</p>
+        </div>
+        <div style="background: #f8fafc; border-radius: 12px; padding: 20px; margin-bottom: 24px;">
+          <div style="margin-bottom: 12px;">
+            <div style="font-size: 11px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 3px;">Professionnel</div>
+            <div style="font-size: 16px; font-weight: 700; color: #0f172a;">${professionalName}</div>
+          </div>
+          ${serviceName ? `<div style="margin-bottom: 12px;"><div style="font-size: 11px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 3px;">Service</div><div style="font-size: 15px; color: #1e293b;">${serviceName}</div></div>` : ''}
+          <div>
+            <div style="font-size: 11px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 3px;">Date & heure</div>
+            <div style="font-size: 18px; font-weight: 700; color: #7c3aed;">${formattedDate}</div>
+          </div>
+        </div>
+        <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
+          <a href="${proUrl}" style="background: linear-gradient(135deg, #7c3aed, #ec4899); color: white; padding: 12px 20px; border-radius: 10px; text-decoration: none; font-weight: 600; font-size: 14px; display: inline-block;">Voir la page du pro</a>
+          <a href="${icsUrl}" style="background: #f1f5f9; color: #0f172a; padding: 12px 20px; border-radius: 10px; text-decoration: none; font-weight: 600; font-size: 14px; display: inline-block;">📅 Ajouter au calendrier</a>
+        </div>
+        <p style="text-align: center; color: #94a3b8; font-size: 12px; margin-top: 32px;">Propulsé par CalendaPro · <a href="${appUrl}/client/settings" style="color: #94a3b8;">Gérer mes rappels</a></p>
+      </div>
+    `,
+  })
+}
+
+export async function sendReviewRequestEmail({
+  clientEmail,
+  clientName,
+  professionalName,
+  serviceName,
+  bookingId,
+  proId,
+}: {
+  clientEmail: string
+  clientName: string
+  professionalName: string
+  serviceName?: string
+  bookingId: string
+  proId: string
+}) {
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, '') ?? ''
+  const reviewUrl = `${appUrl}/client/bookings?review=${bookingId}&pro=${proId}`
+
+  await resend.emails.send({
+    from: 'CalendaPro <noreply@calendapro.fr>',
+    to: clientEmail,
+    subject: `⭐ Comment s'est passé votre RDV avec ${professionalName} ?`,
+    html: `
+      <div style="font-family: Inter, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 20px; background: #ffffff;">
+        <div style="margin-bottom: 32px;">
+          <h1 style="font-size: 24px; font-weight: 700; color: #0f172a; margin: 0;">Calenda<span style="color: #7c3aed;">Pro</span></h1>
+        </div>
+        <div style="background: #fffbeb; border-radius: 16px; padding: 32px; margin-bottom: 24px; border: 1px solid #fde68a;">
+          <div style="text-align: center; font-size: 40px; margin-bottom: 16px;">⭐</div>
+          <h2 style="font-size: 20px; font-weight: 700; color: #0f172a; margin: 0 0 8px; text-align: center;">Comment s'est passé votre RDV ?</h2>
+          <p style="color: #64748b; text-align: center; margin: 0;">Bonjour ${clientName}, votre avis aide la communauté CalendaPro !</p>
+        </div>
+        <p style="color: #1e293b; font-size: 15px; text-align: center; margin-bottom: 24px;">
+          Vous avez récemment eu un rendez-vous${serviceName ? ` pour <strong>${serviceName}</strong>` : ''} avec <strong>${professionalName}</strong>.<br>
+          Prenez 30 secondes pour laisser un avis.
+        </p>
+        <div style="text-align: center;">
+          <a href="${reviewUrl}" style="background: linear-gradient(135deg, #f59e0b, #ef4444); color: white; padding: 14px 28px; border-radius: 12px; text-decoration: none; font-weight: 700; font-size: 15px; display: inline-block;">Évaluer maintenant</a>
+        </div>
+        <p style="text-align: center; color: #94a3b8; font-size: 12px; margin-top: 32px;">Propulsé par CalendaPro</p>
+      </div>
+    `,
+  })
+}
 
 const twilioClient = twilio(
   process.env.TWILIO_ACCOUNT_SID,
@@ -167,7 +364,7 @@ export async function sendBookingSMS({
   })
 
   await twilioClient.messages.create({
-    body: `CalendaPro — Votre RDV avec ${professionalName} est confirmé pour le ${formattedDate}. À bientôt !`,
+    body: `CalendaPro : Votre RDV avec ${professionalName} est confirmé pour le ${formattedDate}. À bientôt !`,
     from: process.env.TWILIO_PHONE_NUMBER,
     to,
   })
@@ -191,7 +388,7 @@ export async function sendReminderSMS({
   })
 
   await twilioClient.messages.create({
-    body: `CalendaPro — Rappel : vous avez un RDV avec ${professionalName} demain ${formattedDate}. À bientôt !`,
+    body: `CalendaPro : Rappel, vous avez un RDV avec ${professionalName} demain ${formattedDate}. À bientôt !`,
     from: process.env.TWILIO_PHONE_NUMBER,
     to,
   })

@@ -2,59 +2,99 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { Home, Store, Heart, CalendarDays, User, Settings2 } from 'lucide-react'
 
-const navItems = [
-  { href: '/client', label: 'Accueil', icon: 'home' },
-  { href: '/client/marketplace', label: 'Marketplace', icon: 'search' },
-  { href: '/client/profile', label: 'Mon profil', icon: 'user' },
-  { href: '/client/settings', label: 'Paramètres', icon: 'settings' },
+type NavItem = {
+  href: string
+  label: string
+  exact?: boolean
+  icon: React.ReactNode
+}
+
+const mainNav: NavItem[] = [
+  { href: '/client',             label: 'Accueil',    exact: true, icon: <Home        size={18} strokeWidth={1.5} /> },
+  { href: '/client/marketplace', label: 'Marketplace',             icon: <Store       size={18} strokeWidth={1.5} /> },
+  { href: '/client/favorites',   label: 'Favoris',                 icon: <Heart       size={18} strokeWidth={1.5} /> },
+  { href: '/client/appointments', label: 'Mes RDV',                 icon: <CalendarDays size={18} strokeWidth={1.5} /> },
+  { href: '/client/profile',     label: 'Mon profil',              icon: <User        size={18} strokeWidth={1.5} /> },
 ]
 
-const icons = {
-  home: (
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-    </svg>
-  ),
-  search: (
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-    </svg>
-  ),
-  user: (
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-    </svg>
-  ),
-  settings: (
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-    </svg>
-  ),
+const secondaryNav: NavItem[] = [
+  { href: '/client/settings', label: 'Paramètres', icon: <Settings2 size={18} strokeWidth={1.5} /> },
+]
+
+function NavLink({ item, pathname }: { item: NavItem; pathname: string }) {
+  const isActive = item.exact ? pathname === item.href : pathname.startsWith(item.href)
+
+  return (
+    <Link
+      href={item.href}
+      className="flex items-center gap-2.5 px-3 py-[0.52rem] rounded-[10px] text-[0.82rem] font-medium transition-all duration-200"
+      style={isActive ? {
+        background: 'var(--cl-accent-soft)',
+        color: 'var(--cl-accent)',
+        border: '1px solid var(--cl-accent-20)',
+        fontWeight: 600,
+      } : {
+        color: 'var(--cl-text-muted)',
+        border: '1px solid transparent',
+      }}
+      onMouseEnter={e => {
+        if (!isActive) {
+          e.currentTarget.style.background = 'var(--cl-surface)'
+          e.currentTarget.style.color = 'var(--cl-text-primary)'
+          e.currentTarget.style.borderColor = 'var(--cl-border)'
+        }
+      }}
+      onMouseLeave={e => {
+        if (!isActive) {
+          e.currentTarget.style.background = ''
+          e.currentTarget.style.color = 'var(--cl-text-muted)'
+          e.currentTarget.style.borderColor = 'transparent'
+        }
+      }}
+    >
+      <span style={{
+        color: isActive ? 'var(--cl-accent)' : 'currentColor',
+        flexShrink: 0,
+        display: 'flex',
+        alignItems: 'center',
+        transition: 'color 0.2s',
+        opacity: isActive ? 1 : 0.65,
+      }}>
+        {item.icon}
+      </span>
+      <span>{item.label}</span>
+      {isActive && (
+        <span
+          className="ml-auto flex-shrink-0"
+          style={{
+            width: 6, height: 6, borderRadius: '50%',
+            background: 'var(--cl-accent)',
+            boxShadow: '0 0 8px var(--cl-accent-glow)',
+          }}
+        />
+      )}
+    </Link>
+  )
 }
 
 export default function ClientSidebar() {
   const pathname = usePathname()
 
   return (
-    <aside className="w-64 bg-white border-r border-stone-200 min-h-[calc(100vh-4rem)] sticky top-16 flex flex-col">
-      <nav className="flex-1 p-6 space-y-2">
-        {navItems.map((item) => (
-          <Link
-            key={item.href}
-            href={item.href}
-            className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${
-              pathname === item.href
-                ? 'bg-gradient-to-r from-violet-600 to-rose-500 text-white shadow-md'
-                : 'text-stone-700 hover:bg-stone-100'
-            }`}
-          >
-            {icons[item.icon as keyof typeof icons]}
-            <span className="font-medium">{item.label}</span>
-          </Link>
+    <nav className="flex-1 px-[0.65rem] py-[0.75rem] flex flex-col gap-0">
+      <div className="flex flex-col gap-[3px]">
+        {mainNav.map(item => (
+          <NavLink key={item.href} item={item} pathname={pathname} />
         ))}
-      </nav>
-    </aside>
+      </div>
+      <div style={{ height: 1, background: 'var(--cl-border)', margin: '0.5rem 0.4rem', transition: 'background 0.3s' }} />
+      <div className="flex flex-col gap-[3px]">
+        {secondaryNav.map(item => (
+          <NavLink key={item.href} item={item} pathname={pathname} />
+        ))}
+      </div>
+    </nav>
   )
 }

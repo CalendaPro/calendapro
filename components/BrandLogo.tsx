@@ -2,20 +2,28 @@ import Link from 'next/link'
 
 export type BrandLogoProps = {
   href?: string
-  variant?: 'default' | 'dark'
+  variant?: 'default' | 'dark' | 'light'
   size?: 'default' | 'compact'
 }
 
 export function BrandLogo({
-  href = '/',
+  href = '/dashboard',
   variant = 'default',
   size = 'default',
 }: BrandLogoProps) {
-  const dark = variant === 'dark'
+  // Light mode: texte noir (#0f0a1e), Dark mode: texte blanc (#f8fafc)
+  const isDark = variant === 'dark'
+  const isLight = variant === 'light'
   const compact = size === 'compact'
   const box = compact ? 30 : 34
   const svg = compact ? 15 : 16
   const fontSize = compact ? '1.08rem' : '1.2rem'
+  
+  // Déterminer la couleur du texte "Calenda"
+  // - Light mode explicit: noir
+  // - Dark mode: blanc
+  // - Default (auto): noir (light mode par défaut)
+  const textColor = isDark ? '#f8fafc' : '#0f0a1e'
 
   return (
     <Link
@@ -25,8 +33,13 @@ export function BrandLogo({
         display: 'flex',
         alignItems: 'center',
         gap: compact ? 7 : 8,
+        cursor: 'pointer',
+        transition: 'transform 0.2s ease',
       }}
+      onMouseEnter={(e) => { e.currentTarget.style.transform = 'scale(1.02)' }}
+      onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)' }}
     >
+      {/* Icône calendrier - Toujours violette (gradient #7c3aed à #ec4899) */}
       <div
         style={{
           width: box,
@@ -56,22 +69,31 @@ export function BrandLogo({
           <line x1="3" y1="10" x2="21" y2="10" />
         </svg>
       </div>
+      {/* Texte CalendaPro */}
       <span
         style={{
           fontFamily: "'Outfit', sans-serif",
           fontWeight: 800,
           fontSize,
           letterSpacing: '-0.03em',
-          color: dark ? '#f8fafc' : '#0f0a1e',
+          color: textColor,
+          overflow: 'visible',
+          display: 'inline-block',
+          paddingRight: '2px',
+          paddingBottom: '1px',
         }}
       >
         Calenda
+        {/* Pro reste en gradient violet-rose */}
         <span
           style={{
             background: 'linear-gradient(135deg, #7c3aed, #ec4899)',
             WebkitBackgroundClip: 'text',
             WebkitTextFillColor: 'transparent',
             backgroundClip: 'text',
+            overflow: 'visible',
+            display: 'inline-block',
+            paddingRight: '2px',
           }}
         >
           Pro

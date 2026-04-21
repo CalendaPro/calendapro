@@ -474,7 +474,7 @@ export default function SMSPageClient({ credits, history }: { credits: number; h
             {isLow && (
               <div className="sp-alert sp-alert-low" style={{ marginTop: '0.6rem' }}>
                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-                Solde faible — rechargez bientôt
+                Solde faible : rechargez bientôt
               </div>
             )}
           </div>
@@ -493,7 +493,7 @@ export default function SMSPageClient({ credits, history }: { credits: number; h
           </div>
         </div>
 
-        {/* BONUS ONBOARDING — affiché si 0 crédits */}
+        {/* BONUS ONBOARDING : affiché si 0 crédits */}
         {isEmpty && (
           <div className="sp-bonus">
             <div className="sp-bonus-ico">
@@ -503,7 +503,7 @@ export default function SMSPageClient({ credits, history }: { credits: number; h
               <div className="sp-bonus-title">🎁 Complétez votre profil → 10 crédits offerts</div>
               <div className="sp-bonus-desc">Ajoutez une photo et un service pour recevoir vos premiers crédits SMS gratuits.</div>
             </div>
-            <Link href="/dashboard/profile" className="sp-bonus-btn">Compléter</Link>
+            <Link href="/dashboard/site-customize" className="sp-bonus-btn">Compléter</Link>
           </div>
         )}
 
@@ -524,7 +524,7 @@ export default function SMSPageClient({ credits, history }: { credits: number; h
           </div>
         </div>
 
-        {/* RAPPELS + HISTORIQUE — TABS */}
+        {/* RAPPELS + HISTORIQUE : TABS */}
         <div className="sp-section">
           <div className="sp-section-title">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#ec4899" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
@@ -551,7 +551,7 @@ export default function SMSPageClient({ credits, history }: { credits: number; h
                 {/* SMS */}
                 <div className="sp-group-label">
                   <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-                  Rappels par SMS — consomme des crédits
+                  Rappels par SMS : consomme des crédits
                 </div>
                 {[
                   { key: 'smsConfirmation' as keyof NotifSettings, name: 'Confirmation de réservation', desc: 'Envoyé au client dès qu\'il prend RDV en ligne', badge: 'SMS' },
@@ -581,7 +581,7 @@ export default function SMSPageClient({ credits, history }: { credits: number; h
                 {/* EMAIL */}
                 <div className="sp-group-label">
                   <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#86efac" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
-                  Rappels par Email — inclus gratuitement
+                  Rappels par Email : inclus gratuitement
                 </div>
                 {[
                   { key: 'emailConfirmation' as keyof NotifSettings, name: 'Confirmation par email', desc: 'Email récapitulatif envoyé au client à la réservation' },
@@ -630,7 +630,7 @@ export default function SMSPageClient({ credits, history }: { credits: number; h
                         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div className="sp-history-type">{log.type ?? 'SMS envoyé'}{log.client_name ? ` — ${log.client_name}` : ''}</div>
+                        <div className="sp-history-type">{log.type ?? 'SMS envoyé'}{log.client_name ? ` : ${log.client_name}` : ''}</div>
                         <div className="sp-history-date">{new Date(log.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</div>
                       </div>
                       <div className="sp-history-credits">−{log.credits_used ?? 1} crédit</div>

@@ -78,6 +78,9 @@ export default function WidgetBookingForm({
 
   const canPayOnline =
     !!settings?.online_payment_enabled && (!!settings?.deposit_required || !!settings?.allow_full_online_payment)
+  
+  // Paiement obligatoire = online_payment_enabled ET deposit_required
+  const paymentRequired = !!settings?.online_payment_enabled && !!settings?.deposit_required
 
   const primaryLabel = useMemo(() => {
     if (!settings) return '...'
@@ -270,6 +273,13 @@ export default function WidgetBookingForm({
           if (!settings) return
 
           if (!settings.online_payment_enabled || !canPayOnline) {
+            // Si paiement obligatoire mais impossible, bloquer
+            if (paymentRequired) {
+              setStatus('error')
+              console.error('Paiement obligatoire mais Stripe non configuré')
+              return
+            }
+            
             setStatus('loading')
             try {
               const res = await fetch('/api/booking', {
@@ -280,7 +290,13 @@ export default function WidgetBookingForm({
               if (res.ok) {
                 setSuccessKind('direct')
                 setStatus('success')
-              } else setStatus('error')
+              } else {
+                const data = await res.json().catch(() => ({}))
+                if (data.error?.includes('Paiement requis')) {
+                  alert('Ce professionnel exige un paiement en ligne.')
+                }
+                setStatus('error')
+              }
             } catch {
               setStatus('error')
             }
@@ -309,7 +325,7 @@ export default function WidgetBookingForm({
             setStatus('error')
           }
         }}
-        disabled={status === 'loading' || loadingSettings}
+        disabled={status === 'loading' || loadingSettings || (paymentRequired && !canPayOnline)}
         style={{
           width: '100%',
           padding: '12px',

@@ -1,8 +1,8 @@
 'use client'
 
-import { SignIn } from '@clerk/nextjs'
-import { useSearchParams } from 'next/navigation'
-import { Suspense } from 'react'
+import { SignIn, useAuth } from '@clerk/nextjs'
+import { useSearchParams, useRouter } from 'next/navigation'
+import { Suspense, useEffect } from 'react'
 import Link from 'next/link'
 
 function safeRelativeRedirect(raw: string | null): string | undefined {
@@ -12,16 +12,46 @@ function safeRelativeRedirect(raw: string | null): string | undefined {
 
 function SignInWithRedirect() {
   const searchParams = useSearchParams()
+  const router = useRouter()
+  const { isSignedIn, isLoaded } = useAuth()
 
-  // Si un redirect_url est fourni (ex: depuis /:username), on le passe au callback
-  // pour que le client soit renvoyé vers la page du pro après connexion.
+  // Si l'utilisateur est déjà connecté, rediriger vers le dashboard
+  useEffect(() => {
+    if (isLoaded && isSignedIn) {
+      const redirectUrl = safeRelativeRedirect(searchParams.get('redirect_url'))
+      router.push(redirectUrl || '/dashboard')
+    }
+  }, [isLoaded, isSignedIn, router, searchParams])
+
+  // Récupérer planId et redirect_url des query params (comme sign-up)
+  const planId = searchParams.get('planId')
   const redirectUrl = safeRelativeRedirect(searchParams.get('redirect_url'))
 
-  const callbackUrl = redirectUrl
-    ? `/api/auth/callback?role=pro&redirect_url=${encodeURIComponent(redirectUrl)}`
-    : '/api/auth/callback?role=pro'
+  // Construire le redirect_url avec planId si fourni
+  let finalRedirectUrl = redirectUrl || '/api/auth/sync'
+  if (planId) {
+    const separator = finalRedirectUrl.includes('?') ? '&' : '?'
+    finalRedirectUrl = `${finalRedirectUrl}${separator}planId=${encodeURIComponent(planId)}`
+  }
 
-  return <SignIn forceRedirectUrl={callbackUrl} />
+  const callbackUrl = `/api/auth/callback?role=pro&redirect_url=${encodeURIComponent(finalRedirectUrl)}`
+
+  // Pendant le chargement ou si déjà connecté, ne pas afficher le formulaire
+  if (!isLoaded || isSignedIn) {
+    return <div className="text-stone-500 text-sm">Redirection...</div>
+  }
+
+  // Utiliser fallbackRedirectUrl au lieu de forceRedirectUrl pour Clerk v7
+  // fallbackRedirectUrl est plus fiable pour les redirections post-auth
+  // routing="path" nécessaire pour les catch-all routes [[...sign-in]]
+  return (
+    <SignIn 
+      fallbackRedirectUrl={callbackUrl} 
+      signUpUrl="/sign-up"
+      routing="path"
+      path="/sign-in"
+    />
+  )
 }
 
 export default function SignInPage() {

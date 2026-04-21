@@ -114,7 +114,7 @@ export default async function PricingPage() {
       {currentPlan === 'premium' && (
         <div className="mt-6 bg-violet-50 border border-violet-100 rounded-2xl p-4 text-center">
           <p className="text-violet-700 text-sm font-medium">
-            ✦ Upgrade vers Infinity — vous ne payez que la différence pour les jours restants du mois.
+            ✦ Upgrade vers Infinity : vous ne payez que la différence pour les jours restants du mois.
           </p>
         </div>
       )}

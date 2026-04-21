@@ -1,0 +1,658 @@
+'use client'
+
+import React, { useEffect, useState } from 'react'
+import Link from 'next/link'
+import { BrandLogo } from '@/components/BrandLogo'
+import { motion } from 'framer-motion'
+import type { Variants, Transition } from 'framer-motion'
+import {
+  Search,
+  Calendar,
+  MapPin,
+  Star,
+  ArrowRight,
+  Sparkles,
+  Check,
+  Clock,
+  Shield,
+  Zap,
+  User,
+  Scissors,
+  Camera,
+  Heart,
+  Briefcase,
+  Dumbbell,
+  BrainCircuit
+} from 'lucide-react'
+
+// ─── ICONS ────────────────────────────────────────────────────────────────────
+const Icons = {
+  Arrow: () => (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M5 12h14M12 5l7 7-7 7"/>
+    </svg>
+  ),
+}
+
+// ─── NAV ─────────────────────────────────────────────────────────────────────
+function Nav() {
+  const [scrolled, setScrolled] = useState(false)
+  useEffect(() => {
+    const fn = () => setScrolled(window.scrollY > 20)
+    window.addEventListener('scroll', fn)
+    return () => window.removeEventListener('scroll', fn)
+  }, [])
+
+  return (
+    <motion.nav
+      initial={{ y: -20, opacity: 0 }}
+      animate={{ y: 0, opacity: 1 }}
+      transition={{ duration: 0.6, ease: 'easeOut' } as Transition}
+      style={{
+        position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100,
+        padding: '0 2.5rem', height: '72px',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        background: scrolled ? 'rgba(255,255,255,0.92)' : 'transparent',
+        backdropFilter: scrolled ? 'blur(24px) saturate(180%)' : 'none',
+        borderBottom: scrolled ? '1px solid rgba(0,0,0,0.06)' : '1px solid transparent',
+        transition: 'all 0.4s ease',
+      }}
+    >
+      <BrandLogo />
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+        <Link href="/client-sign-in" style={{
+          fontSize: '0.85rem',
+          fontWeight: 500,
+          color: '#64748b',
+          textDecoration: 'none',
+          padding: '0.5rem 1.25rem',
+          borderRadius: '100px',
+          fontFamily: "'DM Sans', sans-serif",
+          transition: 'all 0.2s',
+          border: '1px solid transparent',
+        }}
+          onMouseEnter={e => {
+            e.currentTarget.style.color = '#7c3aed'
+            e.currentTarget.style.borderColor = 'rgba(124, 58, 237, 0.25)';
+          }}
+          onMouseLeave={e => {
+            e.currentTarget.style.color = '#64748b'
+            e.currentTarget.style.borderColor = 'transparent'
+          }}
+        >
+          Connexion
+        </Link>
+        <Link href="/client-sign-up" style={{
+          fontSize: '0.85rem',
+          fontWeight: 600,
+          color: 'white',
+          textDecoration: 'none',
+          padding: '0.55rem 1.4rem',
+          borderRadius: '100px',
+          background: 'linear-gradient(135deg, #7c3aed, #ec4899)',
+          fontFamily: "'DM Sans', sans-serif",
+          boxShadow: '0 4px 20px rgba(124, 58, 237, 0.35)',
+          transition: 'all 0.2s',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '6px',
+        }}
+          onMouseEnter={e => {
+            e.currentTarget.style.transform = 'translateY(-1px)'
+            e.currentTarget.style.boxShadow = '0 8px 28px rgba(124, 58, 237, 0.45)'
+          }}
+          onMouseLeave={e => {
+            e.currentTarget.style.transform = 'translateY(0)'
+            e.currentTarget.style.boxShadow = '0 4px 20px rgba(124, 58, 237, 0.35)'
+          }}
+        >
+          M&apos;inscrire
+          <ArrowRight size={14} strokeWidth={2.5} />
+        </Link>
+      </div>
+    </motion.nav>
+  )
+}
+
+// ─── HERO ────────────────────────────────────────────────────────────────────
+function Hero() {
+  const c: Variants = { hidden: {}, visible: { transition: { staggerChildren: 0.1, delayChildren: 0.2 } } }
+  const i: Variants = { hidden: { opacity: 0, y: 28 }, visible: { opacity: 1, y: 0, transition: { duration: 0.7, ease: 'easeOut' } as Transition } }
+
+  return (
+    <section style={{
+      minHeight: '100vh',
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: '8rem 2rem 4rem',
+      position: 'relative',
+      overflow: 'hidden',
+    }}>
+      {/* Background gradient orbs */}
+      <div style={{
+        position: 'absolute',
+        top: '-20%',
+        left: '-10%',
+        width: '60vw',
+        height: '60vw',
+        borderRadius: '50%',
+        background: 'radial-gradient(circle, rgba(124, 58, 237, 0.06) 0%, transparent 60%)',
+        filter: 'blur(80px)',
+        pointerEvents: 'none',
+      }} />
+      <div style={{
+        position: 'absolute',
+        bottom: '-15%',
+        right: '-10%',
+        width: '50vw',
+        height: '50vw',
+        borderRadius: '50%',
+        background: 'radial-gradient(circle, rgba(236, 72, 153, 0.04) 0%, transparent 55%)',
+        filter: 'blur(100px)',
+        pointerEvents: 'none',
+      }} />
+
+      <motion.div
+        variants={c}
+        initial="hidden"
+        animate="visible"
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          textAlign: 'center',
+          maxWidth: '720px',
+          position: 'relative',
+          zIndex: 1,
+        }}
+      >
+        {/* Badge */}
+        <motion.div variants={i}>
+          <span style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '6px',
+            background: 'rgba(124, 58, 237, 0.08)',
+            border: '1px solid rgba(124, 58, 237, 0.15)',
+            color: '#7c3aed',
+            fontSize: '0.75rem',
+            fontWeight: 600,
+            letterSpacing: '0.06em',
+            textTransform: 'uppercase',
+            padding: '0.4rem 1rem',
+            borderRadius: '100px',
+            fontFamily: "'DM Sans', sans-serif",
+            marginBottom: '2rem',
+          }}>
+            <Sparkles size={14} strokeWidth={1.5} />
+            Marketplace Premium
+          </span>
+        </motion.div>
+
+        {/* Headline */}
+        <motion.h1
+          variants={i}
+          className="hero-title"
+          style={{
+            fontFamily: "'Clash Display', 'Syne', sans-serif",
+            fontSize: 'clamp(2.8rem, 6vw, 5rem)',
+            fontWeight: 700,
+            lineHeight: 1.05,
+            letterSpacing: '-0.04em',
+            margin: '0 0 1.5rem',
+          }}
+        >
+          <span className="gradient-text-animated">L&apos;excellence à portée de clic.</span>
+        </motion.h1>
+
+        {/* Subtitle */}
+        <motion.p
+          variants={i}
+          style={{
+            fontSize: '1.15rem',
+            color: '#64748b',
+            lineHeight: 1.75,
+            fontFamily: "'DM Sans', sans-serif",
+            fontWeight: 400,
+            maxWidth: '520px',
+            margin: '0 0 2.5rem',
+          }}
+        >
+          Découvrez des professionnels d&apos;exception près de chez vous.
+          Réservez en quelques secondes, sans appel, sans attente.
+        </motion.p>
+
+        {/* CTA Principal */}
+        <motion.div variants={i}>
+          <Link
+            href="/marketplace"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '10px',
+              padding: '1.1rem 2.5rem',
+              background: 'linear-gradient(135deg, #7c3aed 0%, #ec4899 100%)',
+              color: 'white',
+              borderRadius: '100px',
+              fontWeight: 700,
+              fontSize: '1.05rem',
+              textDecoration: 'none',
+              fontFamily: "'DM Sans', sans-serif",
+              boxShadow: '0 8px 32px rgba(124, 58, 237, 0.4), 0 16px 48px rgba(124, 58, 237, 0.15)',
+              transition: 'all 0.3s cubic-bezier(0.22, 1, 0.36, 1)',
+              position: 'relative',
+            }}
+            onMouseEnter={e => {
+              e.currentTarget.style.transform = 'translateY(-3px) scale(1.02)'
+              e.currentTarget.style.boxShadow = '0 12px 40px rgba(124, 58, 237, 0.5), 0 20px 60px rgba(124, 58, 237, 0.2)'
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.transform = 'translateY(0) scale(1)'
+              e.currentTarget.style.boxShadow = '0 8px 32px rgba(124, 58, 237, 0.4), 0 16px 48px rgba(124, 58, 237, 0.15)'
+            }}
+          >
+            <Search size={20} strokeWidth={1.5} />
+            Trouver un professionnel
+            <ArrowRight size={18} strokeWidth={2} />
+          </Link>
+        </motion.div>
+
+        {/* Trust signals */}
+        <motion.div
+          variants={i}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '1.5rem',
+            flexWrap: 'wrap',
+            justifyContent: 'center',
+            marginTop: '2.5rem',
+          }}
+        >
+          {[
+            { icon: Check, text: 'Gratuit pour les clients' },
+            { icon: Shield, text: 'Pros vérifiés' },
+            { icon: Clock, text: 'Réservation 24/7' },
+          ].map(({ icon: Icon, text }) => (
+            <div
+              key={text}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                fontSize: '0.8rem',
+                fontWeight: 500,
+                color: '#94a3b8',
+                fontFamily: "'DM Sans', sans-serif",
+              }}
+            >
+              <Icon size={14} strokeWidth={1.5} color="#7c3aed" />
+              {text}
+            </div>
+          ))}
+        </motion.div>
+      </motion.div>
+    </section>
+  )
+}
+
+// ─── CATEGORIES GRID ─────────────────────────────────────────────────────────
+const CATEGORIES = [
+  { id: 'barbier', label: 'Barbiers', icon: Scissors, color: '#db2777' },
+  { id: 'coach', label: 'Coachs', icon: BrainCircuit, color: '#ea580c' },
+  { id: 'photo', label: 'Photographes', icon: Camera, color: '#059669' },
+  { id: 'therapeute', label: 'Thérapeutes', icon: Heart, color: '#ec4899' },
+  { id: 'sport', label: 'Coachs sportifs', icon: Dumbbell, color: '#dc2626' },
+  { id: 'consultant', label: 'Consultants', icon: Briefcase, color: '#d97706' },
+]
+
+function CategoriesSection() {
+  return (
+    <section style={{ padding: '4rem 2rem 6rem', position: 'relative' }}>
+      <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: '-60px' }}
+          transition={{ duration: 0.5 }}
+          style={{ textAlign: 'center', marginBottom: '2.5rem' }}
+        >
+          <span style={{
+            fontSize: '0.7rem',
+            fontWeight: 700,
+            letterSpacing: '0.12em',
+            textTransform: 'uppercase',
+            color: '#7c3aed',
+            background: 'rgba(124, 58, 237, 0.08)',
+            padding: '0.35rem 0.9rem',
+            borderRadius: '100px',
+            fontFamily: "'DM Sans', sans-serif",
+          }}>
+            Catégories
+          </span>
+          <h2 style={{
+            fontFamily: "'Clash Display', 'Syne', sans-serif",
+            fontSize: 'clamp(1.8rem, 3vw, 2.4rem)',
+            fontWeight: 600,
+            letterSpacing: '-0.02em',
+            color: '#0f172a',
+            margin: '1rem 0 0.5rem',
+          }}>
+            Trouvez votre expert
+          </h2>
+          <p style={{
+            fontSize: '1rem',
+            color: '#64748b',
+            fontFamily: "'DM Sans', sans-serif",
+            maxWidth: '400px',
+            margin: '0 auto',
+          }}>
+            Des professionnels qualifiés dans toutes les catégories
+          </p>
+        </motion.div>
+
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
+          gap: '1rem',
+        }}>
+          {CATEGORIES.map((cat, idx) => (
+            <motion.div
+              key={cat.id}
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: '-40px' }}
+              transition={{ duration: 0.4, delay: idx * 0.08 }}
+            >
+              <Link
+                href={`/marketplace?category=${cat.id}`}
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: '1rem',
+                  padding: '2rem 1.5rem',
+                  background: 'rgba(255,255,255,0.8)',
+                  backdropFilter: 'blur(12px)',
+                  border: '1px solid rgba(0,0,0,0.06)',
+                  borderRadius: '20px',
+                  textDecoration: 'none',
+                  transition: 'all 0.3s cubic-bezier(0.22, 1, 0.36, 1)',
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.transform = 'translateY(-6px)'
+                  e.currentTarget.style.borderColor = `${cat.color}40`
+                  e.currentTarget.style.boxShadow = `0 16px 40px ${cat.color}15`
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.transform = 'translateY(0)'
+                  e.currentTarget.style.borderColor = 'rgba(0,0,0,0.06)'
+                  e.currentTarget.style.boxShadow = 'none'
+                }}
+              >
+                <div style={{
+                  width: 56,
+                  height: 56,
+                  borderRadius: '16px',
+                  background: `${cat.color}12`,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: cat.color,
+                }}>
+                  <cat.icon size={24} strokeWidth={1.5} />
+                </div>
+                <span style={{
+                  fontFamily: "'Clash Display', sans-serif",
+                  fontWeight: 600,
+                  fontSize: '0.95rem',
+                  color: '#0f172a',
+                  letterSpacing: '-0.01em',
+                }}>
+                  {cat.label}
+                </span>
+              </Link>
+            </motion.div>
+          ))}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+// ─── HOW IT WORKS ───────────────────────────────────────────────────────────
+const STEPS = [
+  {
+    icon: Search,
+    title: 'Cherchez',
+    desc: 'Parcourez les profils de professionnels près de chez vous',
+  },
+  {
+    icon: Calendar,
+    title: 'Réservez',
+    desc: 'Choisissez votre créneau en quelques clics',
+  },
+  {
+    icon: Star,
+    title: 'Profitez',
+    desc: 'Recevez une confirmation instantanée par email',
+  },
+]
+
+function HowItWorks() {
+  return (
+    <section style={{ padding: '4rem 2rem 6rem', background: '#f8f7f4' }}>
+      <div style={{ maxWidth: '900px', margin: '0 auto' }}>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.5 }}
+          style={{ textAlign: 'center', marginBottom: '3rem' }}
+        >
+          <span style={{
+            fontSize: '0.7rem',
+            fontWeight: 700,
+            letterSpacing: '0.12em',
+            textTransform: 'uppercase',
+            color: '#7c3aed',
+            background: 'rgba(124, 58, 237, 0.08)',
+            padding: '0.35rem 0.9rem',
+            borderRadius: '100px',
+            fontFamily: "'DM Sans', sans-serif",
+          }}>
+            Comment ça marche
+          </span>
+          <h2 style={{
+            fontFamily: "'Clash Display', 'Syne', sans-serif",
+            fontSize: 'clamp(1.8rem, 3vw, 2.4rem)',
+            fontWeight: 600,
+            letterSpacing: '-0.02em',
+            color: '#0f172a',
+            margin: '1rem 0 0.5rem',
+          }}>
+            Simple. Rapide. Efficace.
+          </h2>
+        </motion.div>
+
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+          gap: '1.5rem',
+        }}>
+          {STEPS.map((step, idx) => (
+            <motion.div
+              key={step.title}
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.4, delay: idx * 0.1 }}
+              style={{
+                padding: '2rem',
+                background: 'white',
+                borderRadius: '24px',
+                border: '1px solid rgba(0,0,0,0.06)',
+                textAlign: 'center',
+              }}
+            >
+              <div style={{
+                width: 60,
+                height: 60,
+                borderRadius: '50%',
+                background: 'linear-gradient(135deg, rgba(124, 58, 237, 0.12), rgba(236, 72, 153, 0.12))',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                margin: '0 auto 1.25rem',
+                color: '#7c3aed',
+              }}>
+                <step.icon size={24} strokeWidth={1.5} />
+              </div>
+              <h3 style={{
+                fontFamily: "'Clash Display', sans-serif",
+                fontWeight: 600,
+                fontSize: '1.1rem',
+                color: '#0f172a',
+                margin: '0 0 0.5rem',
+              }}>
+                {step.title}
+              </h3>
+              <p style={{
+                fontSize: '0.9rem',
+                color: '#64748b',
+                lineHeight: 1.6,
+                fontFamily: "'DM Sans', sans-serif",
+                margin: 0,
+              }}>
+                {step.desc}
+              </p>
+            </motion.div>
+          ))}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+// ─── FOOTER ──────────────────────────────────────────────────────────────────
+function Footer() {
+  return (
+    <footer style={{ background: '#0f172a', padding: '4rem 2.5rem 2rem' }}>
+      <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: '1.5rem',
+          paddingBottom: '2rem',
+          borderBottom: '1px solid rgba(255,255,255,0.08)',
+        }}>
+          <BrandLogo variant="dark" />
+          <div style={{ display: 'flex', gap: '2rem', alignItems: 'center' }}>
+            <Link href="/marketplace" style={{
+              fontSize: '0.85rem',
+              color: '#94a3b8',
+              textDecoration: 'none',
+              fontFamily: "'DM Sans', sans-serif",
+              transition: 'color 0.2s',
+            }}
+              onMouseEnter={e => e.currentTarget.style.color = '#7c3aed'}
+              onMouseLeave={e => e.currentTarget.style.color = '#94a3b8'}
+            >
+              Marketplace
+            </Link>
+            <Link href="/client-sign-in" style={{
+              fontSize: '0.85rem',
+              color: '#94a3b8',
+              textDecoration: 'none',
+              fontFamily: "'DM Sans', sans-serif",
+              transition: 'color 0.2s',
+            }}
+              onMouseEnter={e => e.currentTarget.style.color = '#7c3aed'}
+              onMouseLeave={e => e.currentTarget.style.color = '#94a3b8'}
+            >
+              Connexion
+            </Link>
+            <Link href="/client-sign-up" style={{
+              fontSize: '0.85rem',
+              color: '#7c3aed',
+              fontWeight: 600,
+              textDecoration: 'none',
+              fontFamily: "'DM Sans', sans-serif",
+            }}>
+              M&apos;inscrire
+            </Link>
+          </div>
+        </div>
+        <div style={{
+          paddingTop: '2rem',
+          display: 'flex',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: '1rem',
+          fontSize: '0.8rem',
+          color: '#475569',
+          fontFamily: "'DM Sans', sans-serif",
+        }}>
+          <span>© 2026 CalendaPro. Tous droits réservés.</span>
+          <span>Conçu à Paris pour les clients exigeants</span>
+        </div>
+      </div>
+    </footer>
+  )
+}
+
+// ─── MAIN PAGE ──────────────────────────────────────────────────────────────
+export default function ExplorePage() {
+  return (
+    <>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300&display=swap');
+        @import url('https://api.fontshare.com/v2/css?f[]=clash-display@400,500,600,700&display=swap');
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        html { scroll-behavior: smooth; }
+        body { font-family: 'DM Sans', sans-serif; }
+        
+        @keyframes shimmer {
+          0% { transform: translateX(-100%); }
+          100% { transform: translateX(100%); }
+        }
+        
+        @keyframes float {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-10px); }
+        }
+        
+        @keyframes pulse {
+          0%, 100% { opacity: 1; transform: scale(1); }
+          50% { opacity: 0.7; transform: scale(1.05); }
+        }
+
+        @keyframes gradient-shift {
+          0% { background-position: 0% 50%; }
+          50% { background-position: 100% 50%; }
+          100% { background-position: 0% 50%; }
+        }
+
+        .gradient-text-animated {
+          background: linear-gradient(90deg, #7c3aed, #ec4899, #a855f7, #7c3aed);
+          background-size: 300% 100%;
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          background-clip: text;
+          animation: gradient-shift 4s ease infinite;
+        }
+      `}</style>
+      <div style={{ background: '#fafaf8', minHeight: '100vh', overflowX: 'hidden' }}>
+        <Nav />
+        <Hero />
+        <CategoriesSection />
+        <HowItWorks />
+        <Footer />
+      </div>
+    </>
+  )
+}
