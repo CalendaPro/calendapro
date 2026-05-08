@@ -257,9 +257,7 @@ function Nav() {
   return (
     <nav className={`cp-nav${scrolled ? ' cp-nav-scrolled' : ''}`}>
       <div className="cp-nav-inner">
-        <Link href="/" className="cp-nav-logo">
-          <BrandLogo />
-        </Link>
+        <BrandLogo />
 
         <div className="cp-nav-links">
           {navLinks.map(l => (
