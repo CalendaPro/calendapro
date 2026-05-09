@@ -1,6 +1,7 @@
 'use client'
 
 import { useUser } from '@clerk/nextjs'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import UpcomingBookings from './_components/UpcomingBookings'
 import FavoritesPros from './_components/FavoritesPros'
@@ -8,13 +9,27 @@ import BookingHistory from './_components/BookingHistory'
 
 export default function ClientProfilePage() {
   const { user } = useUser()
+  const [stats, setStats] = useState({ upcoming: 0, favorites: 0, completed: 0 })
+  const [statsLoading, setStatsLoading] = useState(true)
 
-  // TODO: Fetch profile data from Supabase
-  const mockProfile = {
-    full_name: user?.fullName || 'Leila Roura',
-    email: user?.emailAddresses?.[0]?.emailAddress || 'leila@example.com',
-    location: 'Toulon, France',
-  }
+  useEffect(() => {
+    Promise.all([
+      fetch('/api/bookings?status=upcoming').then(r => r.json()).catch(() => []),
+      fetch('/api/bookings?status=completed').then(r => r.json()).catch(() => []),
+      fetch('/api/favorites').then(r => r.json()).catch(() => []),
+    ]).then(([upcoming, completed, favs]) => {
+      setStats({
+        upcoming: Array.isArray(upcoming) ? upcoming.length : 0,
+        favorites: Array.isArray(favs) ? favs.length : 0,
+        completed: Array.isArray(completed) ? completed.length : 0,
+      })
+      setStatsLoading(false)
+    })
+  }, [])
+
+  const fullName = user?.fullName || user?.firstName || ''
+  const email = user?.emailAddresses?.[0]?.emailAddress || ''
+  const initial = user?.firstName?.charAt(0) || email?.charAt(0) || '?'
 
   return (
     <div>
@@ -27,14 +42,13 @@ export default function ClientProfilePage() {
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 mb-6">
         <div className="flex items-start gap-5">
           <div className="w-16 h-16 rounded-full bg-gradient-to-br from-violet-500 to-rose-500 flex items-center justify-center text-white font-bold text-2xl flex-shrink-0">
-            {user?.firstName?.charAt(0) || user?.emailAddresses?.[0]?.emailAddress?.charAt(0) || 'L'}
+            {initial.toUpperCase()}
           </div>
           <div className="flex-1">
             <h2 className="text-xl font-bold text-slate-900">
-              {mockProfile.full_name}
+              {fullName || 'Mon compte'}
             </h2>
-            <p className="text-slate-500 text-sm">{mockProfile.email}</p>
-            <p className="text-slate-400 text-sm mt-0.5">{mockProfile.location}</p>
+            <p className="text-slate-500 text-sm">{email}</p>
             <div className="flex gap-2 mt-4">
               <Link
                 href="/client/settings"
@@ -56,15 +70,21 @@ export default function ClientProfilePage() {
       {/* Stats */}
       <div className="grid grid-cols-3 gap-4 mb-6">
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 text-center">
-          <div className="text-2xl font-bold text-violet-600">-</div>
+          <div className="text-2xl font-bold text-violet-600">
+            {statsLoading ? '-' : stats.upcoming}
+          </div>
           <div className="text-xs text-slate-500 mt-0.5">RDV a venir</div>
         </div>
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 text-center">
-          <div className="text-2xl font-bold text-rose-500">-</div>
+          <div className="text-2xl font-bold text-rose-500">
+            {statsLoading ? '-' : stats.favorites}
+          </div>
           <div className="text-xs text-slate-500 mt-0.5">Favoris</div>
         </div>
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 text-center">
-          <div className="text-2xl font-bold text-emerald-600">-</div>
+          <div className="text-2xl font-bold text-emerald-600">
+            {statsLoading ? '-' : stats.completed}
+          </div>
           <div className="text-xs text-slate-500 mt-0.5">RDV termines</div>
         </div>
       </div>

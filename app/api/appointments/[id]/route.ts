@@ -6,15 +6,7 @@ import { logger } from '@/lib/logger'
 
 export const dynamic = 'force-dynamic'
 
-// Helper pour récupérer le pro_id depuis le user_id Clerk
-async function getProId(supabase: ReturnType<typeof createServerSupabaseClient>, userId: string): Promise<string> {
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('id')
-    .eq('user_id', userId)
-    .maybeSingle()
-  return profile?.id || userId
-}
+// NOTE: profiles.id == Clerk userId directement — pas besoin de lookup supplémentaire
 
 export async function GET(
   _request: Request,
@@ -26,7 +18,6 @@ export async function GET(
 
     const { id } = await params
     const supabase = createServerSupabaseClient()
-    const proId = await getProId(supabase, userId)
 
     // Récupérer le booking sans jointure problématique
     const { data: booking, error } = await supabase
@@ -50,7 +41,7 @@ export async function GET(
         source_channel
       `)
       .eq('id', id)
-      .eq('pro_id', proId)
+      .eq('pro_id', userId)
       .maybeSingle()
 
     if (error) {
@@ -120,7 +111,6 @@ export async function PATCH(
     }
 
     const supabase = createServerSupabaseClient()
-    const proId = await getProId(supabase, userId)
     
     const updates: Record<string, unknown> = {}
     if (date !== undefined) updates.scheduled_at = new Date(date).toISOString() // Format ISO garanti
@@ -136,7 +126,7 @@ export async function PATCH(
       .from('bookings')
       .update(updates)
       .eq('id', id)
-      .eq('pro_id', proId) // Sécurité : vérifie l'appartenance
+      .eq('pro_id', userId) // Sécurité : vérifie l'appartenance
       .select()
       .single()
 

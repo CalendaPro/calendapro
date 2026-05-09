@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import PurchaseConfirmModal from '@/components/PurchaseConfirmModal'
 import { logger } from '@/lib/logger'
@@ -268,7 +268,29 @@ export default function SMSPageClient({ credits, history }: { credits: number; h
   })
   const [previewKey, setPreviewKey] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
+  const [saving, setSaving] = useState(false)
   const [activeTab, setActiveTab] = useState<'rappels' | 'historique'>('rappels')
+
+  // Charger les paramètres existants au montage
+  useEffect(() => {
+    fetch('/api/notification-settings')
+      .then(r => r.json())
+      .then(data => {
+        if (data && !data.error) {
+          setNotifs(prev => ({
+            ...prev,
+            smsConfirmation: data.sms_confirmation ?? prev.smsConfirmation,
+            sms24hBefore: data.sms_24h_before ?? prev.sms24hBefore,
+            sms2hBefore: data.sms_2h_before ?? prev.sms2hBefore,
+            smsNoShow: data.sms_no_show ?? prev.smsNoShow,
+            smsLastMinute: data.sms_last_minute ?? prev.smsLastMinute,
+            emailConfirmation: data.email_confirmation ?? prev.emailConfirmation,
+            email24hBefore: data.email_24h_before ?? prev.email24hBefore,
+          }))
+        }
+      })
+      .catch(() => {})
+  }, [])
 
   const setNotif = (key: keyof NotifSettings, val: boolean) => {
     setNotifs(prev => ({ ...prev, [key]: val }))
@@ -285,9 +307,19 @@ export default function SMSPageClient({ credits, history }: { credits: number; h
   const estimatedMonthly = Math.round(20 * smsPerRdv)
 
   const handleSave = async () => {
-    // TODO: await fetch('/api/settings', { method: 'POST', body: JSON.stringify(notifs) })
-    setSaved(true)
-    setTimeout(() => setSaved(false), 2500)
+    setSaving(true)
+    try {
+      const res = await fetch('/api/notification-settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(notifs),
+      })
+      if (res.ok) {
+        setSaved(true)
+        setTimeout(() => setSaved(false), 2500)
+      }
+    } catch {}
+    setSaving(false)
   }
 
   const isLow = credits > 0 && credits < 10
@@ -644,7 +676,7 @@ export default function SMSPageClient({ credits, history }: { credits: number; h
 
           {activeTab === 'rappels' && (
             <div className="sp-save-row">
-              <button onClick={handleSave} className="sp-save-btn">Enregistrer les paramètres</button>
+              <button onClick={handleSave} className="sp-save-btn" disabled={saving}>{saving ? 'Enregistrement...' : 'Enregistrer les paramètres'}</button>
               {saved && (
                 <div className="sp-save-ok">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>

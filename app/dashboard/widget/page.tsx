@@ -1,5 +1,5 @@
 import { auth } from '@clerk/nextjs/server'
-import { supabase } from '@/lib/supabase'
+import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { getUserPlan } from '@/lib/subscription'
 import { redirect } from 'next/navigation'
 import WidgetCopyButton from './WidgetCopyButton'
@@ -10,6 +10,7 @@ export default async function WidgetPage() {
 
   if (plan === 'free') redirect('/dashboard/pricing')
 
+  const supabase = createServerSupabaseClient()
   const { data: profile } = await supabase
     .from('profiles')
     .select('username')
