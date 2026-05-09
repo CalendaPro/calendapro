@@ -65,7 +65,7 @@ export async function GET(request: NextRequest) {
 
   // Aucun profil → créer automatiquement le profil avec le rôle attendu
   if (!profile) {
-    logger.info('🆕 No profile found, calling ensureProfile...')
+    logger.info('[Callback] No profile found, calling ensureProfile...')
 
     try {
       await ensureProfile(userId, { role: expectedRole as 'pro' | 'client' })

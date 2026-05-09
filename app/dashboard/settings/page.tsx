@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useCallback, useEffect, useState } from 'react'
+import React, { Suspense, useCallback, useEffect, useState } from 'react'
 import dynamic from 'next/dynamic'
 import { useSearchParams } from 'next/navigation'
 import { usePlan } from '@/lib/hooks/usePlan'
@@ -189,6 +189,14 @@ function NavItem({ id, label, active, onClick }: { id: Section; label: string; a
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function SettingsPage() {
+  return (
+    <Suspense fallback={<div style={{ padding: 40, textAlign: 'center', color: '#64748b' }}>Chargement des paramètres...</div>}>
+      <SettingsContent />
+    </Suspense>
+  )
+}
+
+function SettingsContent() {
   const { plan, has } = usePlan()
   const searchParams = useSearchParams()
   const syncSuccess = searchParams.get('sync_success')

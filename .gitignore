@@ -46,3 +46,28 @@ next-env.d.ts
 !.aidesigner/.gitkeep
 
 !.env.example
+
+# binaries
+*.exe
+
+# large/generated audit files
+repomix-output.xml
+full-project-audit.txt
+full-project-lean.txt
+ultra-lean-project.txt
+pricing-test.html
+post-correction-audit.txt
+
+# playwright
+/playwright-report/
+/test-results/
+
+# audit report files
+AUDIT_*.md
+*_AUDIT*.md
+HEALTH_REPORT.md
+LAUNCH_CHECKLIST.md
+PRODUCTION_CHECKLIST.md
+ENVIRONMENT_VARIABLES.md
+SECURITY_AUDIT_REPORT.md
+PERFORMANCE_AUDIT_*.md
