@@ -9,6 +9,75 @@ export type LocalPhoto = {
   name: string
 }
 
+/**
+ * Compresse une image avec canvas
+ * #35 - Compression avant upload
+ */
+async function compressImage(file: File): Promise<File> {
+  // Si déjà petit (<500KB), pas besoin de compresser
+  if (file.size < 500 * 1024) return file
+
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    const url = URL.createObjectURL(file)
+    
+    img.onload = () => {
+      URL.revokeObjectURL(url)
+      
+      // Calcul des dimensions max (800x800)
+      let { width, height } = img
+      const MAX_SIZE = 800
+      
+      if (width > MAX_SIZE || height > MAX_SIZE) {
+        if (width > height) {
+          height = (height / width) * MAX_SIZE
+          width = MAX_SIZE
+        } else {
+          width = (width / height) * MAX_SIZE
+          height = MAX_SIZE
+        }
+      }
+      
+      // Canvas
+      const canvas = document.createElement('canvas')
+      canvas.width = width
+      canvas.height = height
+      const ctx = canvas.getContext('2d')
+      if (!ctx) {
+        resolve(file) // Fallback
+        return
+      }
+      
+      ctx.drawImage(img, 0, 0, width, height)
+      
+      // Export avec qualité 0.85
+      canvas.toBlob(
+        (blob) => {
+          if (!blob) {
+            resolve(file) // Fallback
+            return
+          }
+          // Créer nouveau fichier
+          const compressedFile = new File([blob], file.name, {
+            type: 'image/jpeg',
+            lastModified: Date.now(),
+          })
+          resolve(compressedFile)
+        },
+        'image/jpeg',
+        0.85
+      )
+    }
+    
+    img.onerror = () => {
+      URL.revokeObjectURL(url)
+      resolve(file) // Fallback sur erreur
+    }
+    
+    img.src = url
+  })
+}
+
 export default function PhotoDropzone({
   photos,
   onChange,
@@ -30,19 +99,24 @@ export default function PhotoDropzone({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const addFiles = (fileList: FileList | null) => {
+  const addFiles = async (fileList: FileList | null) => {
     if (!fileList || disabled) return
     const arr = Array.from(fileList)
     if (arr.length === 0) return
 
-    const created: LocalPhoto[] = arr.map(f => {
+    // #35 - Compresser les images avant création
+    const compressedFiles = await Promise.all(
+      arr.map(f => compressImage(f))
+    )
+
+    const created: LocalPhoto[] = compressedFiles.map(f => {
       const previewUrl = URL.createObjectURL(f)
       createdUrlsRef.current.add(previewUrl)
       return {
-      id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
-      file: f,
-      previewUrl,
-      name: f.name,
+        id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+        file: f,
+        previewUrl,
+        name: f.name,
       }
     })
 
@@ -100,7 +174,7 @@ export default function PhotoDropzone({
                   className="absolute top-2 right-2 h-7 w-7 rounded-full bg-black/60 text-white text-xs flex items-center justify-center hover:bg-black/70"
                   aria-label="Supprimer photo"
                 >
-                  ✕
+
                 </button>
               </div>
             ))}

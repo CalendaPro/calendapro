@@ -3,6 +3,8 @@ import { NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import type { PulseSettings } from '@/lib/pulse/types'
 
+export const dynamic = 'force-dynamic'
+
 export async function GET() {
   const { userId } = await auth()
   if (!userId) return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })

@@ -30,7 +30,7 @@ function ClientSignUpWithRedirect() {
 
 export default function ClientSignUpPage() {
   return (
-    <div className="flex min-h-screen items-center justify-center">
+    <div className="flex min-h-screen items-center justify-center" style={{ background: '#F7F5F0' }}>
       <Suspense fallback={<div className="text-stone-500 text-sm">Chargement…</div>}>
         <ClientSignUpWithRedirect />
       </Suspense>

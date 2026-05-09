@@ -1,5 +1,7 @@
 import { type NextRequest } from 'next/server'
 
+export const dynamic = 'force-dynamic'
+
 interface ServiceItem {
   name: string
   price: string | number
@@ -86,7 +88,7 @@ export async function GET(req: NextRequest) {
   const heroSection = heroUrl
     ? `<div style="width:100%;height:220px;background:url('${heroUrl}') center/cover no-repeat;border-radius:16px;margin-bottom:20px;"></div>`
     : `<div style="width:100%;height:220px;background:linear-gradient(135deg,${accent}33,${accent}11);border-radius:16px;margin-bottom:20px;display:flex;align-items:center;justify-content:center;">
-        <span style="font-size:3rem;opacity:0.3">📸</span>
+ <span style="font-size:3rem;opacity:0.3"></span>
       </div>`
 
   const servicesHtml = services.length > 0
@@ -148,10 +150,10 @@ export async function GET(req: NextRequest) {
 
   const locationHtml = address
     ? `<div style="background:${cardBg};border-radius:16px;padding:16px 20px;margin-bottom:16px;border:${cardBorder};display:flex;align-items:flex-start;gap:12px">
-        <span style="font-size:1.1rem;margin-top:2px">📍</span>
+ <span style="font-size:1.1rem;margin-top:2px"></span>
         <div>
           <div style="font-size:0.84rem;color:${t.text};font-weight:600;line-height:1.5">${address}</div>
-          ${phone ? `<div style="font-size:0.78rem;color:${accent};margin-top:4px">📞 ${phone}</div>` : ''}
+ ${phone ? `<div style="font-size:0.78rem;color:${accent};margin-top:4px"> ${phone}</div>` : ''}
         </div>
       </div>` : ''
 
@@ -207,7 +209,7 @@ body{font-family:'${font}','DM Sans',sans-serif;background:${t.bg};color:${t.tex
 
   <!-- CTA -->
   <button style="width:100%;padding:18px;${btn}border-radius:${radius};font-size:1rem;font-weight:800;cursor:pointer;letter-spacing:0.01em;font-family:inherit;margin-top:8px;box-shadow:0 8px 32px ${accent}44">
-    📅 ${ctaText}
+ ${ctaText}
   </button>
 
   <!-- Footer -->

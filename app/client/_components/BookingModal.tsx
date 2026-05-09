@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { parseDurationToMinutes, formatDuration } from '@/lib/duration'
 import type { BookingPaymentSettings } from '@/lib/booking-payment-settings'
+import { logger } from '@/lib/logger'
 
 type PublicBookingSettings = BookingPaymentSettings & {
   username: string
@@ -52,28 +53,28 @@ export default function BookingModal({ isOpen, onClose, proId, proName, proUsern
   // Charger les settings de paiement
   useEffect(() => {
     if (!isOpen) return
-    console.log(`[BookingModal] 🔍 Chargement settings pour ${proUsername}`)
+ logger.info(`[BookingModal] Chargement settings pour ${proUsername}`)
     setLoadingSettings(true)
     fetch(`/api/public/booking-settings?username=${encodeURIComponent(proUsername)}`)
       .then(r => {
-        console.log(`[BookingModal] 📡 Response status: ${r.status}`)
+ logger.info(`[BookingModal] Response status: ${r.status}`)
         return r.json()
       })
       .then(data => {
-        console.log(`[BookingModal] 📊 Data reçue:`, data)
+ logger.info(`[BookingModal] Data reçue:`, data)
         if (!data?.error) {
           setSettings(data as PublicBookingSettings)
-          console.log(`[BookingModal] ✅ Settings chargés:`, {
+ logger.info(`[BookingModal] Settings chargés:`, {
             online_payment_enabled: data.online_payment_enabled,
             deposit_required: data.deposit_required,
             paymentRequired: data.online_payment_enabled && data.deposit_required,
           })
         } else {
-          console.error(`[BookingModal] ❌ Erreur API:`, data.error)
+ logger.error(`[BookingModal] Erreur API:`, data.error)
         }
       })
       .catch(err => {
-        console.error(`[BookingModal] ❌ Erreur fetch:`, err)
+ logger.error(`[BookingModal] Erreur fetch:`, err)
       })
       .finally(() => setLoadingSettings(false))
   }, [isOpen, proUsername])

@@ -56,7 +56,7 @@ export default function ErrorContent() {
   const errorInfo = getErrorMessage()
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-stone-50 to-stone-100 px-4">
+    <div className="min-h-screen flex flex-col items-center justify-center px-4" style={{ background: '#F7F5F0' }}>
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}

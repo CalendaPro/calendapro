@@ -3,9 +3,21 @@ import { stripe } from '@/lib/stripe'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { addCredits, resetCredits } from '@/lib/sms-credits'
 import { createBookingAndNotify } from '@/lib/booking-pipeline'
-import { sendPaymentConfirmationWithReceipt } from '@/lib/emails'
+import { revalidatePath } from 'next/cache'
+import {
+  sendPaymentConfirmationWithReceipt,
+  sendRefundNotificationToClient,
+  sendPayoutNotificationToPro,
+  sendPaymentFailedNotification,
+} from '@/lib/emails'
 import { checkBookingConflict } from '@/lib/booking-conflict'
+import { logConnectTransaction, computePlatformFee } from '@/lib/stripe-connect'
+import { getUserPlan, type Plan } from '@/lib/subscription'
+import { enqueueWebhookRetry } from '@/lib/webhook-queue'
 import Stripe from 'stripe'
+import { logger } from '@/lib/logger'
+
+export const dynamic = 'force-dynamic'
 
 export const runtime = 'nodejs'
 
@@ -27,28 +39,47 @@ function getPlanFromPriceId(priceId: string): string {
   return 'free'
 }
 
-export async function POST(request: Request) {
-  const body = await request.text()
-  const signature = request.headers.get('stripe-signature')
+// Events critiques qui nécessitent un retry en cas d'échec
+const CRITICAL_EVENTS = [
+  'checkout.session.completed',
+  'invoice.paid',
+  'charge.refunded',
+  'payout.paid',
+  'account.updated',
+]
 
-  if (!signature) {
-    return NextResponse.json({ error: 'Signature manquante' }, { status: 400 })
-  }
-
-  let event: Stripe.Event
-
-  try {
-    event = stripe.webhooks.constructEvent(
-      body,
-      signature,
-      process.env.STRIPE_WEBHOOK_SECRET!
-    )
-  } catch (err) {
-    console.error('Webhook signature error:', err)
-    return NextResponse.json({ error: 'Webhook invalide' }, { status: 400 })
-  }
-
+/**
+ * Fonction interne de traitement des webhooks
+ * Contient toute la logique métier
+ */
+async function processWebhookEvent(
+  event: Stripe.Event,
+  rawBody: string,
+  signature: string
+): Promise<Response> {
   const supabase = createServerSupabaseClient()
+
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // IDEMPOTENCY: Vérifier si cet event a déjà été traité
+  // ═══════════════════════════════════════════════════════════════════════════════
+  const { data: existingEvent } = await supabase
+    .from('webhook_events_log')
+    .select('id')
+    .eq('stripe_event_id', event.id)
+    .maybeSingle()
+
+  if (existingEvent) {
+    logger.info(`[Webhook] Event ${event.id} déjà traité — ignoré`)
+    return NextResponse.json({ received: true, idempotent: true })
+  }
+
+  // Logger l'event pour traçabilité
+  await supabase.from('webhook_events_log').insert({
+    stripe_event_id: event.id,
+    event_type: event.type,
+    event_data: event as unknown as Record<string, unknown>,
+    processed: false,
+  })
 
   switch (event.type) {
 
@@ -73,7 +104,7 @@ export async function POST(request: Request) {
           const durationMinutes = session.metadata?.durationMinutes
 
           if (!username || !clientName || !date) {
-            console.error('booking_deposit webhook: metadata manquante', session.metadata)
+            logger.error('booking_deposit webhook: metadata manquante', session.metadata)
             break
           }
 
@@ -88,18 +119,22 @@ export async function POST(request: Request) {
 
             if (hasConflict) {
               // Creneau deja pris - rembourser automatiquement
-              console.error(`[Webhook] Conflit detecte pour ${proId} a ${date}, remboursement auto`)
+              logger.error(`[Webhook] Conflit detecte pour ${proId} a ${date}, remboursement auto`)
               try {
                 const paymentIntent = session.payment_intent as string | null
                 if (paymentIntent) {
+                  // Connect-aware refund: reverse the transfer if funds were routed
+                  const pi = await stripe.paymentIntents.retrieve(paymentIntent)
+                  const hasTransfer = !!(pi as unknown as { transfer?: string }).transfer
                   await stripe.refunds.create({
                     payment_intent: paymentIntent,
                     reason: 'duplicate',
+                    ...(hasTransfer ? { reverse_transfer: true, refund_application_fee: true } : {}),
                   })
-                  console.log(`[Webhook] Remboursement auto effectue pour session ${session.id}`)
+                  logger.info(`[Webhook] Remboursement auto effectue pour session ${session.id}${hasTransfer ? ' (Connect reverse_transfer)' : ''}`)
                 }
               } catch (refundError) {
-                console.error('[Webhook] Echec remboursement automatique:', refundError)
+                logger.error('[Webhook] Echec remboursement automatique:', refundError)
                 // Stocker pour traitement manuel
                 try {
                   await supabase.from('failed_refunds').insert({
@@ -109,7 +144,7 @@ export async function POST(request: Request) {
                     metadata: session.metadata || null,
                     created_at: new Date().toISOString(),
                   })
-                } catch (e) { console.error('[Webhook] Failed to log failed_refund:', e) }
+                } catch (e) { logger.error('[Webhook] Failed to log failed_refund:', e) }
               }
               // Ne PAS creer le booking en cas de conflit
               break
@@ -123,7 +158,7 @@ export async function POST(request: Request) {
               : ''
             const mergedNotes = [baseNotes, paymentLine].filter(Boolean).join('\n\n')
 
-            await createBookingAndNotify({
+            const result = await createBookingAndNotify({
               username,
               clientName,
               clientEmail,
@@ -133,7 +168,79 @@ export async function POST(request: Request) {
               payment_completed: true, // Paiement déjà vérifié par Stripe
               source_channel: session.metadata?.sourceChannel || undefined,
             })
-            console.log(`✅ booking_deposit cree pour ${username}`)
+ logger.info(` booking_deposit cree pour ${username}`)
+
+            // Récupérer l'ID du booking créé
+            const bookingId = (result.appointment as { id?: string })?.id
+
+            // Sauvegarder les infos Stripe dans le booking
+            if (bookingId) {
+              const piId = session.payment_intent as string
+              const pi = piId
+                ? await stripe.paymentIntents.retrieve(piId, { expand: ['charges.data'] })
+                : null
+              const receiptUrl = (pi as unknown as { charges?: { data: Array<{ receipt_url?: string }> } })?.charges?.data[0]?.receipt_url
+
+              await supabase
+                .from('bookings')
+                .update({
+                  stripe_payment_intent_id: piId,
+                  stripe_checkout_session_id: session.id,
+                  stripe_receipt_url: receiptUrl,
+                  amount_paid: session.amount_total,
+                  payment_method: 'online',
+                  payment_status: 'paid',
+                })
+                .eq('id', bookingId)
+
+              // Créer la transaction client pour l'historique
+              if (clientEmail && session.amount_total) {
+                await supabase.from('client_transactions').insert({
+                  user_id: clientEmail, // Utiliser l'email comme ID temporaire ou chercher le vrai userId
+                  booking_id: bookingId,
+                  pro_id: proId || '',
+                  stripe_payment_intent_id: piId,
+                  stripe_checkout_session_id: session.id,
+                  amount: session.amount_total,
+                  currency: 'eur',
+                  status: 'succeeded',
+                  description: `Réservation avec ${proName}`,
+                  receipt_url: receiptUrl,
+                })
+              }
+            }
+
+            // Log Connect transaction if applicable
+            if (proId && session.amount_total) {
+              const piId = session.payment_intent as string | null
+              if (piId) {
+                try {
+                  const pi = await stripe.paymentIntents.retrieve(piId)
+                  const hasTransfer = !!(pi as unknown as { transfer?: string }).transfer
+                  if (hasTransfer) {
+                    // Récupérer le plan du pro pour calculer la commission correcte
+                    const proPlan: Plan = await getUserPlan(proId)
+                    const fee = computePlatformFee(session.amount_total, proPlan)
+                    await logConnectTransaction({
+                      proId,
+                      stripePaymentId: piId,
+                      stripeTransferId: (pi as unknown as { transfer?: string }).transfer || undefined,
+                      amount: session.amount_total,
+                      platformFee: fee,
+                      netAmount: session.amount_total - fee,
+                      status: 'succeeded',
+                      clientName: clientName,
+                      clientEmail: clientEmail,
+                      paymentType: session.metadata?.paymentKind || 'deposit',
+                      plan: proPlan,
+                    })
+                    logger.info(`[Webhook] Connect transaction logged: plan=${proPlan}, fee=${fee / 100}€`)
+                  }
+                } catch (txErr) {
+                  logger.error('[Webhook] Erreur log connect_transaction:', txErr)
+                }
+              }
+            }
 
             // Send payment confirmation email with PDF receipt
             if (clientEmail && session.amount_total) {
@@ -147,14 +254,61 @@ export async function POST(request: Request) {
                   transactionId: session.id,
                   service: serviceName,
                 })
-                console.log(`✅ Email avec recu envoye a ${clientEmail}`)
+ logger.info(` Email avec recu envoye a ${clientEmail}`)
               } catch (emailError) {
-                console.error('❌ Erreur envoi email avec recu:', emailError)
+ logger.error(' Erreur envoi email avec recu:', emailError)
               }
             }
           } catch (error) {
-            console.error('❌ booking_deposit webhook:', error)
+ logger.error(' booking_deposit webhook:', error)
+            
+            // ═══════════════════════════════════════════════════════════════════════════════
+            // Fix #4: Améliorer le retry pour les erreurs de création booking
+            // Si l'erreur est retryable, on la laisse remonter pour déclencher le retry automatique
+            // ═══════════════════════════════════════════════════════════════════════════════
+            const errorMsg = error instanceof Error ? error.message : String(error)
+            const isRetryable = 
+              errorMsg.includes('timeout') ||
+              errorMsg.includes('network') ||
+              errorMsg.includes('connection') ||
+              errorMsg.includes('temporarily') ||
+              errorMsg.includes('rate limit') ||
+              errorMsg.includes('503') ||
+              errorMsg.includes('502') ||
+              errorMsg.includes('504')
+            
+            if (isRetryable) {
+              logger.info(`[Webhook] Erreur retryable détectée: ${errorMsg}`)
+              // L'erreur va remonter et déclencher le retry via le mécanisme de queue
+              throw error
+            }
+            
+            // Pour les erreurs non-retryable, logger pour investigation manuelle
+            try {
+              await supabase.from('webhook_failed_bookings').insert({
+                stripe_session_id: session.id,
+                payment_intent_id: session.payment_intent as string | null,
+                error: errorMsg,
+                metadata: session.metadata || null,
+                created_at: new Date().toISOString(),
+                retryable: false
+              })
+            } catch (logErr) {
+              logger.error('[Webhook] Impossible de logger l\'erreur:', logErr)
+            }
           }
+          
+          // Invalider le cache du dashboard pour forcer la synchronisation
+          try {
+            revalidatePath('/dashboard', 'layout')
+            revalidatePath('/dashboard/appointments', 'layout')
+            revalidatePath('/dashboard/calendar', 'layout')
+            revalidatePath('/dashboard/payments-reservations', 'layout')
+ logger.info(' Dashboard cache revalidated after booking creation')
+          } catch (revError) {
+ logger.error(' Failed to revalidate dashboard cache:', revError)
+          }
+          
           break
         }
 
@@ -163,9 +317,9 @@ export async function POST(request: Request) {
           const credits = parseInt(session.metadata?.credits ?? '0', 10)
           if (userId && credits > 0) {
             await addCredits(userId, credits)
-            console.log(`✅ ${credits} crédits SMS ajoutés pour ${userId}`)
+ logger.info(` ${credits} crédits SMS ajoutés pour ${userId}`)
           } else {
-            console.error('sms_credits webhook: userId ou credits manquant', { userId, credits, meta: session.metadata })
+            logger.error('sms_credits webhook: userId ou credits manquant', { userId, credits, meta: session.metadata })
           }
           break
         }
@@ -189,20 +343,20 @@ export async function POST(request: Request) {
           })
 
           if (error) {
-            console.error('❌ Supabase upsert error:', error)
+ logger.error(' Supabase upsert error:', error)
           } else {
-            console.log(`✅ Subscription ${plan} saved pour ${userId}`)
+ logger.info(` Subscription ${plan} saved pour ${userId}`)
           }
 
-          // ✅ Reset (pas add) — évite l'accumulation si le webhook est rejoué
+ // Reset (pas add) — évite l'accumulation si le webhook est rejoué
           if (plan === 'premium' || plan === 'infinity') {
             const initialCredits = PLAN_INITIAL_CREDITS[plan as 'premium' | 'infinity']
             await resetCredits(userId, initialCredits)
-            console.log(`✅ ${initialCredits} crédits SMS initialisés pour ${userId}`)
+ logger.info(` ${initialCredits} crédits SMS initialisés pour ${userId}`)
           }
         }
       } catch (err) {
-        console.error('❌ checkout.session.completed:', err)
+ logger.error(' checkout.session.completed:', err)
         return NextResponse.json({ error: 'Webhook handler error' }, { status: 500 })
       }
       break
@@ -215,7 +369,7 @@ export async function POST(request: Request) {
       const subRef = invoice.subscription
       const subscriptionId = typeof subRef === 'string' ? subRef : subRef?.id
 
-      // ✅ On ignore la première invoice — déjà gérée par checkout.session.completed
+ // On ignore la première invoice — déjà gérée par checkout.session.completed
       if (invoice.billing_reason === 'subscription_create') break
 
       if (subscriptionId) {
@@ -227,9 +381,9 @@ export async function POST(request: Request) {
 
         if (sub && (sub.plan === 'premium' || sub.plan === 'infinity')) {
           const monthlyCredits = PLAN_INITIAL_CREDITS[sub.plan as 'premium' | 'infinity']
-          // ✅ RESET et non ADD — renouvellement remet à zéro, pas cumul
+ // RESET et non ADD — renouvellement remet à zéro, pas cumul
           await resetCredits(sub.user_id, monthlyCredits)
-          console.log(`✅ Renouvellement: ${monthlyCredits} crédits reset pour ${sub.user_id}`)
+ logger.info(` Renouvellement: ${monthlyCredits} crédits reset pour ${sub.user_id}`)
         }
       }
       break
@@ -247,7 +401,7 @@ export async function POST(request: Request) {
         })
         .eq('stripe_subscription_id', subscription.id)
 
-      console.log(`✅ Subscription annulée: ${subscription.id}`)
+ logger.info(` Subscription annulée: ${subscription.id}`)
       break
     }
 
@@ -267,13 +421,266 @@ export async function POST(request: Request) {
         })
         .eq('stripe_subscription_id', subscription.id)
 
-      console.log(`✅ Subscription mise à jour: ${plan} — ${subscription.id}`)
+ logger.info(` Subscription mise à jour: ${plan} — ${subscription.id}`)
+      break
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // CHARGE REFUNDED — Remboursement effectué
+    // ═══════════════════════════════════════════════════════════════════════════
+    case 'charge.refunded': {
+      const charge = event.data.object as Stripe.Charge
+      const piId = charge.payment_intent as string
+
+      if (piId) {
+        // Récupérer la transaction client pour avoir les détails
+        const { data: clientTx } = await supabase
+          .from('client_transactions')
+          .select('user_id, booking_id, description, amount')
+          .eq('stripe_payment_intent_id', piId)
+          .maybeSingle()
+
+        // Mettre à jour la transaction client
+        await supabase.rpc('update_client_transaction_status', {
+          p_stripe_pi_id: piId,
+          p_status: charge.refunded ? 'refunded' : 'partially_refunded',
+          p_refunded_amount: charge.amount_refunded,
+        })
+
+        // Mettre à jour le booking
+        const { data: booking } = await supabase
+          .from('bookings')
+          .update({
+            payment_status: charge.refunded ? 'refunded' : 'partially_refunded',
+            refund_amount: charge.amount_refunded,
+            refunded_at: charge.refunds?.data[0]?.created
+              ? new Date(charge.refunds.data[0].created * 1000).toISOString()
+              : new Date().toISOString(),
+          })
+          .eq('stripe_payment_intent_id', piId)
+          .select('scheduled_at, client_name, client_email, service_name, pro_name')
+          .maybeSingle()
+
+        // Envoyer email de notification au client
+        if (booking?.client_email && booking.client_name) {
+          try {
+            await sendRefundNotificationToClient({
+              clientEmail: booking.client_email,
+              clientName: booking.client_name,
+              professionalName: booking.pro_name || 'Professionnel',
+              serviceName: booking.service_name || undefined,
+              amount: charge.amount_refunded,
+              date: booking.scheduled_at,
+              isPartial: !charge.refunded,
+            })
+ logger.info(` Email remboursement envoyé à ${booking.client_email}`)
+          } catch (emailErr) {
+ logger.error(' Erreur envoi email remboursement:', emailErr)
+          }
+        }
+
+        logger.info(`[Webhook] Charge refunded: ${piId}, amount: ${charge.amount_refunded}`)
+      }
+      break
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // PAYOUT PAID — Virement vers compte bancaire du pro
+    // ═══════════════════════════════════════════════════════════════════════════
+    case 'payout.paid': {
+      const payout = event.data.object as Stripe.Payout
+      const connectAccountId = event.account // Connect account ID
+
+      if (connectAccountId) {
+        // Récupérer le pro depuis son Connect ID
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('id, email')
+          .eq('stripe_connect_id', connectAccountId)
+          .maybeSingle()
+
+        if (profile) {
+          // Enregistrer la notification
+          await supabase.from('payout_notifications').insert({
+            pro_id: profile.id,
+            stripe_payout_id: payout.id,
+            amount: payout.amount,
+            currency: payout.currency,
+            arrival_date: payout.arrival_date
+              ? new Date(payout.arrival_date * 1000).toISOString().split('T')[0]
+              : null,
+            status: 'paid',
+            bank_account_last4: (payout.destination as Stripe.BankAccount)?.last4 || null,
+          })
+
+          // Envoyer email "Virement reçu" au pro
+          if (profile.email) {
+            try {
+              await sendPayoutNotificationToPro({
+                proEmail: profile.email,
+                proName: profile.email.split('@')[0], // Fallback name
+                amount: payout.amount,
+                periodStart: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
+                periodEnd: new Date().toISOString(),
+                bankAccountLast4: (payout.destination as Stripe.BankAccount)?.last4,
+              })
+ logger.info(` Email virement envoyé à ${profile.email}`)
+            } catch (emailErr) {
+ logger.error(' Erreur envoi email virement:', emailErr)
+            }
+          }
+
+          logger.info(`[Webhook] Payout paid: ${payout.id} pour pro ${profile.id}`)
+        }
+      }
+      break
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // ACCOUNT UPDATED — Mise à jour statut compte Connect
+    // ═══════════════════════════════════════════════════════════════════════════
+    case 'account.updated': {
+      const account = event.data.object as Stripe.Account
+
+      // Mettre à jour le statut dans profiles
+      await supabase
+        .from('profiles')
+        .update({
+          stripe_connect_charges: account.charges_enabled ?? false,
+          stripe_connect_payouts: account.payouts_enabled ?? false,
+          stripe_connect_onboarding: (account.charges_enabled && account.payouts_enabled),
+        })
+        .eq('stripe_connect_id', account.id)
+
+      logger.info(`[Webhook] Account updated: ${account.id}, charges: ${account.charges_enabled}, payouts: ${account.payouts_enabled}`)
+      break
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // PAYMENT INTENT PAYMENT FAILED — Paiement échoué
+    // ═══════════════════════════════════════════════════════════════════════════
+    case 'payment_intent.payment_failed': {
+      const pi = event.data.object as Stripe.PaymentIntent
+
+      // Mettre à jour la transaction client si elle existe
+      await supabase
+        .from('client_transactions')
+        .update({ status: 'failed', updated_at: new Date().toISOString() })
+        .eq('stripe_payment_intent_id', pi.id)
+
+      // Annuler le booking associé s'il existe et récupérer les infos pour l'email
+      const { data: booking } = await supabase
+        .from('bookings')
+        .update({
+          status: 'cancelled',
+          payment_status: 'failed',
+ notes: ` Paiement échoué: ${pi.last_payment_error?.message || 'Carte refusée'}`,
+        })
+        .eq('stripe_payment_intent_id', pi.id)
+        .select('client_name, client_email, service_name, pro_name, amount_paid')
+        .maybeSingle()
+
+      // Envoyer email échec paiement au client
+      if (booking?.client_email && booking.client_name) {
+        try {
+          await sendPaymentFailedNotification({
+            clientEmail: booking.client_email,
+            clientName: booking.client_name,
+            professionalName: booking.pro_name || 'Professionnel',
+            serviceName: booking.service_name || undefined,
+            amount: booking.amount_paid || 0,
+            retryUrl: `${process.env.NEXT_PUBLIC_APP_URL}/client/marketplace`,
+          })
+ logger.info(` Email échec paiement envoyé à ${booking.client_email}`)
+        } catch (emailErr) {
+ logger.error(' Erreur envoi email échec paiement:', emailErr)
+        }
+      }
+
+      logger.info(`[Webhook] Payment failed: ${pi.id}, reason: ${pi.last_payment_error?.code}`)
       break
     }
 
     default:
-      console.log(`ℹ️ Webhook ignoré: ${event.type}`)
+ logger.info(`ℹ Webhook ignoré: ${event.type}`)
   }
+
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // Marquer l'event comme traité
+  // ═══════════════════════════════════════════════════════════════════════════════
+  await supabase
+    .from('webhook_events_log')
+    .update({ processed: true, processed_at: new Date().toISOString() })
+    .eq('stripe_event_id', event.id)
 
   return NextResponse.json({ received: true })
 }
+
+/**
+ * Handler principal avec gestion des erreurs et retry pour les événements critiques
+ */
+export async function POST(request: Request) {
+  const body = await request.text()
+  const signature = request.headers.get('stripe-signature')
+
+  if (!signature) {
+    return NextResponse.json({ error: 'Signature manquante' }, { status: 400 })
+  }
+
+  let event: Stripe.Event
+
+  try {
+    event = stripe.webhooks.constructEvent(
+      body,
+      signature,
+      process.env.STRIPE_WEBHOOK_SECRET!
+    )
+  } catch (err) {
+    logger.error('Webhook signature error:', err)
+    return NextResponse.json({ error: 'Webhook invalide' }, { status: 400 })
+  }
+
+  // Events critiques qui nécessitent un retry en cas d'échec
+  const CRITICAL_EVENTS = [
+    'checkout.session.completed',
+    'invoice.paid',
+    'charge.refunded',
+    'payout.paid',
+    'account.updated',
+  ]
+
+  try {
+    // Traiter le webhook
+    return await processWebhookEvent(event, body, signature)
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    logger.error(`[Webhook] Erreur traitement ${event.type}:`, errorMessage)
+
+    // Pour les événements critiques, enregistrer pour retry
+    if (CRITICAL_EVENTS.includes(event.type)) {
+      try {
+        await enqueueWebhookRetry({
+          stripeEventId: event.id,
+          eventType: event.type,
+          eventData: event as unknown as Record<string, unknown>,
+          stripeSignature: signature,
+          error: errorMessage,
+          errorDetails: error instanceof Error ? { stack: error.stack } : undefined,
+        })
+        logger.info(`[Webhook] Event ${event.id} enregistré pour retry`)
+        // Retourner 200 pour éviter que Stripe ne retry automatiquement
+        return NextResponse.json({ received: true, queued: true })
+      } catch (queueError) {
+        logger.error('[Webhook] Impossible d\'enregistrer le retry:', queueError)
+      }
+    }
+
+    // Pour les non-critiques ou si le retry échoue, retourner 500
+    return NextResponse.json(
+      { error: 'Webhook handler error', type: event.type },
+      { status: 500 }
+    )
+  }
+}
+
+// End of webhook handlers

@@ -1,6 +1,7 @@
 'use client'
 
 import { Component, ReactNode } from 'react'
+import { logger } from '@/lib/logger'
 
 interface Props { children: ReactNode }
 interface State { hasError: boolean; error?: Error }
@@ -16,7 +17,7 @@ export class ClientErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, info: { componentStack: string }) {
-    console.error('[CalendaPro] Client error:', error, info)
+    logger.error('[CalendaPro] Client error:', error, info)
   }
 
   render() {

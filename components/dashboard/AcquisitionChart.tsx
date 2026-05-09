@@ -56,7 +56,7 @@ export function AcquisitionChart({ channels, totalClients, totalRevenue }: Acqui
     return (
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">📊 Canaux d'Acquisition</CardTitle>
+ <CardTitle className="text-lg"> Canaux d'Acquisition</CardTitle>
         </CardHeader>
         <CardContent className="flex h-64 items-center justify-center">
           <p className="text-gray-500">Aucune donnée disponible</p>
@@ -69,7 +69,7 @@ export function AcquisitionChart({ channels, totalClients, totalRevenue }: Acqui
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-lg">
-          📊 Canaux d'Acquisition
+ Canaux d'Acquisition
           <span className="text-sm font-normal text-gray-500">
             ({totalClients} clients, €{totalRevenue.toFixed(2)})
           </span>

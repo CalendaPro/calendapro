@@ -1,7 +1,9 @@
 import type { ReactNode } from 'react'
+import Image from 'next/image'
 import { BrandLogo } from '@/components/BrandLogo'
 import BookingForm from '@/app/[username]/BookingForm'
 import { ClientAccentProvider } from '@/components/ClientAccentProvider'
+import { SourceTracker } from '@/components/tracking/SourceTracker'
 
 type Photo = { url: string; path?: string }
 type Service = { id?: string; name: string; duration?: string; price?: number | null }
@@ -12,6 +14,7 @@ type Profile = {
   full_name?: string | null
   bio?: string | null
   city?: string | null
+  social_links?: Record<string, string> | null
 }
 
 export default function TemplateDirect({
@@ -20,15 +23,22 @@ export default function TemplateDirect({
   photos,
   services,
   trackingSource,
+  trackingDetectedAt,
+  socialLinks,
 }: {
   profile: Profile
   accentColor: string
   photos: Photo[]
   services: Service[]
   trackingSource?: string
+  trackingDetectedAt?: string
+  socialLinks?: Record<string, string> | null
 }): ReactNode {
   return (
     <ClientAccentProvider accentColor={accentColor}>
+      {trackingSource && trackingDetectedAt && (
+        <SourceTracker source={trackingSource} detectedAt={trackingDetectedAt} />
+      )}
       <div className="min-h-screen bg-[var(--cl-bg)]">
         <div className="bg-[var(--cl-glass-navbar)] border-b border-[var(--accent-20)] py-4 px-6 backdrop-blur-sm">
           <BrandLogo />
@@ -50,7 +60,7 @@ export default function TemplateDirect({
                   <h2 className="text-white font-semibold text-lg">Choisissez votre créneau</h2>
                   <p className="text-white/90 text-xs mt-0.5">Paiement & confirmations selon vos réglages.</p>
                 </div>
-                <div className="p-6">{/* Directement au-dessus */}<BookingForm username={profile.username} trackingSource={trackingSource} /></div>
+                <div className="p-6">{/* Directement au-dessus */}<BookingForm username={profile.username} trackingSource={trackingSource} professionalName={profile.full_name} /></div>
               </div>
 
               {(services?.length ?? 0) > 0 && (
@@ -87,8 +97,8 @@ export default function TemplateDirect({
                   <p className="text-xs font-semibold uppercase tracking-wide text-[var(--cl-text-muted)] mb-3">Photos</p>
                   <div className="grid grid-cols-3 gap-2">
                     {photos.slice(0, 6).map((p, idx) => (
-                      <div key={p.path ?? idx} className="overflow-hidden rounded-lg border border-[var(--accent-20)] bg-[var(--cl-bg)]">
-                        <img src={p.url} alt={`Photo ${idx + 1}`} className="w-full h-18 object-cover" />
+                      <div key={p.path ?? idx} className="relative overflow-hidden rounded-lg border border-[var(--accent-20)] bg-[var(--cl-bg)] aspect-square">
+                        <Image src={p.url} alt={`Photo ${idx + 1}`} fill sizes="100px" className="object-cover" />
                       </div>
                     ))}
                   </div>

@@ -1,7 +1,9 @@
 import type { ReactNode } from 'react'
+import Image from 'next/image'
 import { BrandLogo } from '@/components/BrandLogo'
 import BookingForm from '@/app/[username]/BookingForm'
 import { ClientAccentProvider } from '@/components/ClientAccentProvider'
+import { SourceTracker } from '@/components/tracking/SourceTracker'
 
 type Photo = { url: string; path?: string }
 type Service = { id?: string; name: string; duration?: string; price?: number | null }
@@ -12,6 +14,7 @@ type Profile = {
   full_name?: string | null
   bio?: string | null
   city?: string | null
+  social_links?: Record<string, string> | null
 }
 
 export default function TemplateVisuel({
@@ -20,15 +23,22 @@ export default function TemplateVisuel({
   photos,
   services,
   trackingSource,
+  trackingDetectedAt,
+  socialLinks,
 }: {
   profile: Profile
   accentColor: string
   photos: Photo[]
   services: Service[]
   trackingSource?: string
+  trackingDetectedAt?: string
+  socialLinks?: Record<string, string> | null
 }): ReactNode {
   return (
     <ClientAccentProvider accentColor={accentColor}>
+      {trackingSource && trackingDetectedAt && (
+        <SourceTracker source={trackingSource} detectedAt={trackingDetectedAt} />
+      )}
       <div className="min-h-screen bg-[var(--cl-bg)]">
         <div className="bg-[var(--cl-glass-navbar)] border-b border-[var(--accent-20)] py-4 px-6 backdrop-blur-sm">
           <BrandLogo />
@@ -49,7 +59,7 @@ export default function TemplateVisuel({
           {photos.length > 0 && (
             <div className="rounded-2xl overflow-hidden border border-[var(--accent-20)] bg-[var(--cl-glass-sidebar)] shadow-sm mb-6">
               <div className="relative h-56 sm:h-72">
-                <img src={photos[0].url} alt="Photo principale" className="w-full h-full object-cover" />
+                <Image src={photos[0].url} alt="Photo principale" fill sizes="(max-width: 768px) 100vw, 800px" className="object-cover" priority />
                 <div
                   className="absolute inset-x-0 bottom-0 p-4"
                   style={{ background: 'linear-gradient(180deg, transparent, rgba(0,0,0,0.55))' }}
@@ -62,8 +72,8 @@ export default function TemplateVisuel({
               {photos.length > 1 && (
                 <div className="grid grid-cols-4 gap-1 p-1">
                   {photos.slice(1, 9).map((p, idx) => (
-                    <div key={p.path ?? idx} className="overflow-hidden rounded-lg">
-                      <img src={p.url} alt={`Photo ${idx + 2}`} className="w-full h-20 object-cover" />
+                    <div key={p.path ?? idx} className="relative overflow-hidden rounded-lg aspect-[4/3]">
+                      <Image src={p.url} alt={`Photo ${idx + 2}`} fill sizes="150px" className="object-cover" />
                     </div>
                   ))}
                 </div>

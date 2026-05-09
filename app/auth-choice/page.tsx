@@ -7,6 +7,7 @@ import { motion } from 'framer-motion'
 import type { Transition } from 'framer-motion'
 import { BrandLogo } from '@/components/BrandLogo'
 import { ArrowRight, LogIn, UserPlus, Sparkles, Calendar, Star } from 'lucide-react'
+import { logger } from '@/lib/logger'
 
 // ─── TYPES ────────────────────────────────────────────────────────────────────
 type ProPreview = {
@@ -59,6 +60,14 @@ function AuthChoiceInner() {
   const [pro, setPro] = useState<ProPreview>(null)
   const [proLoading, setProLoading] = useState(!!proUsername)
 
+  // Redirect auto après 10min d'inactivité
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      window.location.href = '/marketplace'
+    }, 10 * 60 * 1000) // 10 minutes
+    return () => clearTimeout(timeout)
+  }, [])
+
   useEffect(() => {
     if (!proUsername) return
     fetch(`/api/marketplace/pro-preview?username=${encodeURIComponent(proUsername)}`)
@@ -66,6 +75,18 @@ function AuthChoiceInner() {
       .then(data => { if (data.pro) setPro(data.pro) })
       .catch(() => {})
       .finally(() => setProLoading(false))
+
+    // Track conversion: Auth choice page viewed
+    if (typeof window !== 'undefined') {
+      logger.info('[TRACKING] Event: auth_choice_viewed', { proUsername })
+      if ((window as any).dataLayer) {  // reason: GTM dataLayer has no TS type declarations
+        (window as any).dataLayer.push({  // reason: GTM dataLayer has no TS type declarations
+          event: 'auth_choice_viewed',
+          proUsername,
+          flow: proUsername ? 'direct_booking' : 'explore',
+        })
+      }
+    }
   }, [proUsername])
 
   const signInHref = proUsername
@@ -159,7 +180,7 @@ function AuthChoiceInner() {
       {/* ── BACKGROUND ── */}
       <div style={{
         position: 'fixed', inset: 0, zIndex: 0,
-        background: '#FFFFFF',
+        background: '#F7F5F0',
         overflow: 'hidden', pointerEvents: 'none',
       }}>
         {/* Radial orbs */}
@@ -487,7 +508,7 @@ function AuthChoiceInner() {
 // ─── PAGE ─────────────────────────────────────────────────────────────────────
 export default function AuthChoicePage() {
   return (
-    <div style={{ fontFamily: "'DM Sans', sans-serif", background: '#FFFFFF', minHeight: '100vh' }}>
+    <div style={{ fontFamily: "'DM Sans', sans-serif", background: '#F7F5F0', minHeight: '100vh' }}>
       <Suspense fallback={
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', color: '#9CA3AF', fontFamily: "'DM Sans', sans-serif", fontSize: '0.9rem' }}>
           Chargement…

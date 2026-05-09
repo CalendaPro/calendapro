@@ -1,4 +1,5 @@
 import { createServerSupabaseClient } from './supabase-server'
+import { logger } from './logger'
 
 export async function getUserCredits(userId: string): Promise<number> {
   const supabase = createServerSupabaseClient()
@@ -42,7 +43,7 @@ export async function addCredits(userId: string, amount: number): Promise<void> 
     .maybeSingle()
 
   if (selErr) {
-    console.error('addCredits select', selErr)
+    logger.error('addCredits select', selErr)
     throw selErr
   }
 
@@ -57,7 +58,7 @@ export async function addCredits(userId: string, amount: number): Promise<void> 
       return
     }
     if (insErr) {
-      console.error('addCredits insert', insErr)
+      logger.error('addCredits insert', insErr)
       throw insErr
     }
     return
@@ -72,12 +73,12 @@ export async function addCredits(userId: string, amount: number): Promise<void> 
     .eq('user_id', userId)
 
   if (updErr) {
-    console.error('addCredits update', updErr)
+    logger.error('addCredits update', updErr)
     throw updErr
   }
 }
 
-// ✅ Nouvelle fonction — remet les crédits à un montant fixe
+// Nouvelle fonction — remet les crédits à un montant fixe
 // Utilisée pour les renouvellements mensuels (pas d'accumulation)
 export async function resetCredits(userId: string, amount: number): Promise<void> {
   const supabase = createServerSupabaseClient()

@@ -1,6 +1,8 @@
 import { auth } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
 
+export const dynamic = 'force-dynamic'
+
 const BEST_POST_TIMES = [
   { day: 'Mardi',   time: '14h – 16h', score: 0.87 },
   { day: 'Mercredi', time: '19h – 21h', score: 0.82 },

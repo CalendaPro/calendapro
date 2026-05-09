@@ -2,6 +2,9 @@ import { auth } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { toUiStatus, toDbStatus } from '@/lib/booking-status'
+import { logger } from '@/lib/logger'
+
+export const dynamic = 'force-dynamic'
 
 // Helper pour récupérer le pro_id depuis le user_id Clerk
 async function getProId(supabase: ReturnType<typeof createServerSupabaseClient>, userId: string): Promise<string> {
@@ -51,7 +54,7 @@ export async function GET(
       .maybeSingle()
 
     if (error) {
-      console.error('[Calendar API] GET by ID error:', error)
+      logger.error('[Calendar API] GET by ID error:', error)
       return NextResponse.json({ error: 'Erreur de base de données', details: error.message }, { status: 500 })
     }
     if (!booking) return NextResponse.json({ error: 'Introuvable' }, { status: 404 })
@@ -89,7 +92,7 @@ export async function GET(
       client: clientProfile,
     })
   } catch (err) {
-    console.error('[Calendar API] GET by ID exception:', err)
+    logger.error('[Calendar API] GET by ID exception:', err)
     return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 })
   }
 }
@@ -138,7 +141,7 @@ export async function PATCH(
       .single()
 
     if (error) {
-      console.error('[Calendar API] PATCH error:', error)
+      logger.error('[Calendar API] PATCH error:', error)
       return NextResponse.json({ error: 'Erreur lors de la mise à jour', details: error.message }, { status: 500 })
     }
     
@@ -153,7 +156,7 @@ export async function PATCH(
       price: Number(data.price) || 0,
     })
   } catch (err) {
-    console.error('[Calendar API] PATCH exception:', err)
+    logger.error('[Calendar API] PATCH exception:', err)
     return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 })
   }
 }

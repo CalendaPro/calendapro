@@ -1,6 +1,9 @@
 import { auth } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { logger } from '@/lib/logger'
+
+export const dynamic = 'force-dynamic'
 
 export async function GET() {
   const { userId } = await auth()
@@ -13,7 +16,7 @@ export async function GET() {
   })
 
   if (error) {
-    console.error('[Rebook] Prediction failed:', error.message)
+    logger.error('[Rebook] Prediction failed:', error.message)
     return NextResponse.json({ predictions: [] })
   }
 

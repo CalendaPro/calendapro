@@ -11,6 +11,7 @@ import {
   Palette, Briefcase, Music2, Wrench,
   Globe, Sunrise, Sun, Moon, Phone,
 } from 'lucide-react'
+import { logger } from '@/lib/logger'
 
 // ─────────────────────────────────────────
 // Types
@@ -518,7 +519,7 @@ export default function ClientOnboardingPage() {
           onboarding_completed: true,
         }),
       })
-    } catch (e) { console.error(e) }
+    } catch (e) { logger.error(e) }
     setSaving(false)
     setDone(true)
   }

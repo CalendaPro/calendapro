@@ -2,6 +2,9 @@ import { auth } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
 import { stripe } from '@/lib/stripe'
 import { getUserPlan } from '@/lib/subscription'
+import { logger } from '@/lib/logger'
+
+export const dynamic = 'force-dynamic'
 
 export async function POST(request: Request) {
   const { userId } = await auth()
@@ -42,7 +45,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ url: session.url })
   } catch (e) {
-    console.error('stripe sms-checkout', e)
+    logger.error('stripe sms-checkout', e)
     return NextResponse.json({ error: 'Paiement indisponible' }, { status: 500 })
   }
 }

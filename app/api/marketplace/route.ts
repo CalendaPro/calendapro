@@ -1,6 +1,10 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
+import { unstable_cache } from 'next/cache'
 import { compareMarketplacePros, haversineKm } from '@/lib/geo'
+import { logger } from '@/lib/logger'
+
+export const dynamic = 'force-dynamic'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -34,30 +38,43 @@ export async function GET(request: Request) {
       }
     }
 
-    let profileQuery = supabase
-      .from('profiles')
-      .select('id, username, full_name, bio, category, city, avatar_url, latitude, longitude')
-      .not('username', 'is', null)
-      .not('full_name', 'is', null)
+    // Cache key inclut les paramètres de filtre de base
+    const cacheKey = `marketplace:${category || 'all'}:${city || 'all'}:${search || 'none'}:${sortBy}`
 
-    if (category && category !== 'all') {
-      profileQuery = profileQuery.eq('category', category)
-    }
-    if (city && city !== 'Toutes les villes') {
-      profileQuery = profileQuery.ilike('city', city)
-    }
-    if (search) {
-      profileQuery = profileQuery.or(
-        `full_name.ilike.%${search}%,username.ilike.%${search}%,bio.ilike.%${search}%,category.ilike.%${search}%,city.ilike.%${search}%`
-      )
-    }
+    const getCachedProfiles = unstable_cache(
+      async () => {
+        let profileQuery = supabase
+          .from('profiles')
+          .select('id, username, full_name, bio, category, city, avatar_url, latitude, longitude')
+          .not('username', 'is', null)
+          .not('full_name', 'is', null)
 
-    const { data: profiles, error: profileError } = await profileQuery.limit(100)
+        if (category && category !== 'all') {
+          profileQuery = profileQuery.eq('category', category)
+        }
+        if (city && city !== 'Toutes les villes') {
+          profileQuery = profileQuery.ilike('city', city)
+        }
+        if (search) {
+          profileQuery = profileQuery.or(
+            `full_name.ilike.%${search}%,username.ilike.%${search}%,bio.ilike.%${search}%,category.ilike.%${search}%,city.ilike.%${search}%`
+          )
+        }
 
-    if (profileError) {
-      console.error('Supabase profiles error:', profileError)
-      return NextResponse.json({ pros: [], stats: null }, { status: 200 })
-    }
+        const { data: profiles, error: profileError } = await profileQuery.limit(100)
+
+        if (profileError) {
+          logger.error('Supabase profiles error:', profileError)
+          return { profiles: [], error: profileError }
+        }
+
+        return { profiles: profiles || [] }
+      },
+      [cacheKey],
+      { revalidate: 60, tags: ['marketplace-profiles'] }
+    )
+
+    const { profiles } = await getCachedProfiles()
 
     if (!profiles || profiles.length === 0) {
       return NextResponse.json({ pros: [], stats: null })
@@ -83,7 +100,7 @@ export async function GET(request: Request) {
         user_lng: userLng,
       })
       if (rpcError) {
-        console.warn('marketplace_pros_near (PostGIS) — repli Haversine:', rpcError.message)
+        logger.warn('marketplace_pros_near (PostGIS) — repli Haversine:', rpcError.message)
       } else if (distRows && Array.isArray(distRows)) {
         for (const row of distRows as { profile_id: string; distance_m: number }[]) {
           distanceKmById[row.profile_id] = row.distance_m / 1000
@@ -206,7 +223,7 @@ export async function GET(request: Request) {
       .not('full_name', 'is', null)
 
     const { count: totalAppointments } = await supabase
-      .from('appointments')
+      .from('bookings')
       .select('*', { count: 'exact', head: true })
       .eq('status', 'confirmed')
 
@@ -226,7 +243,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json({ pros: filtered, stats })
   } catch (err) {
-    console.error('Marketplace API error:', err)
+    logger.error('Marketplace API error:', err)
     return NextResponse.json({ pros: [], stats: null }, { status: 500 })
   }
 }

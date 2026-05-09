@@ -110,7 +110,7 @@ export default function LocationEditor({ value, onChange, accentColor }: Props) 
         </div>
         {hasCoords && (
           <div style={{ marginTop: 4, fontSize: '0.62rem', color: '#10b981', fontFamily: 'DM Sans,sans-serif' }}>
-            ✓ {value.lat?.toFixed(4)}, {value.lng?.toFixed(4)}
+ {value.lat?.toFixed(4)}, {value.lng?.toFixed(4)}
           </div>
         )}
       </div>
@@ -123,7 +123,7 @@ export default function LocationEditor({ value, onChange, accentColor }: Props) 
         disabled={geoLoading}
         style={{ padding: '6px 12px', borderRadius: 8, border: `1px solid rgba(255,255,255,0.15)`, background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.65)', fontSize: '0.71rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, fontFamily: 'DM Sans,sans-serif', alignSelf: 'flex-start' }}
       >
-        📍 {geoLoading ? 'Localisation…' : 'Utiliser ma géolocalisation'}
+ {geoLoading ? 'Localisation…' : 'Utiliser ma géolocalisation'}
       </motion.button>
 
       {/* Mini map link */}

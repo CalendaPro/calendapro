@@ -2,7 +2,6 @@ import { currentUser } from '@clerk/nextjs/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { auth } from '@clerk/nextjs/server'
-import { supabase } from '@/lib/supabase'
 import { getUserPlan } from '@/lib/subscription'
 import DashboardClient from './DashboardClient'
 import WelcomeTour from './WelcomeTour'
@@ -13,6 +12,8 @@ import { LiveStats } from './_components/LiveStats'
 import { PerformanceWidget } from './_components/PerformanceWidget'
 import { NextAppointmentsWidget, RevenueTrendWidget } from './widgets'
 import { FinancialIntelligenceWidget } from './_components/FinancialIntelligence'
+import { OnboardingChecklist } from './_components/OnboardingChecklist'
+import { logger } from '@/lib/logger'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -72,7 +73,7 @@ export default async function DashboardPage({
         }
       }
     } catch (e) {
-      console.error('⚠️ Dashboard sync error (non-bloquant):', e)
+ logger.error(' Dashboard sync error (non-bloquant):', e)
     }
   }
   // ─────────────────────────────────────────────────────────────────────────
@@ -158,6 +159,14 @@ export default async function DashboardPage({
 
   const plan = await getUserPlan(userId!)
 
+  // ── Stripe Connect status (for banner) ─────────────────────────────────
+  const { data: connectProfile } = await serverSb
+    .from('profiles')
+    .select('stripe_connect_onboarding')
+    .eq('id', userId!)
+    .maybeSingle()
+  const stripeConnectConfigured = connectProfile?.stripe_connect_onboarding === true
+
   const greetingHour = new Date().getHours()
   const greeting = greetingHour < 12 ? 'Bonjour' : greetingHour < 18 ? 'Bon après-midi' : 'Bonsoir'
 
@@ -167,7 +176,7 @@ export default async function DashboardPage({
   const planBadge = {
     free: { label: 'Starter', bg: 'var(--dl-sidebar-bg)', color: 'var(--dl-text-muted)', border: 'var(--dl-card-border)' },
     premium: { label: 'Premium ⭐', bg: 'var(--dl-accent-light)', color: 'var(--dl-accent)', border: 'var(--dl-accent-border)' },
-    infinity: { label: 'Infinity ✦', bg: 'rgba(236,72,153,0.1)', color: '#ec4899', border: 'rgba(236,72,153,0.2)' },
+ infinity: { label: 'Infinity ', bg: 'rgba(236,72,153,0.1)', color: '#ec4899', border: 'rgba(236,72,153,0.2)' },
   }[plan]
 
   return (
@@ -177,7 +186,7 @@ export default async function DashboardPage({
         @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&display=swap');
         @import url('https://api.fontshare.com/v2/css?f[]=clash-display@400,500,600,700&display=swap');
 
-        .db { padding: 2rem 2.2rem 4rem; max-width: 100%; font-family: 'DM Sans', sans-serif; background: var(--dl-bg, #FAF9F6); min-height: 100vh; }
+        .db { padding: 2rem 2.2rem 4rem; max-width: 100%; font-family: 'DM Sans', sans-serif; background: var(--dl-bg, #F7F5F0); min-height: 100vh; }
 
         /* HEADER */
         .db-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 1.5rem; }
@@ -464,6 +473,42 @@ export default async function DashboardPage({
           </div>
         </div>
 
+        {/* ONBOARDING CHECKLIST - visible jusqu'à complétion */}
+        <OnboardingChecklist userId={userId!} />
+
+        {/* STRIPE CONNECT BANNER */}
+        {!stripeConnectConfigured && (
+          <Link
+            href="/dashboard/settings?section=integrations"
+            style={{
+              display: 'flex', alignItems: 'center', gap: 14,
+              padding: '14px 20px', marginBottom: '1.2rem', borderRadius: 14,
+              background: 'linear-gradient(135deg, #fef3c7, #fde68a)',
+              border: '1px solid #fbbf24',
+              textDecoration: 'none', transition: 'transform 0.15s, box-shadow 0.15s',
+            }}
+          >
+            <div style={{
+              width: 34, height: 34, borderRadius: 10,
+              background: 'rgba(217,119,6,0.15)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+            }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2.5" strokeLinecap="round">
+                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+              </svg>
+            </div>
+            <div style={{ flex: 1 }}>
+              <p style={{ fontSize: '0.82rem', fontWeight: 700, color: '#92400e', margin: 0, fontFamily: "'DM Sans', sans-serif" }}>
+                Configurez vos paiements pour commencer a encaisser vos revenus
+              </p>
+              <p style={{ fontSize: '0.68rem', color: '#a16207', margin: '2px 0 0', fontFamily: "'DM Sans', sans-serif" }}>
+                Connectez Stripe pour recevoir les paiements directement sur votre compte bancaire →
+              </p>
+            </div>
+          </Link>
+        )}
+
         {/* KPI CARDS */}
         <LiveStats />
 
@@ -708,7 +753,7 @@ export default async function DashboardPage({
         {plan === 'premium' && (
           <div className="db-upgrade">
             <div>
-              <div className="db-upgrade-title">Découvrez Infinity : l'IA CalendaPro ✦</div>
+ <div className="db-upgrade-title">Découvrez Infinity : l'IA CalendaPro </div>
               <div className="db-upgrade-desc">Assistant IA, automatisations, badge vérifié, priorité marketplace. 49€/mois.</div>
             </div>
             <Link href="/dashboard/pricing" className="db-upgrade-btn">Découvrir Infinity</Link>
@@ -717,7 +762,7 @@ export default async function DashboardPage({
         {plan === 'infinity' && (
           <div className="db-upgrade">
             <div>
-              <div className="db-upgrade-title">Vous êtes sur Infinity ✦ Merci !</div>
+ <div className="db-upgrade-title">Vous êtes sur Infinity Merci !</div>
               <div className="db-upgrade-desc">Toutes les fonctionnalités sont actives. L'IA conversationnelle arrive très bientôt.</div>
             </div>
             <div className="db-upgrade-active">Plan actif</div>

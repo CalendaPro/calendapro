@@ -8,6 +8,7 @@ import {
   LogOut, Clock, User, Trash2, Download, Mail, Smartphone,
   FileText, KeyRound, CheckCircle2, AlertTriangle,
 } from 'lucide-react'
+import { normalizePhoneE164, formatPhoneForDisplay } from '@/lib/phone-validation'
 const AppearanceSettings = dynamic(() => import('@/components/AppearanceSettings'), { ssr: false })
 
 type Section = 'notifications' | 'search' | 'payment' | 'privacy' | 'language' | 'security' | 'appearance'
@@ -236,9 +237,18 @@ export default function ClientSettingsPage() {
                       type="tel"
                       value={reminders.sms_phone ?? ''}
                       onChange={e => setReminders(r => ({ ...r, sms_phone: e.target.value || null }))}
+                      onBlur={e => {
+                        const normalized = normalizePhoneE164(e.target.value, 'FR')
+                        if (normalized) {
+                          setReminders(r => ({ ...r, sms_phone: formatPhoneForDisplay(normalized) }))
+                        }
+                      }}
                       placeholder="+33 6 00 00 00 00"
                       style={{ width: '100%', padding: '0.48rem 0.8rem', border: '1.5px solid var(--cl-border)', borderRadius: 10, fontSize: '0.78rem', outline: 'none', background: 'var(--cl-surface)', color: 'var(--cl-text-primary)', fontFamily: "'DM Sans', sans-serif" }}
                     />
+                    {reminders.sms_phone && !normalizePhoneE164(reminders.sms_phone, 'FR') && (
+                      <p style={{ fontSize: '0.7rem', color: '#ef4444', marginTop: 4, fontFamily: "'DM Sans', sans-serif" }}>Numéro invalide. Format: +33 6 00 00 00 00</p>
+                    )}
                   </div>
                 )}
               </SectionCard>

@@ -1,7 +1,14 @@
 import { NextResponse } from 'next/server'
+import Stripe from 'stripe'
 import { stripe } from '@/lib/stripe'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { normalizeBookingPaymentSettings } from '@/lib/booking-payment-settings'
+import { computePlatformFee } from '@/lib/stripe-connect'
+import { getUserPlan, type Plan } from '@/lib/subscription'
+import { checkRateLimit, stripeRateLimits } from '@/lib/rate-limit'
+import { logger } from '@/lib/logger'
+
+export const dynamic = 'force-dynamic'
 
 const MIN_EUR = 0.5
 const MAX_EUR = 50_000
@@ -11,6 +18,22 @@ function roundMoneyEur(eur: number) {
 }
 
 export async function POST(request: Request) {
+  // Rate limiting: max 10 req/minute par IP
+  const clientIp = request.headers.get('x-forwarded-for') || 'unknown'
+  const rateLimit = checkRateLimit(`checkout:${clientIp}`, stripeRateLimits.checkout)
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      { error: 'Trop de requêtes. Veuillez réessayer dans une minute.' },
+      {
+        status: 429,
+        headers: {
+          'X-RateLimit-Remaining': String(rateLimit.remaining),
+          'X-RateLimit-Reset': String(rateLimit.resetTime),
+        },
+      }
+    )
+  }
+
   const body = await request.json()
   const {
     username,
@@ -35,27 +58,47 @@ export async function POST(request: Request) {
   }
 
   const supabase = createServerSupabaseClient()
-  console.log(`[booking-checkout] 🔍 Recherche du pro: ${username}`)
+ logger.info(`[booking-checkout] Recherche du pro: ${username}`)
   
   const { data: profile, error } = await supabase
     .from('profiles')
     .select(
-      'id, username, full_name, online_payment_enabled, deposit_required, deposit_type, deposit_value, allow_full_online_payment'
+      'id, username, full_name, online_payment_enabled, deposit_required, deposit_type, deposit_value, allow_full_online_payment, stripe_connect_id, stripe_connect_charges, account_status, deleted_at'
     )
     .ilike('username', username)
     .maybeSingle()
 
   if (error) {
-    console.error(`[booking-checkout] ❌ Erreur Supabase:`, error)
+ logger.error(`[booking-checkout] Erreur Supabase:`, error)
     return NextResponse.json({ error: 'Erreur base de données', details: error.message }, { status: 500 })
   }
   
   if (!profile) {
-    console.error(`[booking-checkout] ❌ Profil introuvable: ${username}`)
+ logger.error(`[booking-checkout] Profil introuvable: ${username}`)
     return NextResponse.json({ error: 'Professionnel introuvable' }, { status: 404 })
   }
   
-  console.log(`[booking-checkout] ✅ Profil trouvé: ${profile.username}`)
+  // Vérifier que le compte pro est actif
+  const accountStatus = (profile as { account_status?: string }).account_status || 'active'
+  const isDeleted = (profile as { deleted_at?: string | null }).deleted_at !== null
+  
+  if (accountStatus === 'deleted' || accountStatus === 'pending_deletion' || isDeleted) {
+ logger.error(`[booking-checkout] Compte pro supprimé ou en suppression: ${username}`)
+    return NextResponse.json({ 
+      error: 'Ce professionnel n\'est plus disponible',
+      code: 'PRO_ACCOUNT_DELETED'
+    }, { status: 410 })
+  }
+  
+  if (accountStatus === 'suspended') {
+ logger.error(`[booking-checkout] Compte pro suspendu: ${username}`)
+    return NextResponse.json({ 
+      error: 'Ce compte est temporairement suspendu',
+      code: 'PRO_ACCOUNT_SUSPENDED'
+    }, { status: 403 })
+  }
+  
+ logger.info(`[booking-checkout] Profil trouvé: ${profile.username}`)
 
   const s = normalizeBookingPaymentSettings(profile)
 
@@ -147,8 +190,18 @@ export async function POST(request: Request) {
     durationMinutes: String(durationMinutes || 60),
   }
 
+  // Stripe Connect: route funds to pro's connected account
+  const hasConnect = !!(profile.stripe_connect_id && profile.stripe_connect_charges)
+  const connectAccountId = hasConnect ? (profile.stripe_connect_id as string) : null
+
+  // Récupérer le plan du pro pour calculer la commission
+  const proPlan: Plan = await getUserPlan(profile.id)
+  const platformFee = hasConnect ? computePlatformFee(unitAmount, proPlan) : 0
+
+  logger.info(`[booking-checkout] Plan pro: ${proPlan}, Commission: ${platformFee / 100}€, Connect: ${hasConnect}`)
+
   try {
-    const session = await stripe.checkout.sessions.create({
+    const sessionParams: Stripe.Checkout.SessionCreateParams = {
       payment_method_types: ['card'],
       mode: 'payment',
       line_items: [
@@ -167,11 +220,21 @@ export async function POST(request: Request) {
       success_url: `${appUrl}/booking/success?session_id={CHECKOUT_SESSION_ID}&username=${encodeURIComponent(username)}`,
       cancel_url: `${appUrl}/${encodeURIComponent(username)}?booking=cancel`,
       metadata: meta,
-      payment_intent_data: { metadata: meta },
-    })
+      payment_intent_data: {
+        metadata: meta,
+        ...(connectAccountId
+          ? {
+              application_fee_amount: platformFee,
+              transfer_data: { destination: connectAccountId },
+            }
+          : {}),
+      },
+    }
+
+    const session = await stripe.checkout.sessions.create(sessionParams)
     return NextResponse.json({ url: session.url })
   } catch (err) {
-    console.error('stripe booking-checkout', err)
+    logger.error('stripe booking-checkout', err)
     return NextResponse.json({ error: 'Paiement indisponible' }, { status: 500 })
   }
 }

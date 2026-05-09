@@ -1,6 +1,8 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
 
+export const dynamic = 'force-dynamic'
+
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -47,24 +49,24 @@ export async function GET(
 
   const proId = profile.id
 
-  // ── 2. Get existing appointments for that date ──────────────
+  // ── 2. Get existing bookings for that date ──────────────────
   const dayStart = `${date}T00:00:00`
   const dayEnd   = `${date}T23:59:59`
 
-  const { data: appointments } = await supabase
-    .from('appointments')
-    .select('date, duration')
-    .eq('user_id', proId)
-    .gte('date', dayStart)
-    .lte('date', dayEnd)
+  const { data: bookings } = await supabase
+    .from('bookings')
+    .select('scheduled_at, duration_minutes')
+    .eq('pro_id', proId)
+    .gte('scheduled_at', dayStart)
+    .lte('scheduled_at', dayEnd)
     .neq('status', 'cancelled')
 
   // Build a set of occupied minute-ranges
   const occupied: Array<{ start: number; end: number }> = []
-  if (appointments) {
-    for (const appt of appointments) {
-      const start = toMinutes(appt.date)
-      const dur = typeof appt.duration === 'number' ? appt.duration : SLOT_MINUTES
+  if (bookings) {
+    for (const b of bookings) {
+      const start = toMinutes(b.scheduled_at as string)
+      const dur = typeof b.duration_minutes === 'number' ? b.duration_minutes : SLOT_MINUTES
       occupied.push({ start, end: start + dur })
     }
   }

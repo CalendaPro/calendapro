@@ -1,9 +1,10 @@
 import { createServerSupabaseClient } from '@/lib/supabase-server'
-import { sendBookingConfirmation, sendBookingNotification, sendBookingSMS } from '@/lib/emails'
+import { sendBookingConfirmation, sendBookingNotification, sendBookingSMS, sendFirstBookingCelebrationEmail } from '@/lib/emails'
 import { consumeCredit } from '@/lib/sms-credits'
 import { getUserPlan } from '@/lib/subscription'
 import { normalizeBookingPaymentSettings } from '@/lib/booking-payment-settings'
 import { normalizePhoneE164 } from '@/lib/phone-validation'
+import { logger } from './logger'
 
 export type BookingPayload = {
   username: string
@@ -34,25 +35,39 @@ export async function createBookingAndNotify(input: BookingPayload): Promise<{ a
 
   // Sanitizer le username (minuscules, alphanumérique + _ -)
   const sanitizedUsername = username.toLowerCase().replace(/[^a-z0-9_-]/g, '')
-  console.log(`[booking-pipeline] 🔍 Recherche du pro: ${sanitizedUsername}`)
+ logger.info(`[booking-pipeline] Recherche du pro: ${sanitizedUsername}`)
 
   const { data: profile, error: profileError } = await supabase
     .from('profiles')
-    .select('id, full_name, email_contact, online_payment_enabled, deposit_required, deposit_type, deposit_value, allow_full_online_payment')
+    .select('id, full_name, email_contact, online_payment_enabled, deposit_required, deposit_type, deposit_value, allow_full_online_payment, account_status, deleted_at, time_zone')
     .eq('username', sanitizedUsername)
     .maybeSingle()
 
   if (profileError) {
-    console.error(`[booking-pipeline] ❌ Erreur Supabase pour ${username}:`, profileError)
+ logger.error(`[booking-pipeline] Erreur Supabase pour ${username}:`, profileError)
     throw new Error(`Erreur base de données: ${profileError.message}`)
   }
 
   if (!profile) {
-    console.error(`[booking-pipeline] ❌ Profil introuvable: ${username}`)
+ logger.error(`[booking-pipeline] Profil introuvable: ${username}`)
     throw new Error(`Professionnel introuvable: ${username}`)
   }
+  
+  // Vérifier le statut du compte pro
+  const accountStatus = (profile as { account_status?: string; deleted_at?: string | null }).account_status || 'active'
+  const isDeleted = (profile as { deleted_at?: string | null }).deleted_at !== null
+  
+  if (accountStatus === 'deleted' || accountStatus === 'pending_deletion' || isDeleted) {
+ logger.error(`[booking-pipeline] Compte pro supprimé: ${username}`)
+    throw new Error('Ce professionnel n\'est plus disponible')
+  }
+  
+  if (accountStatus === 'suspended') {
+ logger.error(`[booking-pipeline] Compte pro suspendu: ${username}`)
+    throw new Error('Ce compte est temporairement suspendu')
+  }
 
-  console.log(`[booking-pipeline] ✅ Profil trouvé: ${profile.full_name} (${profile.id})`)
+ logger.info(`[booking-pipeline] Profil trouvé: ${profile.full_name} (${profile.id})`)
 
   // Vérifier si paiement obligatoire (toujours vérifié, sans possibilité de bypass)
   const settings = normalizeBookingPaymentSettings(profile)
@@ -85,11 +100,11 @@ export async function createBookingAndNotify(input: BookingPayload): Promise<{ a
   // Fallback sur l'email de contact du profil si Clerk échoue
   if (!professionalEmail && profile.email_contact) {
     professionalEmail = profile.email_contact
-    console.log(`📧 Using profile email_contact for ${username}`)
+ logger.info(` Using profile email_contact for ${username}`)
   }
   
   if (!professionalEmail) {
-    console.error(`❌ No email found for pro ${username}`, clerkError?.message)
+ logger.error(` No email found for pro ${username}`, clerkError?.message)
   }
 
   // Générer un ID client temporaire (clerk-style) basé sur l'email ou un random
@@ -116,7 +131,7 @@ export async function createBookingAndNotify(input: BookingPayload): Promise<{ a
       if (users.data.length > 0) {
         resolvedClientId = users.data[0].id
         resolvedClientIdType = 'clerk_uid'
-        console.log(`[Pipeline] Resolved ${clientEmail} → ${resolvedClientId}`)
+        logger.info(`[Pipeline] Resolved ${clientEmail} → ${resolvedClientId}`)
       }
       // Si Clerk ne connaît pas l'email : email reste comme identifiant (OK)
       // Ce n'est PAS une erreur — le client peut réserver sans compte
@@ -124,7 +139,7 @@ export async function createBookingAndNotify(input: BookingPayload): Promise<{ a
       // Clerk API indisponible : on continue avec l'email (graceful degradation)
       // Le booking sera créé, la résolution se fera lors de la prochaine
       // connexion du client via /api/bookings GET (multi-filtre existant)
-      console.warn('[Pipeline] Clerk resolution failed (non-blocking):', err)
+      logger.warn('[Pipeline] Clerk resolution failed (non-blocking):', err)
     }
   } else if (clientEmail?.startsWith('temp_') || !clientEmail) {
     resolvedClientId = clientId || `temp_${Date.now()}`
@@ -132,7 +147,7 @@ export async function createBookingAndNotify(input: BookingPayload): Promise<{ a
   }
 
   // Log pour debugging
-  console.log(`[Pipeline] Client ID resolved: type=${resolvedClientIdType}, id=${resolvedClientId.substring(0, 20)}...`)
+  logger.info(`[Pipeline] Client ID resolved: type=${resolvedClientIdType}, id=${resolvedClientId.substring(0, 20)}...`)
 
   // Vérifier ou créer le client_profile si on a un email
   if (clientEmail) {
@@ -153,9 +168,9 @@ export async function createBookingAndNotify(input: BookingPayload): Promise<{ a
         })
       
       if (profileError) {
-        console.log(`[booking-pipeline] ⚠️ Impossible de créer client_profile (non bloquant):`, profileError)
+ logger.info(`[booking-pipeline] Impossible de créer client_profile (non bloquant):`, profileError)
       } else {
-        console.log(`[booking-pipeline] ✅ Client_profile créé pour: ${clientEmail}`)
+ logger.info(`[booking-pipeline] Client_profile créé pour: ${clientEmail}`)
       }
     }
   }
@@ -210,6 +225,45 @@ export async function createBookingAndNotify(input: BookingPayload): Promise<{ a
   // On tente aussi l'envoi immédiat — si ça échoue, la queue réessaiera.
   const bookingId = (appointment as Record<string, unknown>).id as string
 
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // AUDIT #9 — Détection premier RDV et célébration
+  // ═══════════════════════════════════════════════════════════════════════════════
+  const { count: previousBookingsCount } = await supabase
+    .from('bookings')
+    .select('*', { count: 'exact', head: true })
+    .eq('pro_id', userId)
+    .lt('created_at', new Date().toISOString())
+
+  const isFirstBooking = (previousBookingsCount ?? 0) === 0
+
+  if (isFirstBooking && professionalEmail) {
+    try {
+      // Envoyer l'email de célébration
+      await sendFirstBookingCelebrationEmail({
+        proEmail: professionalEmail,
+        proName: profile.full_name ?? 'Professionnel',
+        clientName,
+        serviceName: serviceName || 'Prestation',
+        date,
+        publicUrl: `${process.env.NEXT_PUBLIC_APP_URL}/${sanitizedUsername}`,
+      })
+
+      // Créer une notification in-app
+      await supabase.from('notifications').insert({
+        user_id: userId,
+        type: 'first_booking',
+ title: ' Premier client !',
+        message: `${clientName} a réservé votre premier rendez-vous. Félicitations !`,
+        data: { booking_id: bookingId, client_name: clientName, service_name: serviceName },
+        read: false,
+      })
+
+ logger.info(`[booking-pipeline] First booking celebration sent for ${username}`)
+    } catch (err) {
+ logger.error('[booking-pipeline] Failed to send first booking celebration:', err)
+    }
+  }
+
   const notifRows: Array<{
     booking_id: string
     type: string
@@ -231,7 +285,7 @@ export async function createBookingAndNotify(input: BookingPayload): Promise<{ a
       },
     })
   } else {
-    console.error(`⚠️ Pas d'email pro pour ${username} - notification ignorée`)
+ logger.error(` Pas d'email pro pour ${username} - notification ignorée`)
   }
 
   if (clientEmail) {
@@ -259,7 +313,7 @@ export async function createBookingAndNotify(input: BookingPayload): Promise<{ a
       },
     })
   } else if (clientPhone) {
-    console.warn('[Pipeline] Invalid phone format, SMS skipped:', clientPhone)
+    logger.warn('[Pipeline] Invalid phone format, SMS skipped:', clientPhone)
   }
 
   if (notifRows.length > 0) {
@@ -273,7 +327,7 @@ export async function createBookingAndNotify(input: BookingPayload): Promise<{ a
 
     if (queueError) {
       // Log critique — monitorer en production
-      console.error('[CRITICAL] notification_queue insert failed:', {
+      logger.error('[CRITICAL] notification_queue insert failed:', {
         bookingId,
         error: queueError.message,
         notifCount: notifRows.length,
@@ -302,7 +356,7 @@ export async function createBookingAndNotify(input: BookingPayload): Promise<{ a
           .eq('type', 'pro_email')
       }
     } catch (err) {
-      console.error(`❌ Email pro immédiat échoué (sera retenté par la queue):`, err)
+ logger.error(` Email pro immédiat échoué (sera retenté par la queue):`, err)
     }
 
     try {
@@ -320,7 +374,7 @@ export async function createBookingAndNotify(input: BookingPayload): Promise<{ a
           .eq('type', 'client_email')
       }
     } catch (err) {
-      console.error(`❌ Email client immédiat échoué (sera retenté par la queue):`, err)
+ logger.error(` Email client immédiat échoué (sera retenté par la queue):`, err)
     }
 
     try {
@@ -346,11 +400,11 @@ export async function createBookingAndNotify(input: BookingPayload): Promise<{ a
         }
       }
     } catch (err) {
-      console.error('❌ SMS immédiat échoué (sera retenté par la queue):', err)
+ logger.error(' SMS immédiat échoué (sera retenté par la queue):', err)
     }
   })()
 
-  console.log(`📊 Booking créé pour ${username} (status=${bookingStatus}):`, notificationResults)
+ logger.info(` Booking créé pour ${username} (status=${bookingStatus}):`, notificationResults)
 
   return { appointment: appointment as Record<string, unknown>, userId, profile: profile as Record<string, unknown>, notificationResults }
 }

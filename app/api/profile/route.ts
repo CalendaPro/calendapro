@@ -2,6 +2,7 @@ import { auth } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { getUserPlan } from '@/lib/subscription'
+import { logger } from '@/lib/logger'
 
 export const dynamic = 'force-dynamic'
 
@@ -14,7 +15,7 @@ export async function GET() {
   const plan = await getUserPlan(userId)
 
   if (error) {
-    console.error('profile GET:', error.message)
+    logger.error('profile GET:', error.message)
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
@@ -45,7 +46,7 @@ export async function POST(request: Request) {
     .single()
 
   if (error) {
-    console.error('profile POST:', error.message)
+    logger.error('profile POST:', error.message)
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
   return NextResponse.json(data)

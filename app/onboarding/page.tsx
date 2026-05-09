@@ -35,6 +35,7 @@ const LocationEditor  = dynamic(() => import('@/app/onboarding/_components/Locat
 const CtaEditor       = dynamic(() => import('@/app/onboarding/_components/CtaEditor'),       { ssr: false })
 const ReviewsPreview  = dynamic(() => import('@/app/onboarding/_components/ReviewsPreview'),  { ssr: false })
 const SectionReorder  = dynamic(() => import('@/app/onboarding/_components/SectionReorder'),  { ssr: false })
+const CityAutocomplete = dynamic(() => import('@/app/onboarding/_components/CityAutocomplete'), { ssr: false })
 
 type Plan = 'free' | 'premium' | 'infinity'
 type Step = 1 | 2 | 3 | 4
@@ -42,12 +43,12 @@ type Step = 1 | 2 | 3 | 4
 type Metier = { id: string; label: string; icon: React.ReactNode }
 type Palette = { id: string; name: string; accent: string }
 type LocalPhoto = { id: string; file: File; previewUrl: string; name: string }
-type Service = { id: string; name: string; duration: string; price: string }
+type Service = { id: string; name: string; duration: number; price: string }
 
 const COLORS = {
   violet: '#7c3aed',
   rose: '#ec4899',
-  bg: '#fafaf8',
+  bg: '#F7F5F0',
   dark: '#0f172a',
 }
 
@@ -130,13 +131,17 @@ const GOALS: Array<{ id: Goal; label: string; desc: string; icon: React.ReactNod
   { id: 'revenue', label: 'Plus de revenus', desc: 'Remplir les créneaux', icon: <Euro size={20} strokeWidth={1.7} /> },
 ]
 
-const DURATIONS = [
-  { id: '30min', label: '30min' },
-  { id: '45min', label: '45min' },
-  { id: '1h', label: '1h' },
-  { id: '1h30', label: '1h30' },
-  { id: '2h', label: '2h' },
-] as const
+// Suggestions de durée en minutes (cliquables)
+const DURATION_SUGGESTIONS = [15, 30, 45, 60, 90, 120]
+
+// Helper pour formater les minutes en texte lisible
+function formatDuration(minutes: number): string {
+  if (minutes < 60) return `${minutes}min`
+  if (minutes === 60) return '1h'
+  const hours = Math.floor(minutes / 60)
+  const mins = minutes % 60
+  return mins > 0 ? `${hours}h${mins}` : `${hours}h`
+}
 
 const PALETTES: Palette[] = [
   { id: 'violet-royal', name: 'Violet Royal', accent: COLORS.violet },
@@ -151,9 +156,9 @@ type BtnStyle = 'pill' | 'rounded' | 'square'
 
 const VIBES: Array<{ id: Vibe; label: string; desc: string; bg: string; text: string; muted: string; border: string; accent: string; emoji: string }> = [
   { id: 'minimal', label: 'Minimaliste', desc: 'Blanc · Épuré · Moderne', bg: '#ffffff', text: '#0f172a', muted: '#64748b', border: '#e2e8f0', accent: '#7c3aed', emoji: '◻' },
-  { id: 'barber', label: 'Barbier', desc: 'Sombre · Vintage · Cuir', bg: '#110e09', text: '#f0e4cc', muted: '#9a8060', border: '#2a2010', accent: '#d4a55a', emoji: '✂' },
-  { id: 'studio', label: 'Studio Flash', desc: 'Violet · Vif · Dynamique', bg: '#f5f3ff', text: '#1e1b4b', muted: '#6b7280', border: '#ddd6fe', accent: '#7c3aed', emoji: '⚡' },
-  { id: 'organic', label: 'Organique', desc: 'Terre · Chaud · Bien-être', bg: '#faf7f2', text: '#3d2c1e', muted: '#8b6b4e', border: '#e8ddd0', accent: '#b07d4e', emoji: '🌿' },
+ { id: 'barber', label: 'Barbier', desc: 'Sombre · Vintage · Cuir', bg: '#110e09', text: '#f0e4cc', muted: '#9a8060', border: '#2a2010', accent: '#d4a55a', emoji: '' },
+ { id: 'studio', label: 'Studio Flash', desc: 'Violet · Vif · Dynamique', bg: '#f5f3ff', text: '#1e1b4b', muted: '#6b7280', border: '#ddd6fe', accent: '#7c3aed', emoji: '' },
+ { id: 'organic', label: 'Organique', desc: 'Terre · Chaud · Bien-être', bg: '#faf7f2', text: '#3d2c1e', muted: '#8b6b4e', border: '#e8ddd0', accent: '#b07d4e', emoji: '' },
 ]
 
 const FONT_PAIRS: Array<{ id: string; title: string; body: string; label: string }> = [
@@ -228,6 +233,69 @@ function launchConfetti(durationMs = 2000) {
   raf = window.requestAnimationFrame(tick)
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// AUDIT #9 — Smart defaults pour prix et durée selon le métier
+// ═══════════════════════════════════════════════════════════════════════════════
+const SMART_DEFAULTS: Record<string, { duration: number; price: string }> = {
+  // Beauté & Bien-être
+  barbier: { duration: 30, price: '25' },
+  coiffeur: { duration: 60, price: '45' },
+  estheticienne: { duration: 60, price: '60' },
+  onglerie: { duration: 90, price: '55' },
+  maquillage: { duration: 60, price: '80' },
+  tatoueur: { duration: 120, price: '150' },
+  piercing: { duration: 30, price: '40' },
+  massage: { duration: 60, price: '70' },
+  sophrologue: { duration: 60, price: '65' },
+  // Sport & Fitness
+  'coach-sport': { duration: 60, price: '60' },
+  'coach-crossfit': { duration: 60, price: '55' },
+  'coach-yoga': { duration: 60, price: '50' },
+  'coach-pilates': { duration: 60, price: '55' },
+  'coach-natation': { duration: 45, price: '45' },
+  'coach-boxe': { duration: 60, price: '50' },
+  'coach-course': { duration: 60, price: '45' },
+  // Santé
+  psychologue: { duration: 60, price: '80' },
+  psychotherapeute: { duration: 60, price: '85' },
+  osteopathe: { duration: 45, price: '70' },
+  kine: { duration: 30, price: '55' },
+  nutritionniste: { duration: 60, price: '75' },
+  dieteticien: { duration: 60, price: '70' },
+  acupuncteur: { duration: 60, price: '65' },
+  naturopathe: { duration: 60, price: '70' },
+  hypnotherapeute: { duration: 90, price: '90' },
+  // Coaching & Conseil
+  'coach-vie': { duration: 60, price: '85' },
+  'coach-business': { duration: 60, price: '120' },
+  'coach-carriere': { duration: 60, price: '95' },
+  consultant: { duration: 60, price: '150' },
+  mentor: { duration: 60, price: '100' },
+  // Créatif
+  photographe: { duration: 120, price: '200' },
+  videaste: { duration: 120, price: '350' },
+  graphiste: { duration: 60, price: '80' },
+  illustrateur: { duration: 60, price: '75' },
+  // Tech & Digital
+  developpeur: { duration: 60, price: '120' },
+  'designer-ux': { duration: 60, price: '110' },
+  'community-manager': { duration: 60, price: '70' },
+  // Formation
+  formateur: { duration: 120, price: '150' },
+  professeur: { duration: 60, price: '45' },
+  tuteur: { duration: 60, price: '35' },
+  // Juridique & Finance
+  avocat: { duration: 60, price: '250' },
+  'expert-comptable': { duration: 60, price: '120' },
+  'conseiller-financier': { duration: 60, price: '150' },
+  // Autre
+  autre: { duration: 60, price: '60' },
+}
+
+function getSmartDefaults(categoryId: string): { duration: number; price: string } {
+  return SMART_DEFAULTS[categoryId] || { duration: 60, price: '60' }
+}
+
 function gradientTextStyle(): React.CSSProperties {
   return {
     background: `linear-gradient(135deg, ${COLORS.violet}, ${COLORS.rose})`,
@@ -264,12 +332,15 @@ function EliteOnboardingContent() {
   const [citySearch, setCitySearch] = useState('')
   const [citySuggestions, setCitySuggestions] = useState<string[]>([])
   const [showCitySuggestions, setShowCitySuggestions] = useState(false)
+  const [cityValidated, setCityValidated] = useState(false)
+  const [cityError, setCityError] = useState<string | null>(null)
+  const [attemptedNext, setAttemptedNext] = useState(false)
   const [username, setUsername] = useState('')
 
   const [metierSearch, setMetierSearch] = useState('')
   const [showAllMetiers, setShowAllMetiers] = useState(false)
 
-  const [services, setServices] = useState<Service[]>([{ id: '1', name: '', duration: '1h', price: '' }])
+  const [services, setServices] = useState<Service[]>([{ id: '1', name: '', duration: 60, price: '' }])
   const [bio, setBio] = useState('')
   const [strengths, setStrengths] = useState('')
   const [toneStyle, setToneStyle] = useState('')
@@ -340,7 +411,7 @@ function EliteOnboardingContent() {
           vibe,
           btnStyle,
           serviceName: primaryService?.name ?? '',
-          serviceDuration: primaryService?.duration ?? '1h',
+          serviceDuration: String(primaryService?.duration ?? 60),
           servicePrice: String(primaryService?.price ?? '0'),
           photoUrl: previewPhotoUrl ?? '',
           fontTitle: currentFontPair.title,
@@ -363,9 +434,9 @@ function EliteOnboardingContent() {
     return filteredMetiers.slice(0, 10)
   }, [filteredMetiers, metierSearch.length, showAllMetiers])
 
-  const addService = () => setServices(prev => [...prev, { id: Date.now().toString(), name: '', duration: '1h', price: '' }])
+  const addService = () => setServices(prev => [...prev, { id: Date.now().toString(), name: '', duration: 60, price: '' }])
   const removeService = (id: string) => setServices(prev => (prev.length <= 1 ? prev : prev.filter(s => s.id !== id)))
-  const updateService = (id: string, field: keyof Service, value: string) =>
+  const updateService = (id: string, field: keyof Service, value: string | number) =>
     setServices(prev => prev.map(s => (s.id === id ? { ...s, [field]: value } : s)))
 
   const fetchCities = useCallback(async (query: string) => {
@@ -430,7 +501,9 @@ function EliteOnboardingContent() {
   const canUsePalette = (accent: string) => (plan !== 'free' ? true : accent === COLORS.violet)
   const canUseTemplate = (tpl: SmartTemplate) => (plan === 'infinity' ? true : tpl === 'minimal')
 
-  const canStep1 = category && fullName.trim().length >= 2 && city.trim().length >= 2 && username.trim().length >= 3 && !!goal
+  // AUDIT #9 — Objectif rendu optionnel pour réduire la friction
+  // City must be validated (selected from geo.api.gouv.fr list)
+  const canStep1 = category && fullName.trim().length >= 2 && cityValidated && city.trim().length >= 2 && username.trim().length >= 3
   const canStep2 = services.some(s => s.name.trim().length >= 2 && Number(s.price) > 0) && bio.trim().length >= 10
   const canStep3 = true
 
@@ -544,7 +617,6 @@ function EliteOnboardingContent() {
           ctaButtonAction: ctaConfig.action,
           ctaCustomUrl: ctaConfig.customUrl || null,
           sectionOrder,
-          darkMode,
           fontSize,
           showSchedule: sectionsVisible.schedule ?? true,
           showGallery: sectionsVisible.gallery ?? false,
@@ -578,9 +650,13 @@ function EliteOnboardingContent() {
   }
 
   const next = () => {
+    setAttemptedNext(true)
     if (step === 1 && !canStep1) return
     if (step === 2 && !canStep2) return
-    if (step < 4) setStep((step + 1) as Step)
+    if (step < 4) {
+      setStep((step + 1) as Step)
+      setAttemptedNext(false)
+    }
   }
 
   const back = () => { if (step > 1) setStep((step - 1) as Step) }
@@ -869,7 +945,12 @@ function EliteOnboardingContent() {
                               <button
                                 key={m.id}
                                 type="button"
-                                onClick={() => setCategory(m.id)}
+                                onClick={() => {
+                                  setCategory(m.id)
+                                  // AUDIT #9 — Appliquer les smart defaults quand un métier est sélectionné
+                                  const defaults = getSmartDefaults(m.id)
+                                  setServices(prev => prev.map((s, i) => i === 0 ? { ...s, duration: defaults.duration, price: defaults.price } : s))
+                                }}
                                 style={{
                                   borderRadius: 18,
                                   border: `2px solid ${active ? COLORS.violet : 'rgba(0,0,0,0.08)'}`,
@@ -921,74 +1002,34 @@ function EliteOnboardingContent() {
                         <div style={{ marginTop: 14, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                           <div>
                             <label style={labelStyle()}>Nom complet</label>
-                            <input className="elite-input" value={fullName} onChange={e => setFullName(e.target.value)} placeholder="Ex: Karim D." />
+                            <input
+                              className="elite-input"
+                              placeholder="Jean Dupont"
+                              value={fullName}
+                              onChange={e => setFullName(e.target.value)}
+                            />
                           </div>
                           <div>
                             <label style={labelStyle()}>Ville</label>
-                            <div style={{ position: 'relative' }}>
-                              <input
-                                className="elite-input"
-                                value={citySearch}
-                                onChange={e => {
-                                  setCitySearch(e.target.value)
-                                  setCity(e.target.value)
-                                  void fetchCities(e.target.value)
-                                  setShowCitySuggestions(true)
-                                }}
-                                onBlur={() => setTimeout(() => setShowCitySuggestions(false), 150)}
-                                placeholder="Ex: Lyon"
-                              />
-                              {showCitySuggestions && citySuggestions.length > 0 && (
-                                <div
-                                  style={{
-                                    position: 'absolute',
-                                    top: 'calc(100% + 6px)',
-                                    left: 0,
-                                    right: 0,
-                                    background: 'white',
-                                    border: '1.5px solid rgba(124,58,237,0.18)',
-                                    borderRadius: 12,
-                                    boxShadow: '0 12px 32px rgba(0,0,0,0.1)',
-                                    zIndex: 200,
-                                    overflow: 'hidden',
-                                  }}
-                                >
-                                  {citySuggestions.map(c => (
-                                    <button
-                                      key={c}
-                                      type="button"
-                                      onMouseDown={() => {
-                                        const name = c.split(' (')[0]
-                                        setCity(name)
-                                        setCitySearch(name)
-                                        setShowCitySuggestions(false)
-                                      }}
-                                      style={{
-                                        display: 'block',
-                                        width: '100%',
-                                        padding: '0.65rem 1rem',
-                                        background: 'transparent',
-                                        border: 'none',
-                                        textAlign: 'left',
-                                        cursor: 'pointer',
-                                        fontSize: '0.875rem',
-                                        fontFamily: 'DM Sans, sans-serif',
-                                        color: '#0f172a',
-                                        transition: 'background 0.15s',
-                                      }}
-                                      onMouseEnter={e => {
-                                        e.currentTarget.style.background = '#f5f3ff'
-                                      }}
-                                      onMouseLeave={e => {
-                                        e.currentTarget.style.background = 'transparent'
-                                      }}
-                                    >
-                                      {c}
-                                    </button>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
+                            <CityAutocomplete
+                              value={city}
+                              onChange={(newCity, validated) => {
+                                setCity(newCity)
+                                setCityValidated(validated)
+                                if (validated) setAttemptedNext(false)
+                              }}
+                              accentColor={COLORS.violet}
+                            />
+                            {attemptedNext && !cityValidated && (
+                              <div style={{
+                                marginTop: 6,
+                                fontSize: '0.75rem',
+                                color: '#ef4444',
+                                fontFamily: 'DM Sans, sans-serif',
+                              }}>
+                                Veuillez sélectionner une ville
+                              </div>
+                            )}
                           </div>
                         </div>
 
@@ -1116,27 +1157,48 @@ function EliteOnboardingContent() {
                               <div style={{ display: 'grid', gridTemplateColumns: '1fr 140px', gap: 10 }}>
                                 <div>
                                   <div style={labelStyle()}>Durée</div>
-                                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                                    {DURATIONS.map(d => {
-                                      const active = svc.duration === d.id
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                                    <input
+                                      type="number"
+                                      min={5}
+                                      max={480}
+                                      value={svc.duration}
+                                      onChange={e => {
+                                        const val = parseInt(e.target.value, 10)
+                                        updateService(svc.id, 'duration', isNaN(val) ? 0 : val)
+                                      }}
+                                      style={{
+                                        width: 80,
+                                        padding: '0.5rem 0.75rem',
+                                        borderRadius: 12,
+                                        border: '2px solid rgba(0,0,0,0.08)',
+                                        fontSize: '0.9rem',
+                                        fontWeight: 600,
+                                      }}
+                                    />
+                                    <span style={{ color: '#64748b', fontSize: '0.85rem' }}>minutes</span>
+                                  </div>
+                                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
+                                    {DURATION_SUGGESTIONS.map(mins => {
+                                      const active = svc.duration === mins
                                       return (
                                         <button
-                                          key={d.id}
+                                          key={mins}
                                           type="button"
-                                          onClick={() => updateService(svc.id, 'duration', d.id)}
+                                          onClick={() => updateService(svc.id, 'duration', mins)}
                                           style={{
-                                            padding: '0.5rem 0.85rem',
+                                            padding: '0.35rem 0.65rem',
                                             borderRadius: 999,
-                                            border: `2px solid ${active ? '#7c3aed' : 'rgba(0,0,0,0.08)'}`,
-                                            background: active ? '#0f172a' : 'white',
-                                            color: active ? 'white' : '#0f172a',
+                                            border: `2px solid ${active ? '#7c3aed' : 'rgba(0,0,0,0.06)'}`,
+                                            background: active ? '#7c3aed' : 'transparent',
+                                            color: active ? 'white' : '#64748b',
                                             cursor: 'pointer',
-                                            fontWeight: 700,
-                                            fontSize: '0.82rem',
-                                            transition: 'all 0.2s',
+                                            fontWeight: 600,
+                                            fontSize: '0.75rem',
+                                            transition: 'all 0.15s',
                                           }}
                                         >
-                                          {d.label}
+                                          {formatDuration(mins)}
                                         </button>
                                       )
                                     })}
@@ -1183,12 +1245,12 @@ function EliteOnboardingContent() {
                             + Ajouter un service
                           </button>
 
-                          {/* ─── ✨ AI Bio Studio ─── */}
+ {/* ─── AI Bio Studio ─── */}
                           <div style={{ background: 'linear-gradient(135deg, rgba(124,58,237,0.04), rgba(236,72,153,0.04))', border: '1.5px solid rgba(124,58,237,0.18)', borderRadius: 18, padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
 
                             {/* Header */}
                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-                              <div style={{ width: 34, height: 34, borderRadius: 10, background: `linear-gradient(135deg, ${COLORS.violet}, ${COLORS.rose})`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxShadow: '0 4px 14px rgba(124,58,237,0.35)' }}>✨</div>
+ <div style={{ width: 34, height: 34, borderRadius: 10, background: `linear-gradient(135deg, ${COLORS.violet}, ${COLORS.rose})`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxShadow: '0 4px 14px rgba(124,58,237,0.35)' }}></div>
                               <div>
                                 <div style={{ fontFamily: 'DM Sans, sans-serif', fontWeight: 700, fontSize: '0.88rem', color: COLORS.dark }}>Studio de bio IA</div>
                                 <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.7rem', color: '#94a3b8', marginTop: 1 }}>Plus vous remplissez de champs, plus la bio sera unique et percutante</div>
@@ -1309,7 +1371,7 @@ function EliteOnboardingContent() {
                                   fontFamily: 'DM Sans, sans-serif',
                                 }}
                               >
-                                ✨ Générer ma bio{!strengths.trim() && <span style={{ fontSize: '0.7rem', fontWeight: 500, opacity: 0.85 }}>(points forts requis)</span>}
+ Générer ma bio{!strengths.trim() && <span style={{ fontSize: '0.7rem', fontWeight: 500, opacity: 0.85 }}>(points forts requis)</span>}
                               </button>
                             </div>
 
@@ -1352,7 +1414,7 @@ function EliteOnboardingContent() {
 
                         {/* ── PRO THEMES ── */}
                         <div style={{ padding: '1rem 1.1rem', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-                          <div style={{ fontSize: '0.6rem', fontWeight: 800, letterSpacing: '0.16em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.35)', marginBottom: 10, fontFamily: 'DM Sans,sans-serif' }}>🎨 Thèmes</div>
+ <div style={{ fontSize: '0.6rem', fontWeight: 800, letterSpacing: '0.16em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.35)', marginBottom: 10, fontFamily: 'DM Sans,sans-serif' }}> Thèmes</div>
                           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
                             {PRO_THEMES.map(t => (
                               <motion.button
@@ -1391,7 +1453,7 @@ function EliteOnboardingContent() {
 
                         {/* ── VIBES ── */}
                         <div style={{ padding: '1rem 1.1rem', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-                          <div style={{ fontSize: '0.6rem', fontWeight: 800, letterSpacing: '0.16em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.35)', marginBottom: 10, fontFamily: 'DM Sans,sans-serif' }}>✦ Style de page</div>
+ <div style={{ fontSize: '0.6rem', fontWeight: 800, letterSpacing: '0.16em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.35)', marginBottom: 10, fontFamily: 'DM Sans,sans-serif' }}> Style de page</div>
                           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 7 }}>
                             {VIBES.map(v => (
                               <motion.button
@@ -1463,7 +1525,7 @@ function EliteOnboardingContent() {
                                 transition={{ type: 'spring', stiffness: 400, damping: 20 }}
                                 style={{ fontSize: '0.58rem', fontWeight: 800, padding: '2px 8px', borderRadius: 999, background: 'linear-gradient(135deg, #7c3aed, #ec4899)', color: 'white', letterSpacing: '0.06em' }}
                               >
-                                ELITE ✦
+ ELITE
                               </motion.span>
                             )}
                           </div>
@@ -1502,7 +1564,7 @@ function EliteOnboardingContent() {
                                 style={{ position: 'absolute', inset: 0, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(3px)', WebkitBackdropFilter: 'blur(3px)' }}
                               >
                                 <Link href="/dashboard/pricing" onClick={e => e.stopPropagation()} style={{ fontSize: '0.73rem', fontWeight: 700, color: 'white', background: 'rgba(124,58,237,0.75)', padding: '7px 16px', borderRadius: 999, textDecoration: 'none', border: '1px solid rgba(255,255,255,0.2)', boxShadow: '0 4px 20px rgba(124,58,237,0.3)', backdropFilter: 'blur(4px)' }}>
-                                  🔓 Débloquer avec Elite
+ Débloquer avec Elite
                                 </Link>
                               </motion.div>
                             )}
@@ -1565,7 +1627,7 @@ function EliteOnboardingContent() {
                                     {sectionsVisible[item.key] && !locked && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}
                                   </button>
                                   <span style={{ fontSize: '0.78rem', color: locked ? 'rgba(255,255,255,0.28)' : 'rgba(255,255,255,0.75)', fontFamily: 'DM Sans,sans-serif' }}>{item.label}</span>
-                                  {item.elite && <span style={{ fontSize: '0.55rem', fontWeight: 800, padding: '1px 6px', borderRadius: 999, background: 'linear-gradient(135deg,#7c3aed,#ec4899)', color: 'white', letterSpacing: '0.06em', marginLeft: 'auto' }}>ELITE ✦</span>}
+ {item.elite && <span style={{ fontSize: '0.55rem', fontWeight: 800, padding: '1px 6px', borderRadius: 999, background: 'linear-gradient(135deg,#7c3aed,#ec4899)', color: 'white', letterSpacing: '0.06em', marginLeft: 'auto' }}>ELITE </span>}
                                 </div>
                               )
                             })}
@@ -1589,7 +1651,7 @@ function EliteOnboardingContent() {
                               }}
                               style={{ padding: '6px 12px', borderRadius: 8, border: 'none', background: copiedLink ? '#10b981' : accentColor, color: 'white', fontWeight: 700, fontSize: '0.7rem', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0, transition: 'background 0.3s' }}
                             >
-                              {copiedLink ? '✓ Copié' : '🔗 Copier'}
+ {copiedLink ? ' Copié' : ' Copier'}
                             </motion.button>
                           </div>
                         </div>
@@ -1601,7 +1663,7 @@ function EliteOnboardingContent() {
                             onClick={() => setOpenConsoleSection(s => s === 'schedule' ? null : 'schedule')}
                             style={{ width: '100%', padding: '0.85rem 1.1rem', background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
                           >
-                            <span style={{ fontSize: '0.6rem', fontWeight: 800, letterSpacing: '0.16em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.35)', fontFamily: 'DM Sans,sans-serif' }}>🕐 Horaires</span>
+ <span style={{ fontSize: '0.6rem', fontWeight: 800, letterSpacing: '0.16em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.35)', fontFamily: 'DM Sans,sans-serif' }}> Horaires</span>
                             <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.75rem', transition: 'transform 0.2s', display: 'inline-block', transform: openConsoleSection === 'schedule' ? 'rotate(180deg)' : 'rotate(0deg)' }}>▾</span>
                           </button>
                           {openConsoleSection === 'schedule' && (
@@ -1624,7 +1686,7 @@ function EliteOnboardingContent() {
                             onClick={() => setOpenConsoleSection(s => s === 'location' ? null : 'location')}
                             style={{ width: '100%', padding: '0.85rem 1.1rem', background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
                           >
-                            <span style={{ fontSize: '0.6rem', fontWeight: 800, letterSpacing: '0.16em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.35)', fontFamily: 'DM Sans,sans-serif' }}>📍 Localisation</span>
+ <span style={{ fontSize: '0.6rem', fontWeight: 800, letterSpacing: '0.16em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.35)', fontFamily: 'DM Sans,sans-serif' }}> Localisation</span>
                             <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.75rem', transition: 'transform 0.2s', display: 'inline-block', transform: openConsoleSection === 'location' ? 'rotate(180deg)' : 'rotate(0deg)' }}>▾</span>
                           </button>
                           {openConsoleSection === 'location' && (
@@ -1641,7 +1703,7 @@ function EliteOnboardingContent() {
                             onClick={() => setOpenConsoleSection(s => s === 'cta' ? null : 'cta')}
                             style={{ width: '100%', padding: '0.85rem 1.1rem', background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
                           >
-                            <span style={{ fontSize: '0.6rem', fontWeight: 800, letterSpacing: '0.16em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.35)', fontFamily: 'DM Sans,sans-serif' }}>🎯 Bouton CTA</span>
+ <span style={{ fontSize: '0.6rem', fontWeight: 800, letterSpacing: '0.16em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.35)', fontFamily: 'DM Sans,sans-serif' }}> Bouton CTA</span>
                             <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.75rem', transition: 'transform 0.2s', display: 'inline-block', transform: openConsoleSection === 'cta' ? 'rotate(180deg)' : 'rotate(0deg)' }}>▾</span>
                           </button>
                           {openConsoleSection === 'cta' && (
@@ -1694,19 +1756,8 @@ function EliteOnboardingContent() {
 
                         {/* ── APPEARANCE ── */}
                         <div style={{ padding: '0.9rem 1.1rem', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-                          <div style={{ fontSize: '0.6rem', fontWeight: 800, letterSpacing: '0.16em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.35)', marginBottom: 10, fontFamily: 'DM Sans,sans-serif' }}>🌙 Apparence</div>
+ <div style={{ fontSize: '0.6rem', fontWeight: 800, letterSpacing: '0.16em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.35)', marginBottom: 10, fontFamily: 'DM Sans,sans-serif' }}> Apparence</div>
                           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                            {/* Dark mode */}
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                              <span style={{ fontSize: '0.76rem', color: 'rgba(255,255,255,0.65)', fontFamily: 'DM Sans,sans-serif' }}>Mode sombre</span>
-                              <button
-                                type="button"
-                                onClick={() => setDarkMode(d => !d)}
-                                style={{ width: 38, height: 22, borderRadius: 99, background: darkMode ? accentColor : 'rgba(255,255,255,0.15)', border: 'none', cursor: 'pointer', position: 'relative', transition: 'background 0.25s', flexShrink: 0 }}
-                              >
-                                <div style={{ position: 'absolute', top: 3, left: darkMode ? 'calc(100% - 19px)' : 3, width: 16, height: 16, borderRadius: '50%', background: 'white', transition: 'left 0.25s', boxShadow: '0 1px 4px rgba(0,0,0,0.3)' }} />
-                              </button>
-                            </div>
                             {/* Font size */}
                             <div>
                               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
@@ -1790,7 +1841,7 @@ function EliteOnboardingContent() {
 
                       {/* Magic link */}
                       <div style={{ background: `linear-gradient(135deg, ${COLORS.violet}10, ${COLORS.rose}08)`, border: `1.5px solid ${COLORS.violet}22`, borderRadius: 22, padding: '1.8rem', textAlign: 'center' }}>
-                        <div style={{ fontSize: '0.7rem', fontWeight: 800, letterSpacing: '0.14em', textTransform: 'uppercase', color: COLORS.violet, marginBottom: 8, fontFamily: 'DM Sans,sans-serif' }}>Ton site est prêt 🎉</div>
+ <div style={{ fontSize: '0.7rem', fontWeight: 800, letterSpacing: '0.14em', textTransform: 'uppercase', color: COLORS.violet, marginBottom: 8, fontFamily: 'DM Sans,sans-serif' }}>Ton site est prêt </div>
                         <div style={{ fontFamily: "'Clash Display','Syne',sans-serif", fontSize: '1.5rem', fontWeight: 700, color: COLORS.dark, marginBottom: 14 }}>
                           calendapro.fr/<span style={{ ...gradientTextStyle() }}>{username || 'votre-nom'}</span>
                         </div>
@@ -1832,7 +1883,7 @@ function EliteOnboardingContent() {
                             }}
                             style={{ marginTop: 10, display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 12px', borderRadius: 999, border: `1px solid ${COLORS.violet}28`, background: 'white', color: COLORS.violet, fontWeight: 700, fontSize: '0.78rem', cursor: 'pointer', fontFamily: 'DM Sans,sans-serif' }}
                           >
-                            📋 Copier lien WhatsApp
+ Copier lien WhatsApp
                           </button>
                         )}
                       </div>
@@ -1845,7 +1896,7 @@ function EliteOnboardingContent() {
                           <div style={{ fontSize: '0.7rem', fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase', color: COLORS.violet, fontFamily: 'DM Sans,sans-serif' }}>QR Code</div>
                           <div style={{ width: 120, height: 120 }}>
                             {username ? (
-                              <img src={`https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(`https://calendapro.fr/${username}`)}&color=${accentColor.replace('#','')}&bgcolor=ffffff`} alt="QR" style={{ width: 120, height: 120, borderRadius: 12 }} />
+                              <img src={`https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(`${process.env.NEXT_PUBLIC_APP_URL || 'https://calendapro.fr'}/${username}`)}&color=${accentColor.replace('#','')}&bgcolor=ffffff`} alt="QR" style={{ width: 120, height: 120, borderRadius: 12 }} />
                             ) : (
                               <div style={{ width: 120, height: 120, borderRadius: 12, background: '#f1f5f9', display: 'grid', placeItems: 'center', color: '#94a3b8', fontSize: '0.78rem', fontFamily: 'DM Sans,sans-serif' }}>Votre QR</div>
                             )}
@@ -1859,7 +1910,7 @@ function EliteOnboardingContent() {
                           {igPost ? (
                             <>
                               <div style={{ fontSize: '0.8rem', color: COLORS.dark, lineHeight: 1.6, background: 'white', borderRadius: 10, padding: '0.75rem', border: '1px solid rgba(0,0,0,0.06)', fontFamily: 'DM Sans,sans-serif', whiteSpace: 'pre-wrap', maxHeight: 160, overflowY: 'auto' }}>{igPost}</div>
-                              <button type="button" onClick={() => void navigator.clipboard?.writeText(igPost)} style={{ alignSelf: 'flex-start', padding: '4px 12px', borderRadius: 999, border: `1px solid ${COLORS.violet}28`, background: 'white', color: COLORS.violet, fontWeight: 700, fontSize: '0.74rem', cursor: 'pointer', fontFamily: 'DM Sans,sans-serif' }}>📋 Copier</button>
+ <button type="button" onClick={() => void navigator.clipboard?.writeText(igPost)} style={{ alignSelf: 'flex-start', padding: '4px 12px', borderRadius: 999, border: `1px solid ${COLORS.violet}28`, background: 'white', color: COLORS.violet, fontWeight: 700, fontSize: '0.74rem', cursor: 'pointer', fontFamily: 'DM Sans,sans-serif' }}> Copier</button>
                             </>
                           ) : (
                             <p style={{ fontSize: '0.8rem', color: '#64748b', lineHeight: 1.55, fontFamily: 'DM Sans,sans-serif' }}>Caption + hashtags ciblés générés par l'IA en un clic.</p>
@@ -1887,50 +1938,8 @@ function EliteOnboardingContent() {
                               .catch(() => {})
                               .finally(() => setIgPostLoading(false))
                           }} style={{ height: 40, borderRadius: 999, border: 'none', background: `linear-gradient(135deg, ${COLORS.violet}, ${COLORS.rose})`, color: 'white', fontWeight: 800, fontSize: '0.8rem', cursor: igPostLoading ? 'not-allowed' : 'pointer', opacity: igPostLoading ? 0.65 : 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 7, transition: 'all 0.25s', fontFamily: 'DM Sans,sans-serif' }}>
-                            {igPostLoading ? <><SpinnerComponent /> Génération…</> : '✨ Générer caption + hashtags'}
+ {igPostLoading ? <><SpinnerComponent /> Génération…</> : ' Générer caption + hashtags'}
                           </button>
-                        </div>
-                      </div>
-
-                      {/* Dashboard Layout */}
-                      <div style={{ background: 'white', borderRadius: 18, border: '1px solid rgba(0,0,0,0.08)', padding: '1.2rem' }}>
-                        <div style={{ fontSize: '0.7rem', fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase', color: COLORS.violet, marginBottom: 6, fontFamily: 'DM Sans,sans-serif' }}>Votre style de tableau de bord</div>
-                        <p style={{ fontSize: '0.76rem', color: '#64748b', margin: '0 0 14px', fontFamily: 'DM Sans,sans-serif' }}>
-                          {PRO_LAYOUTS[selectedProLayout].idealFor}
-                        </p>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 8 }}>
-                          {PRO_LAYOUT_IDS.map(id => {
-                            const layout = PRO_LAYOUTS[id]
-                            const isActive = selectedProLayout === id
-                            return (
-                              <button
-                                key={id}
-                                type="button"
-                                onClick={() => setSelectedProLayout(id)}
-                                style={{
-                                  borderRadius: 10,
-                                  border: `2px solid ${isActive ? COLORS.violet : 'rgba(0,0,0,0.08)'}`,
-                                  background: isActive ? `${COLORS.violet}08` : 'white',
-                                  padding: '8px 6px',
-                                  cursor: 'pointer',
-                                  transition: 'all 0.15s',
-                                }}
-                              >
-                                {/* Mini preview */}
-                                <div style={{ width: '100%', aspectRatio: '4/3', borderRadius: 6, overflow: 'hidden', background: layout.preview?.bg ?? '#f8f7f4', display: 'flex', marginBottom: 6 }}>
-                                  <div style={{ width: '28%', background: layout.preview?.sidebar ?? '#ffffff', borderRight: '1px solid rgba(0,0,0,0.1)' }} />
-                                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 3, padding: 4 }}>
-                                    {[1,2,3].map(i => (
-                                      <div key={i} style={{ height: 4, borderRadius: 2, background: i === 1 ? (layout.preview?.accent ?? '#7c3aed') : (layout.preview?.card ?? '#ffffff'), opacity: 0.8 }} />
-                                    ))}
-                                  </div>
-                                </div>
-                                <div style={{ fontSize: '0.62rem', fontWeight: isActive ? 700 : 500, color: isActive ? COLORS.violet : '#64748b', fontFamily: 'DM Sans,sans-serif', textAlign: 'center' }}>
-                                  {layout.name}
-                                </div>
-                              </button>
-                            )
-                          })}
                         </div>
                       </div>
 
@@ -1939,13 +1948,11 @@ function EliteOnboardingContent() {
                         <div style={{ fontSize: '0.7rem', fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase', color: COLORS.violet, marginBottom: 12, fontFamily: 'DM Sans,sans-serif' }}>Template de page</div>
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
                           {(['minimal', 'visual', 'direct'] as SmartTemplate[]).map(tpl => {
-                            const locked = !canUseTemplate(tpl)
                             const selected = template === tpl
                             const smart = recommendedTemplate === tpl
                             return (
-                              <button key={tpl} type="button" onClick={() => { if (!locked) setTemplate(tpl) }} disabled={locked} style={{ borderRadius: 14, border: `2px solid ${selected ? COLORS.violet : 'rgba(0,0,0,0.08)'}`, background: tpl === 'visual' ? COLORS.dark : 'white', padding: '1rem 0.8rem', cursor: locked ? 'not-allowed' : 'pointer', opacity: locked ? 0.5 : 1, textAlign: 'left', position: 'relative', transition: 'all 0.2s', boxShadow: selected ? '0 8px 28px rgba(124,58,237,0.15)' : 'none' }}>
-                                {smart && !locked && <div style={{ position: 'absolute', top: 8, right: 8, background: `linear-gradient(135deg, ${COLORS.violet}, ${COLORS.rose})`, color: 'white', borderRadius: 999, padding: '2px 7px', fontSize: '0.6rem', fontWeight: 800 }}>Smart</div>}
-                                {locked && <div style={{ position: 'absolute', top: 8, right: 8 }}><Lock size={16} strokeWidth={1.8} color="#64748b" /></div>}
+                              <button key={tpl} type="button" onClick={() => setTemplate(tpl)} style={{ borderRadius: 14, border: `2px solid ${selected ? COLORS.violet : 'rgba(0,0,0,0.08)'}`, background: tpl === 'visual' ? COLORS.dark : 'white', padding: '1rem 0.8rem', cursor: 'pointer', textAlign: 'left', position: 'relative', transition: 'all 0.2s', boxShadow: selected ? '0 8px 28px rgba(124,58,237,0.15)' : 'none' }}>
+                                {smart && <div style={{ position: 'absolute', top: 8, right: 8, background: `linear-gradient(135deg, ${COLORS.violet}, ${COLORS.rose})`, color: 'white', borderRadius: 999, padding: '2px 7px', fontSize: '0.6rem', fontWeight: 800 }}>Smart</div>}
                                 <div style={{ fontWeight: 700, fontSize: '0.88rem', color: tpl === 'visual' ? 'white' : COLORS.dark, fontFamily: 'DM Sans,sans-serif' }}>{tpl === 'minimal' ? 'Minimal' : tpl === 'visual' ? 'Visuel' : 'Direct'}</div>
                                 <div style={{ fontSize: '0.7rem', color: tpl === 'visual' ? 'rgba(255,255,255,0.55)' : '#94a3b8', marginTop: 4, lineHeight: 1.4 }}>{tpl === 'minimal' ? 'Blanc · Épuré' : tpl === 'visual' ? 'Sombre · Hero' : 'RDV en avant'}</div>
                               </button>
@@ -1961,7 +1968,7 @@ function EliteOnboardingContent() {
                           <div style={{ fontSize: '0.82rem', color: '#94a3b8', marginTop: 2, fontFamily: 'DM Sans,sans-serif' }}>Votre page sera en ligne sur <strong style={{ color: COLORS.dark }}>/{username || '...'}</strong></div>
                         </div>
                         <button type="button" onClick={() => void publish()} disabled={publishLoading || !username.trim()} style={{ height: 56, padding: '0 2rem', border: 'none', borderRadius: 999, background: `linear-gradient(135deg, ${COLORS.violet}, ${COLORS.rose})`, boxShadow: '0 8px 36px rgba(124,58,237,0.4)', color: 'white', fontWeight: 800, fontSize: '1rem', cursor: publishLoading ? 'not-allowed' : 'pointer', opacity: publishLoading ? 0.65 : 1, display: 'inline-flex', alignItems: 'center', gap: 10, transition: 'all 0.25s', whiteSpace: 'nowrap', fontFamily: 'DM Sans,sans-serif' }}>
-                          {publishLoading ? <><SpinnerComponent /> Publication…</> : '🚀 Mettre en ligne'}
+ {publishLoading ? <><SpinnerComponent /> Publication…</> : ' Mettre en ligne'}
                         </button>
                       </div>
 
@@ -2016,6 +2023,31 @@ function EliteOnboardingContent() {
                     }}
                   >
                     Continuer <ArrowRight size={16} strokeWidth={2.6} />
+                  </button>
+                )}
+
+                {/* AUDIT #9 — Bouton "Compléter plus tard" sur les étapes 3 et 4 */}
+                {(step === 3 || step === 4) && (
+                  <button
+                    type="button"
+                    onClick={() => router.push('/dashboard')}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      height: 56,
+                      padding: '0 1.5rem',
+                      border: '2px solid rgba(0,0,0,0.08)',
+                      borderRadius: 100,
+                      background: 'transparent',
+                      color: '#64748b',
+                      fontWeight: 600,
+                      fontSize: '0.9rem',
+                      cursor: 'pointer',
+                      transition: 'all 0.25s ease',
+                    }}
+                  >
+                    Compléter plus tard
                   </button>
                 )}
               </div>

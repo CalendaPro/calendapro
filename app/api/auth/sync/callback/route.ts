@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { stripe } from '@/lib/stripe'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { logger } from '@/lib/logger'
+
+export const dynamic = 'force-dynamic'
 
 /**
  * GET /api/auth/sync/callback
@@ -13,14 +16,14 @@ import { createServerSupabaseClient } from '@/lib/supabase-server'
  *   - planId: Plan sélectionné
  */
 export async function GET(request: NextRequest) {
-  console.log('✅ STRIPE CALLBACK - Payment success')
+ logger.info(' STRIPE CALLBACK - Payment success')
 
   const { searchParams } = new URL(request.url)
   const sessionId = searchParams.get('session_id')
   const planId = searchParams.get('planId')
 
   if (!sessionId) {
-    console.error('❌ Missing session_id')
+ logger.error(' Missing session_id')
     return NextResponse.redirect(new URL('/auth-error?error=missing_session', request.url))
   }
 
@@ -29,7 +32,7 @@ export async function GET(request: NextRequest) {
     const session = await stripe.checkout.sessions.retrieve(sessionId)
 
     if (session.payment_status !== 'paid') {
-      console.error('❌ Payment not completed:', session.payment_status)
+ logger.error(' Payment not completed:', session.payment_status)
       return NextResponse.redirect(new URL('/plans?payment=failed', request.url))
     }
 
@@ -37,7 +40,7 @@ export async function GET(request: NextRequest) {
     const planIdFromMetadata = session.metadata?.planId
 
     if (!userId) {
-      console.error('❌ Missing userId in session metadata')
+ logger.error(' Missing userId in session metadata')
       return NextResponse.redirect(new URL('/auth-error?error=missing_user', request.url))
     }
 
@@ -65,9 +68,9 @@ export async function GET(request: NextRequest) {
         .eq('user_id', userId)
 
       if (updateError) {
-        console.error('❌ Error updating subscription:', updateError)
+ logger.error(' Error updating subscription:', updateError)
       } else {
-        console.log('✅ Subscription updated - Premium activated:', { userId, planId: planIdFromMetadata || planId })
+ logger.info(' Subscription updated - Premium activated:', { userId, planId: planIdFromMetadata || planId })
       }
     } else {
       // Créer
@@ -80,9 +83,9 @@ export async function GET(request: NextRequest) {
       })
 
       if (insertError) {
-        console.error('❌ Error creating subscription:', insertError)
+ logger.error(' Error creating subscription:', insertError)
       } else {
-        console.log('✅ Subscription created - Premium activated:', { userId, planId: planIdFromMetadata || planId })
+ logger.info(' Subscription created - Premium activated:', { userId, planId: planIdFromMetadata || planId })
       }
     }
 
@@ -91,11 +94,11 @@ export async function GET(request: NextRequest) {
     redirectUrl.searchParams.set('upgrade', 'success')
     redirectUrl.searchParams.set('plan', planIdFromMetadata || planId || '')
 
-    console.log('🚀 Redirecting to onboarding with success')
+ logger.info(' Redirecting to onboarding with success')
     return NextResponse.redirect(redirectUrl)
 
   } catch (error) {
-    console.error('❌ Error in stripe callback:', error)
+ logger.error(' Error in stripe callback:', error)
     return NextResponse.redirect(new URL('/auth-error?error=callback', request.url))
   }
 }

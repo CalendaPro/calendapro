@@ -1,5 +1,5 @@
 export { default as ScrollCalendar } from './ScrollCalendar'
-export { default as SmartNotifications } from './SmartNotifications'
 export { MetierSection } from './MetierSection'
 export { default as TechDemoSection } from './TechDemoSection'
 export { default as VisionSection } from './VisionSection'
+export { BentoGrid, LiveDemoSection } from './BentoGrid'

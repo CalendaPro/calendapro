@@ -13,6 +13,7 @@ import { SuccessStep } from './_components/SuccessStep'
 import { Navigation } from './_components/Navigation'
 import { getProSelection, clearProSelection, getSourceChannel, buildPostOnboardingRedirect } from '@/lib/tunnel-tracking'
 import './styles.css'
+import { logger } from '@/lib/logger'
 
 export type OnboardingData = {
   // Étape 1
@@ -184,8 +185,8 @@ function ClientOnboardingContent() {
 
       setCompleted(true)
     } catch (err: any) {
-      console.error('Error saving onboarding:', err)
-      console.error('Error details:', err?.message, err?.code, err?.details)
+      logger.error('Error saving onboarding:', err)
+      logger.error('Error details:', err?.message, err?.code, err?.details)
       alert('Erreur lors de la sauvegarde: ' + (err?.message || 'Erreur inconnue'))
     } finally {
       setLoading(false)

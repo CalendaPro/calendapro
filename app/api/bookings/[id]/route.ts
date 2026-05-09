@@ -4,6 +4,9 @@ import { revalidatePath } from 'next/cache'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { checkBookingConflict, isValidSlotTime } from '@/lib/booking-conflict'
 import { toUiStatus, toDbStatus } from '@/lib/booking-status'
+import { logger } from '@/lib/logger'
+
+export const dynamic = 'force-dynamic'
 
 export async function GET(
   _request: Request,
@@ -16,20 +19,44 @@ export async function GET(
     const { id } = await params
     const supabase = createServerSupabaseClient()
 
-    const { data: booking, error } = await supabase
+    // Récupérer le profil pour savoir si c'est un pro ou un client
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('id', userId)
+      .maybeSingle()
+
+    const isPro = !!profile
+
+    // Construire la requête selon le rôle
+    let bookingQuery = supabase
       .from('bookings')
       .select(`
         id, client_id, pro_id, pro_name, service_name,
         scheduled_at, duration_minutes, price, deposit_amount,
         payment_status, payment_method, status, notes,
-        cancellation_reason, created_at, source_channel
+        cancellation_reason, created_at, source_channel,
+        amount_paid, stripe_receipt_url, stripe_payment_intent_id,
+        stripe_checkout_session_id, refunded_at, refund_amount
       `)
       .eq('id', id)
-      .eq('pro_id', userId)
-      .maybeSingle()
+
+    // Si pro: filtrer par pro_id, si client: par client_id (email comme user_id temporaire)
+    if (isPro) {
+      bookingQuery = bookingQuery.eq('pro_id', userId)
+    }
+    // Note: pour les clients, on vérifie le client_id après coup car client_id peut être null
+    // et le vrai user_id du client est souvent son email ou son clerk_id
+
+    const { data: booking, error } = await bookingQuery.maybeSingle()
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
     if (!booking) return NextResponse.json({ error: 'Introuvable' }, { status: 404 })
+
+    // Vérifier que le client a accès à ce booking (si pas pro)
+    if (!isPro && booking.client_id && booking.client_id !== userId) {
+      return NextResponse.json({ error: 'Non autorisé' }, { status: 403 })
+    }
 
     let clientProfile: { user_id?: string; name?: string; phone?: string } | null = null
     if (booking.client_id) {
@@ -60,9 +87,16 @@ export async function GET(
       source: booking.source_channel,
       created_at: booking.created_at,
       client: clientProfile,
+      // Champs Stripe Connect
+      amount_paid: booking.amount_paid || 0,
+      stripe_receipt_url: booking.stripe_receipt_url,
+      stripe_payment_intent_id: booking.stripe_payment_intent_id,
+      stripe_checkout_session_id: booking.stripe_checkout_session_id,
+      refunded_at: booking.refunded_at,
+      refund_amount: booking.refund_amount || 0,
     })
   } catch (err) {
-    console.error('[Bookings API] GET by ID exception:', err)
+    logger.error('[Bookings API] GET by ID exception:', err)
     return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 })
   }
 }
@@ -142,7 +176,7 @@ export async function PATCH(
       price: Number(data.price) || 0,
     })
   } catch (err) {
-    console.error('[Bookings API] PATCH exception:', err)
+    logger.error('[Bookings API] PATCH exception:', err)
     return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 })
   }
 }
@@ -167,10 +201,11 @@ export async function DELETE(
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
     revalidatePath('/dashboard', 'layout')
+    revalidatePath('/dashboard/calendar', 'page')
 
     return NextResponse.json({ success: true })
   } catch (err) {
-    console.error('[Bookings API] DELETE exception:', err)
+    logger.error('[Bookings API] DELETE exception:', err)
     return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 })
   }
 }

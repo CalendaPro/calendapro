@@ -1,6 +1,9 @@
 import { auth } from '@clerk/nextjs/server';
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
+import { logger } from '@/lib/logger'
+
+export const dynamic = 'force-dynamic'
 
 const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
@@ -54,7 +57,7 @@ export async function POST(request: NextRequest) {
       });
 
     if (uploadError) {
-      console.error('Storage upload error:', uploadError);
+      logger.error('Storage upload error:', uploadError);
       return NextResponse.json(
         { error: 'Failed to upload file to storage' },
         { status: 500 }
@@ -76,7 +79,7 @@ export async function POST(request: NextRequest) {
         .eq('id', userId);
 
       if (updateError) {
-        console.error('Profile update error:', updateError);
+        logger.error('Profile update error:', updateError);
         // Don't fail the request, just log the error
       }
     } else if (userType === 'client') {
@@ -91,7 +94,7 @@ export async function POST(request: NextRequest) {
         .eq('user_id', userId);
 
       if (updateError) {
-        console.error('Client profile update error:', updateError);
+        logger.error('Client profile update error:', updateError);
         // Don't fail the request, just log the error
       }
     }
@@ -102,7 +105,7 @@ export async function POST(request: NextRequest) {
       path: path,
     });
   } catch (error) {
-    console.error('Avatar upload error:', error);
+    logger.error('Avatar upload error:', error);
     return NextResponse.json(
       { error: 'Failed to upload avatar' },
       { status: 500 }
@@ -157,7 +160,7 @@ export async function DELETE(request: NextRequest) {
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Avatar removal error:', error);
+    logger.error('Avatar removal error:', error);
     return NextResponse.json(
       { error: 'Failed to remove avatar' },
       { status: 500 }

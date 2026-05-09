@@ -1,6 +1,9 @@
 import { auth } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { logger } from '@/lib/logger'
+
+export const dynamic = 'force-dynamic'
 
 export async function POST(request: Request) {
   const { userId } = await auth()
@@ -30,7 +33,7 @@ export async function POST(request: Request) {
     })
 
     if (error) {
-      console.error('Error saving onboarding step:', error)
+      logger.error('Error saving onboarding step:', error)
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
@@ -41,7 +44,7 @@ export async function POST(request: Request) {
       isCompleted 
     })
   } catch (err) {
-    console.error('Unexpected error saving onboarding step:', err)
+    logger.error('Unexpected error saving onboarding step:', err)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
@@ -59,7 +62,7 @@ export async function GET(request: Request) {
     })
 
     if (error) {
-      console.error('Error fetching onboarding progress:', error)
+      logger.error('Error fetching onboarding progress:', error)
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
@@ -68,7 +71,7 @@ export async function GET(request: Request) {
       progress: data 
     })
   } catch (err) {
-    console.error('Unexpected error fetching onboarding progress:', err)
+    logger.error('Unexpected error fetching onboarding progress:', err)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

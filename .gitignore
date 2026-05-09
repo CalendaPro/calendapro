@@ -44,3 +44,5 @@ next-env.d.ts
 /.clerk/
 .aidesigner/*
 !.aidesigner/.gitkeep
+
+!.env.example

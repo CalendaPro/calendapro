@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 import React, { useRef, useState, useEffect } from 'react'
 import { motion, useInView, AnimatePresence } from 'framer-motion'
@@ -254,22 +254,6 @@ export default function TechDemoSection() {
       <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', background: 'radial-gradient(ellipse 60% 50% at 70% 50%, rgba(124,58,237,0.04) 0%, transparent 70%)' }} />
 
       <div style={{ width: '100%', padding: '4rem 6rem' }}>
-        <motion.div initial={{ opacity: 0, y: 24 }} animate={isInView ? { opacity: 1, y: 0 } : {}} transition={{ ...SPRING, delay: 0.1 }} style={{ textAlign: 'center', marginBottom: '4.5rem' }}>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '0.4rem 1rem', borderRadius: 40, background: T.accentSoft, border: `1px solid ${T.accentBorder}`, marginBottom: '1.4rem' }}>
-            <div style={{ width: 6, height: 6, borderRadius: '50%', background: T.accent, opacity: 0.7 }} />
-            <span style={{ fontSize: 12, color: T.accent, fontWeight: 500, letterSpacing: '0.04em' }}>Moteur de planification</span>
-          </div>
-          <h2 style={{ fontFamily: 'Clash Display, sans-serif', fontSize: 'clamp(2rem, 4vw, 3rem)', fontWeight: 700, color: T.text, letterSpacing: '-0.03em', lineHeight: 1.1, marginBottom: '1rem' }}>
-            Une intelligence invisible.<br />
-            <span style={{ background: `linear-gradient(135deg, ${T.accent}, ${T.pink})`, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-              Une expérience parfaite.
-            </span>
-          </h2>
-          <p style={{ fontSize: 16, color: T.muted, maxWidth: 500, margin: '0 auto', lineHeight: 1.7 }}>
-            Sous chaque réservation, un moteur de précision orchestre des dizaines d&apos;opérations en temps réel.
-          </p>
-        </motion.div>
-
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr', gap: '6rem', alignItems: 'center', width: '100%', maxWidth: 1400, margin: '0 auto' }}>
           <motion.div initial={{ opacity: 0, x: -20 }} animate={isInView ? { opacity: 1, x: 0 } : {}} transition={{ ...SPRING, delay: 0.2 }}>
             <div style={{ display: 'flex', gap: 8, marginBottom: '2.5rem', flexWrap: 'wrap' }}>

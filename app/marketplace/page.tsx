@@ -1,12 +1,15 @@
 'use client'
 
-import React, { useEffect, useState, useCallback, useMemo } from 'react'
+import React, { useEffect, useState, useCallback, useMemo, Suspense } from 'react'
 import { useAuth } from '@clerk/nextjs'
+import { useSearchParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
+import Image from 'next/image'
 import dynamic from 'next/dynamic'
 import { BrandLogo } from '@/components/BrandLogo'
 import { PlanBadge } from '@/components/marketplace/PlanBadge'
 import InfinityMatch from '@/components/marketplace/InfinityMatch'
+import LegalFooter from '@/components/LegalFooter'
 import { compareMarketplacePros } from '@/lib/geo'
 import { motion, AnimatePresence } from 'framer-motion'
 import type { Transition } from 'framer-motion'
@@ -31,6 +34,7 @@ import {
   Zap,
   AlertTriangle
 } from 'lucide-react'
+import { logger } from '@/lib/logger'
 
 const MarketplaceMap = dynamic(() => import('@/components/marketplace/MarketplaceMap'), { ssr: false })
 
@@ -115,14 +119,13 @@ function Avatar({ name, size = 56, avatarUrl, isPremium = false }: { name: strin
   if (avatarUrl) {
     return (
       <div style={containerStyle}>
-        <img
+        <Image
           src={avatarUrl}
           alt={name}
+          fill
+          sizes="${size}px"
+          className="rounded-full object-cover"
           style={{
-            width: '100%',
-            height: '100%',
-            borderRadius: '50%',
-            objectFit: 'cover',
             border: isPremium ? '2px solid #ffffff' : 'none',
           }}
         />
@@ -153,7 +156,7 @@ function Avatar({ name, size = 56, avatarUrl, isPremium = false }: { name: strin
 }
 
 // ─── PRO CARD ─────────────────────────────────────────────────────────────────
-function ProCard({ pro, idx }: { pro: Pro; idx: number }) {
+const ProCard = React.memo(function ProCard({ pro, idx }: { pro: Pro; idx: number }) {
   const [hovered, setHovered] = useState(false)
   const catObj = CATEGORIES.find(c => c.id === pro.category)
   const CategoryIcon = catObj?.icon || Sparkles
@@ -162,7 +165,20 @@ function ProCard({ pro, idx }: { pro: Pro; idx: number }) {
   const handleProClick = useCallback(() => {
     storeProSelection(pro.id, pro.username)
     detectAndStoreSource()
-  }, [pro.id, pro.username])
+    // Track conversion: Pro selected from marketplace
+    if (typeof window !== 'undefined') {
+      logger.info('[TRACKING] Event: marketplace_pro_selected', { proId: pro.id, proUsername: pro.username })
+      if ((window as any).dataLayer) {  // reason: GTM dataLayer has no TS type declarations
+        (window as any).dataLayer.push({  // reason: GTM dataLayer has no TS type declarations
+          event: 'marketplace_pro_selected',
+          proId: pro.id,
+          proUsername: pro.username,
+          proPlan: pro.plan,
+          category: pro.category,
+        })
+      }
+    }
+  }, [pro.id, pro.username, pro.plan, pro.category])
 
   return (
     <motion.div
@@ -388,7 +404,7 @@ function ProCard({ pro, idx }: { pro: Pro; idx: number }) {
       </div>
     </motion.div>
   )
-}
+})
 
 // ─── SKELETON ─────────────────────────────────────────────────────────────────
 function SkeletonCard() {
@@ -520,8 +536,10 @@ function StatPill({ value, label, loading }: { value: string | number; label: st
 }
 
 // ─── PAGE PRINCIPALE ──────────────────────────────────────────────────────────
-export default function MarketplacePage() {
+function MarketplaceContent() {
   const { isSignedIn } = useAuth()
+  const router = useRouter()
+  const searchParams = useSearchParams()
   const [userRole, setUserRole] = useState<string | null>(null)
 
   useEffect(() => {
@@ -536,19 +554,34 @@ export default function MarketplacePage() {
     ? (userRole === 'pro' ? '/dashboard' : '/client')
     : null
 
+  // #27 - Initialiser depuis l'URL
   const [pros, setPros] = useState<Pro[]>([])
   const [stats, setStats] = useState<Stats>(null)
   const [loading, setLoading] = useState(true)
-  const [search, setSearch] = useState('')
-  const [category, setCategory] = useState('all')
-  const [city, setCity] = useState('Toutes les villes')
-  const [sortBy, setSortBy] = useState<'plan' | 'name' | 'distance'>('plan')
-  const [viewMode, setViewMode] = useState<ViewMode>('grid')
-  const [availableNow, setAvailableNow] = useState(false)
+  const [search, setSearch] = useState(searchParams.get('search') ?? '')
+  const [category, setCategory] = useState(searchParams.get('category') ?? 'all')
+  const [city, setCity] = useState(searchParams.get('city') ?? 'Toutes les villes')
+  const [sortBy, setSortBy] = useState<'plan' | 'name' | 'distance'>((searchParams.get('sort') as any) ?? 'plan')  // reason: URLSearchParams returns string|null, cast to union type
+  const [viewMode, setViewMode] = useState<ViewMode>((searchParams.get('view') as any) ?? 'grid')  // reason: URLSearchParams returns string|null, cast to union type
+  const [availableNow, setAvailableNow] = useState(searchParams.get('available') === 'true')
   const [searchFocused, setSearchFocused] = useState(false)
   const [userCoords, setUserCoords] = useState<{ lat: number; lng: number } | null>(null)
   const [geoLoading, setGeoLoading] = useState(false)
   const [geoError, setGeoError] = useState(false)
+
+  // #27 - Synchroniser les filtres avec l'URL
+  useEffect(() => {
+    const params = new URLSearchParams()
+    if (search) params.set('search', search)
+    if (category !== 'all') params.set('category', category)
+    if (city !== 'Toutes les villes') params.set('city', city)
+    if (sortBy !== 'plan') params.set('sort', sortBy)
+    if (viewMode !== 'grid') params.set('view', viewMode)
+    if (availableNow) params.set('available', 'true')
+    
+    const newUrl = `${window.location.pathname}?${params.toString()}`
+    window.history.replaceState({}, '', newUrl)
+  }, [search, category, city, sortBy, viewMode, availableNow])
 
   // ── FETCH (PostGIS distance si coordonnées) ─────────────────────────────
   useEffect(() => {
@@ -633,7 +666,7 @@ export default function MarketplacePage() {
         html { scroll-behavior: smooth; }
         body {
           font-family: 'DM Sans', sans-serif;
-          background: #FFFFFF;
+          background: #F7F5F0;
           color: #0B0F19;
         }
 
@@ -864,7 +897,7 @@ export default function MarketplacePage() {
         }
       `}</style>
 
-      <div style={{ background: '#FFFFFF', minHeight: '100vh' }}>
+      <div style={{ background: '#F7F5F0', minHeight: '100vh' }}>
 
         {/* ── HERO BACKGROUND DECO ── */}
         <div style={{
@@ -926,7 +959,7 @@ export default function MarketplacePage() {
         }}>
           <BrandLogo />
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <Link href="/sign-up" style={{
+            <Link href="/" style={{
               fontSize: '0.8rem',
               fontWeight: 500,
               color: '#9CA3AF',
@@ -977,7 +1010,7 @@ export default function MarketplacePage() {
                 el.style.background = 'rgba(255, 255, 255, 0.6)'
               }}
             >
-              {authDest ? (userRole === 'pro' ? 'Mon Dashboard' : 'Mon Espace') : 'Connexion'}
+              {authDest ? (userRole === 'pro' ? 'Mon Dashboard' : 'Mon Espace') : 'Connexion client'}
             </Link>
             <Link href={authDest ?? '/client-sign-up'} style={{
               fontSize: '0.9rem',
@@ -1005,7 +1038,7 @@ export default function MarketplacePage() {
                 el.style.boxShadow = '0 4px 16px rgba(124, 58, 237, 0.35)'
               }}
             >
-              {authDest ? (userRole === 'pro' ? 'Dashboard Pro' : 'Mon Espace Client') : 'Rejoindre CalendaPro'}
+              {authDest ? (userRole === 'pro' ? 'Dashboard Pro' : 'Mon Espace Client') : 'Inscription client'}
               <ArrowRight size={14} strokeWidth={2.5} />
             </Link>
           </div>
@@ -1637,10 +1670,28 @@ export default function MarketplacePage() {
             </div>
           </div>
 
+          <LegalFooter />
+
         </div>
 
         <InfinityMatch userCoords={userCoords} />
       </div>
     </>
+  )
+}
+
+// #27 - Export avec Suspense pour useSearchParams
+export default function MarketplacePage() {
+  return (
+    <Suspense fallback={
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '1rem', fontFamily: "'Clash Display', sans-serif" }}>Chargement...</div>
+          <div style={{ color: '#6B7280', fontFamily: "'DM Sans', sans-serif" }}>Chargement du marketplace</div>
+        </div>
+      </div>
+    }>
+      <MarketplaceContent />
+    </Suspense>
   )
 }

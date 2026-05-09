@@ -15,6 +15,7 @@ import {
 } from '@/lib/booking-payment-settings'
 import { usePlan } from '@/lib/hooks/usePlan'
 import FeatureGate from '@/components/dashboard/FeatureGate'
+import { logger } from '@/lib/logger'
 
 // ─── UI helpers ───────────────────────────────────────────────────────────────
 
@@ -174,6 +175,74 @@ function Dropdown({ value, onChange, options, placeholder = 'Selectionner...' }:
   )
 }
 
+// ─── Stripe Connect Wallet Summary ───────────────────────────────────────────
+
+function ConnectWalletSummary() {
+  const [balance, setBalance] = useState<{ available: number; pending: number; connect_configured: boolean } | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    fetch('/api/stripe/connect/balance')
+      .then(r => r.json())
+      .then(d => setBalance(d))
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }, [])
+
+  if (loading) return null
+  const walletIcon = <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4z"/></svg>
+
+  if (!balance?.connect_configured) {
+    return (
+      <Card title="Portefeuille Stripe Connect" icon={walletIcon}>
+        <div style={{ padding: '12px 20px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+          <p style={{ fontSize: '0.7rem', color: 'var(--dl-text-muted)', margin: 0, fontFamily: 'DM Sans, sans-serif' }}>
+            Connectez votre compte Stripe pour recevoir les paiements directement.
+          </p>
+          <Link href="/dashboard/settings?section=integrations" style={{
+            padding: '8px 16px', borderRadius: 9, fontSize: '0.78rem', fontWeight: 700,
+            background: 'linear-gradient(135deg, #7c3aed, #6366f1)', color: 'white',
+            textDecoration: 'none', border: 'none', flexShrink: 0, whiteSpace: 'nowrap',
+          }}>
+            Configurer
+          </Link>
+        </div>
+      </Card>
+    )
+  }
+
+  const fmtEur = (cents: number) => new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', minimumFractionDigits: 2 }).format(cents / 100)
+
+  return (
+    <Card title="Portefeuille" icon={walletIcon}>
+      <div style={{ padding: '12px 20px 16px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', marginBottom: 14 }}>
+          <Link href="/dashboard/wallet" style={{
+            fontSize: '0.72rem', fontWeight: 700, color: '#7c3aed', textDecoration: 'none',
+            display: 'flex', alignItems: 'center', gap: 4,
+          }}>
+            Voir tout →
+          </Link>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div style={{ padding: '12px 14px', borderRadius: 12, background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.12)' }}>
+            <p style={{ fontSize: '0.6rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--dl-text-muted)', margin: '0 0 4px', fontFamily: 'DM Sans, sans-serif' }}>Disponible</p>
+            <p style={{ fontSize: '1.4rem', fontWeight: 800, color: '#059669', margin: 0, fontFamily: "'Satoshi', sans-serif", letterSpacing: '-0.02em', lineHeight: 1 }}>
+              {fmtEur(balance.available)}
+            </p>
+          </div>
+          <div style={{ padding: '12px 14px', borderRadius: 12, background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.12)' }}>
+            <p style={{ fontSize: '0.6rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--dl-text-muted)', margin: '0 0 4px', fontFamily: 'DM Sans, sans-serif' }}>En attente</p>
+            <p style={{ fontSize: '1.4rem', fontWeight: 800, color: '#d97706', margin: 0, fontFamily: "'Satoshi', sans-serif", letterSpacing: '-0.02em', lineHeight: 1 }}>
+              {fmtEur(balance.pending)}
+            </p>
+          </div>
+        </div>
+      </div>
+    </Card>
+  )
+}
+
 // ─── Transaction History Component ────────────────────────────────────────────
 
 type PaymentStatus = 'paid' | 'pending' | 'refunded'
@@ -230,7 +299,7 @@ function TransactionHistoryCard() {
         setPayments(data.payments || [])
         setTotalPages(Math.ceil((data.total || 0) / pageSize))
       }
-    } catch (e) { console.error('Failed to fetch payments', e) }
+    } catch (e) { logger.error('Failed to fetch payments', e) }
     setLoading(false)
   }
 
@@ -750,6 +819,9 @@ export default function PaymentsReservationsPage() {
             </div>
           </div>
         </Card>
+
+        {/* ── Stripe Connect Wallet Summary ── */}
+        <ConnectWalletSummary />
 
         {/* ── Transaction History ── */}
         <TransactionHistoryCard />

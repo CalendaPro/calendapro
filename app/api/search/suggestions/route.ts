@@ -2,20 +2,22 @@ import { createClient } from '@supabase/supabase-js'
 import { auth } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
 
+export const dynamic = 'force-dynamic'
+
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
 const POPULAR_CATEGORIES = [
-  { id: 'barbier', label: 'Barbier', emoji: '✂️' },
-  { id: 'coach', label: 'Coach', emoji: '🎯' },
-  { id: 'photo', label: 'Photographe', emoji: '📸' },
-  { id: 'therapeute', label: 'Thérapeute', emoji: '💆' },
-  { id: 'sport', label: 'Coach sportif', emoji: '🏋️' },
-  { id: 'consultant', label: 'Consultant', emoji: '📊' },
-  { id: 'creatif', label: 'Créatif', emoji: '🎨' },
-  { id: 'freelance', label: 'Freelance', emoji: '💻' },
+ { id: 'barbier', label: 'Barbier', emoji: '' },
+ { id: 'coach', label: 'Coach', emoji: '' },
+ { id: 'photo', label: 'Photographe', emoji: '' },
+ { id: 'therapeute', label: 'Thérapeute', emoji: '' },
+ { id: 'sport', label: 'Coach sportif', emoji: '' },
+ { id: 'consultant', label: 'Consultant', emoji: '' },
+ { id: 'creatif', label: 'Créatif', emoji: '' },
+ { id: 'freelance', label: 'Freelance', emoji: '' },
 ]
 
 export async function GET(request: Request) {

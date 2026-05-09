@@ -25,6 +25,7 @@ import { fr } from 'date-fns/locale'
 import 'react-big-calendar/lib/css/react-big-calendar.css'
 import { supabase } from '@/lib/supabase'
 import { toUiStatus } from '@/lib/booking-status'
+import { logger } from '@/lib/logger'
 
 // Dynamic import to avoid SSR issues
 const AppointmentDetails = dynamic(() => import('./AppointmentDetails'), { ssr: false })
@@ -99,14 +100,36 @@ type SyncError = {
   recoverable: boolean
 }
 
+// Hook for mobile breakpoint detection
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(false)
+
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768)
+    checkMobile()
+    window.addEventListener('resize', checkMobile)
+    return () => window.removeEventListener('resize', checkMobile)
+  }, [])
+
+  return isMobile
+}
+
 export default function CalendarClient() {
   const [events, setEvents] = useState<CalEvent[]>([])
   const [loading, setLoading] = useState(true)
   const [syncError, setSyncError] = useState<SyncError | null>(null)
   const [conflictError, setConflictError] = useState<string | null>(null)
   const [isOnline, setIsOnline] = useState(true)
+  const isMobile = useIsMobile()
   const [view, setView] = useState<View>(Views.WEEK)
   const [date, setDate] = useState(new Date())
+
+  // Set default view to DAY on mobile
+  useEffect(() => {
+    if (isMobile && view === Views.WEEK) {
+      setView(Views.DAY)
+    }
+  }, [isMobile])
   const [focusInfinity, setFocusInfinity] = useState(false)
   const [sidebarId, setSidebarId] = useState<string | null>(null)
   const [sidebarData, setSidebarData] = useState<{
@@ -197,7 +220,7 @@ export default function CalendarClient() {
       setSyncError(null) // Clear any previous error
       setIsOnline(true)
     } catch (err) {
-      console.error('[Calendar] Fetch error:', err)
+      logger.error('[Calendar] Fetch error:', err)
       const errorMessage = err instanceof Error ? err.message : 'Erreur de chargement'
       setSyncError({
         message: errorMessage.includes('abort') ? 'Connexion lente - vérifiez votre réseau' : errorMessage,
@@ -390,7 +413,7 @@ export default function CalendarClient() {
       setQuickOpen(false)
       resetQuickForm()
     } catch (err) {
-      console.error('[Calendar] Update error:', err)
+      logger.error('[Calendar] Update error:', err)
       setSyncError({
         message: err instanceof Error ? err.message : 'Échec de la modification',
         timestamp: Date.now(),
@@ -428,7 +451,7 @@ export default function CalendarClient() {
       setDeleteConfirmOpen(false)
       setSyncError(null)
     } catch (err) {
-      console.error('[Calendar] Delete error:', err)
+      logger.error('[Calendar] Delete error:', err)
       setSyncError({
         message: err instanceof Error ? err.message : 'Échec de la suppression',
         timestamp: Date.now(),
@@ -537,7 +560,7 @@ export default function CalendarClient() {
       // Marquer l'opération comme en cours
       pendingOps.current.add(event.id)
       
-      // 🔥 Optimistic update : mise à jour UI immédiate
+ // Optimistic update : mise à jour UI immédiate
       const originalEvent = { ...event }
       setEvents(prev =>
         prev.map(e =>
@@ -561,7 +584,7 @@ export default function CalendarClient() {
         
         const dragData = await res.json().catch(() => ({ error: 'Erreur serveur' }))
         if (!res.ok) {
-          // 🔥 ROLLBACK position originale
+ // ROLLBACK position originale
           setEvents(prev =>
             prev.map(e =>
               e.id === event.id
@@ -576,13 +599,13 @@ export default function CalendarClient() {
           throw new Error(dragData.error || `HTTP ${res.status}`)
         }
         
-        // ✅ Succès - l'UI est déjà à jour
+ // Succès - l'UI est déjà à jour
         setSyncError(null)
         setConflictError(null)
       } catch (err) {
-        console.error('[Calendar] Drag update error:', err)
+        logger.error('[Calendar] Drag update error:', err)
         
-        // 🔥 ROLLBACK : restaurer la position originale
+ // ROLLBACK : restaurer la position originale
         setEvents(prev =>
           prev.map(e =>
             e.id === event.id
@@ -612,7 +635,7 @@ export default function CalendarClient() {
       
       pendingOps.current.add(event.id)
       
-      // 🔥 Optimistic update
+ // Optimistic update
       const originalEvent = { ...event }
       setEvents(prev =>
         prev.map(e => (e.id === event.id ? { ...e, start, end } : e))
@@ -637,9 +660,9 @@ export default function CalendarClient() {
         
         setSyncError(null)
       } catch (err) {
-        console.error('[Calendar] Resize error:', err)
+        logger.error('[Calendar] Resize error:', err)
         
-        // 🔥 ROLLBACK
+ // ROLLBACK
         setEvents(prev =>
           prev.map(e =>
             e.id === event.id
@@ -670,14 +693,14 @@ export default function CalendarClient() {
         setClients(data || [])
       }
     } catch (err) {
-      console.error('[Calendar] Error fetching clients:', err)
+      logger.error('[Calendar] Error fetching clients:', err)
     } finally {
       setClientsLoading(false)
     }
   }, [])
 
   const handleSelectSlot = useCallback(({ start }: { start: Date; end: Date }) => {
-    // ✅ Validation anti-passé : ignorer silencieusement les clics sur créneaux passés
+ // Validation anti-passé : ignorer silencieusement les clics sur créneaux passés
     const now = new Date()
     if (start < now) {
       return
@@ -694,7 +717,7 @@ export default function CalendarClient() {
     fetchClients()
   }, [fetchClients])
 
-  // ✅ Griser les créneaux passés dans le calendrier
+ // Griser les créneaux passés dans le calendrier
   const slotPropGetter = useCallback((date: Date) => {
     const now = new Date()
     const isPast = date < now
@@ -748,7 +771,7 @@ export default function CalendarClient() {
       
       setSyncError(null)
     } catch (err) {
-      console.error('[Calendar] Cancel error:', err)
+      logger.error('[Calendar] Cancel error:', err)
       setSyncError({
         message: err instanceof Error ? err.message : 'Échec de l\'annulation',
         timestamp: Date.now(),
@@ -767,7 +790,7 @@ export default function CalendarClient() {
     const finalDate = new Date(quickStart)
     finalDate.setHours(quickHour, quickMinute, 0, 0)
     
-    // 🔥 Optimistic update : ajouter temporairement le RDV
+ // Optimistic update : ajouter temporairement le RDV
     const tempId = `temp-${Date.now()}`
     const newEvent: CalEvent = {
       id: tempId,
@@ -832,7 +855,7 @@ export default function CalendarClient() {
       // Réinitialiser le formulaire
       resetQuickForm()
     } catch (err) {
-      console.error('[Calendar] Create error:', err)
+      logger.error('[Calendar] Create error:', err)
       setSyncError({
         message: err instanceof Error ? err.message : 'Échec de la création',
         timestamp: Date.now(),
@@ -1086,7 +1109,7 @@ export default function CalendarClient() {
             onView={v => setView(v)}
             date={date}
             onNavigate={d => setDate(d)}
-            views={[Views.MONTH, Views.WEEK, Views.DAY, Views.AGENDA]}
+            views={isMobile ? [Views.DAY, Views.AGENDA] : [Views.MONTH, Views.WEEK, Views.DAY, Views.AGENDA]}
             eventPropGetter={eventStyleGetter}
             dayPropGetter={dayPropGetter}
             slotPropGetter={slotPropGetter}
@@ -1146,6 +1169,27 @@ export default function CalendarClient() {
           isDeleting={false}
           isCompleting={isCompleting}
         />
+      )}
+
+      {/* Mobile Fixed Bottom Button */}
+      {isMobile && (
+        <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/95 backdrop-blur-sm border-t border-stone-200 z-40 safe-area-pb">
+          <button
+            onClick={() => {
+              const now = new Date()
+              setQuickStart(now)
+              setQuickHour(now.getHours())
+              setQuickMinute(Math.ceil(now.getMinutes() / 15) * 15)
+              setQuickOpen(true)
+            }}
+            className="w-full bg-violet-600 hover:bg-violet-700 text-white py-4 rounded-xl font-semibold text-base touch-target flex items-center justify-center gap-2"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            Nouveau RDV
+          </button>
+        </div>
       )}
 
       {/* Appointment Manager Modal - Create/Edit */}

@@ -2,6 +2,7 @@ import { auth, clerkClient } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { Resend } from 'resend'
+import { logger } from '@/lib/logger'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 
@@ -92,25 +93,23 @@ export async function POST(request: Request) {
   // Envoyer l'email de confirmation au client si remboursement
   if (result.wallet_credited && result.refund_amount && result.refund_amount > 0) {
     try {
-      // Récupérer le profil du client pour l'email
-      const { data: clientProfile } = await supabase
-        .from('clients')
-        .select('email, name')
-        .eq('id', booking.client_id)
-        .single()
+      // Les coordonnées sont stockées directement sur le booking
+      // (la table legacy `clients` n'est plus utilisée pour le flux client_profiles)
+      const clientEmail = booking.client_email as string | null
+      const clientName = booking.client_name as string | null
 
-      if (clientProfile?.email) {
+      if (clientEmail) {
         await resend.emails.send({
           from: 'CalendaPay <wallet@calendapro.app>',
-          to: clientProfile.email,
+          to: clientEmail,
           subject: 'Votre acompte est disponible dans votre porte-monnaie CalendaPro',
           html: `
             <div style="font-family: DM Sans, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 20px;">
               <h1 style="color: #10b981; font-family: 'Clash Display', sans-serif;">Remboursement effectué</h1>
-              <p>Bonjour ${clientProfile.name || ''},</p>
+              <p>Bonjour ${clientName || ''},</p>
               <p>Votre rendez-vous du <strong>${new Date(booking.scheduled_at).toLocaleDateString('fr-FR')}</strong> a été annulé.</p>
               <div style="background: #ecfdf5; border-radius: 12px; padding: 24px; margin: 24px 0; border: 1px solid #10b981;">
-                <p style="margin: 0; font-size: 14px; color: #065f46;">💰 Montant crédité sur votre porte-monnaie</p>
+ <p style="margin: 0; font-size: 14px; color: #065f46;"> Montant crédité sur votre porte-monnaie</p>
                 <p style="margin: 8px 0 0; font-size: 32px; font-weight: 700; color: #10b981;">${result.refund_amount.toFixed(2)} €</p>
               </div>
               <p>Votre acompte est maintenant disponible dans votre porte-monnaie CalendaPro et peut être utilisé pour votre prochaine réservation.</p>
@@ -126,7 +125,7 @@ export async function POST(request: Request) {
         })
       }
     } catch (emailError) {
-      console.error('Failed to send wallet email:', emailError)
+      logger.error('Failed to send wallet email:', emailError)
       // Ne pas bloquer l'annulation si l'email échoue
     }
   }

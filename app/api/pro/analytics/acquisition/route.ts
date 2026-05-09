@@ -11,6 +11,9 @@ import {
 } from '@/lib/analytics/ltv'
 import { type MarketingAdvice } from '@/lib/analytics/ltv'
 import { formatSourceLabel, getSourceEmoji } from '@/lib/tracking/sources'
+import { logger } from '@/lib/logger'
+
+export const dynamic = 'force-dynamic'
 
 export interface AcquisitionData {
   timeRange: '7d' | '30d' | '90d'
@@ -146,7 +149,7 @@ export async function GET(req: Request) {
 
     return NextResponse.json(response)
   } catch (error) {
-    console.error('Error fetching acquisition data:', error)
+    logger.error('Error fetching acquisition data:', error)
     return NextResponse.json(
       { error: 'Erreur serveur', details: (error as Error).message },
       { status: 500 }
@@ -213,7 +216,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ error: 'Action inconnue' }, { status: 400 })
   } catch (error) {
-    console.error('Error processing advice action:', error)
+    logger.error('Error processing advice action:', error)
     return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 })
   }
 }

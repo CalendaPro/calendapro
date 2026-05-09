@@ -1,5 +1,6 @@
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import type { ReminderCandidate, ClientPattern } from './types'
+import { logger } from '../logger'
 
 // ── Trigger pattern analysis for all pros (or one) ──────────
 export async function analyzePatterns(proId?: string): Promise<number> {
@@ -10,7 +11,7 @@ export async function analyzePatterns(proId?: string): Promise<number> {
   })
 
   if (error) {
-    console.error('[Pulse:Patterns] Analysis failed:', error.message)
+    logger.error('[Pulse:Patterns] Analysis failed:', error.message)
     throw new Error(`Pattern analysis failed: ${error.message}`)
   }
 
@@ -28,7 +29,7 @@ export async function getReminderCandidates(
   })
 
   if (error) {
-    console.error('[Pulse:Patterns] Candidate fetch failed:', error.message)
+    logger.error('[Pulse:Patterns] Candidate fetch failed:', error.message)
     throw new Error(`Candidate fetch failed: ${error.message}`)
   }
 
@@ -63,10 +64,10 @@ export async function markReminderSent(
   ])
 
   if (patternUpdate.error) {
-    console.error('[Pulse:Patterns] Mark sent failed:', patternUpdate.error.message)
+    logger.error('[Pulse:Patterns] Mark sent failed:', patternUpdate.error.message)
   }
   if (logInsert.error) {
-    console.error('[Pulse:Patterns] Log insert failed:', logInsert.error.message)
+    logger.error('[Pulse:Patterns] Log insert failed:', logInsert.error.message)
   }
 }
 
@@ -142,7 +143,7 @@ export function generateReminderMessage(candidate: ReminderCandidate): {
     `${clientFirst},\n\n` +
     `On a remarqué que vous passez habituellement ${frequencyLabel} chez ${proName}${service}. ` +
     `Votre dernière visite date du ${lastVisit} — il est peut-être temps de réserver votre prochain créneau !\n\n` +
-    `👉 Réservez en un clic : ${process.env.NEXT_PUBLIC_APP_URL}/${candidate.pro_username}\n\n` +
+ ` Réservez en un clic : ${process.env.NEXT_PUBLIC_APP_URL}/${candidate.pro_username}\n\n` +
     `À très bientôt,\nL'équipe CalendaPro`
 
   return { subject, body }

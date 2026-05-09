@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { auth } from '@clerk/nextjs/server'
+import { logger } from '@/lib/logger'
+
+export const dynamic = 'force-dynamic'
 
 export async function GET(request: Request) {
   const { userId } = await auth()
@@ -44,7 +47,7 @@ export async function GET(request: Request) {
     const { data: payments, error, count } = await query
 
     if (error) {
-      console.error('Error fetching payments:', error)
+      logger.error('Error fetching payments:', error)
       return NextResponse.json({ error: 'Failed to fetch payments' }, { status: 500 })
     }
 
@@ -66,7 +69,7 @@ export async function GET(request: Request) {
       limit,
     })
   } catch (error) {
-    console.error('Unexpected error in payments API:', error)
+    logger.error('Unexpected error in payments API:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

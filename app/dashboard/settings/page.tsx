@@ -2,8 +2,10 @@
 
 import React, { useCallback, useEffect, useState } from 'react'
 import dynamic from 'next/dynamic'
+import { useSearchParams } from 'next/navigation'
 import { usePlan } from '@/lib/hooks/usePlan'
 import FeatureGate from '@/components/dashboard/FeatureGate'
+import { logger } from '@/lib/logger'
 
 const AppearanceSettings = dynamic(() => import('@/components/AppearanceSettings'), { ssr: false })
 
@@ -19,6 +21,24 @@ interface NotifSettings {
   sms_reminders: boolean
 }
 
+interface GoogleCalStatus {
+  connected: boolean
+  provider_email?: string
+  sync_enabled?: boolean
+  last_synced_at?: string
+  watch_active?: boolean
+  blocked_events_count?: number
+  recent_syncs?: { status: string; events_synced: number; started_at: string }[]
+}
+
+interface StripeSettings {
+  online_payment_enabled: boolean
+  deposit_required: boolean
+  deposit_type: 'percent' | 'fixed'
+  deposit_value: number
+  allow_full_online_payment: boolean
+}
+
 // ─── UI Helpers ───────────────────────────────────────────────────────────────
 
 function Toggle({ checked, onChange, disabled }: { checked: boolean; onChange: (v: boolean) => void; disabled?: boolean }) {
@@ -27,16 +47,18 @@ function Toggle({ checked, onChange, disabled }: { checked: boolean; onChange: (
       type="button"
       disabled={disabled}
       onClick={() => !disabled && onChange(!checked)}
+      className="touch-target"
       style={{
-        position: 'relative', width: 40, height: 22, borderRadius: 11, flexShrink: 0,
+        position: 'relative', width: 48, height: 26, borderRadius: 13, flexShrink: 0,
         background: checked ? '#7c3aed' : 'var(--dl-card-border)',
         border: 'none', cursor: disabled ? 'not-allowed' : 'pointer',
         opacity: disabled ? 0.45 : 1, transition: 'background 0.2s',
+        minWidth: 48, minHeight: 26,
       }}
     >
       <span style={{
-        position: 'absolute', top: 3, left: checked ? 20 : 3,
-        width: 16, height: 16, borderRadius: '50%', background: 'white',
+        position: 'absolute', top: 3, left: checked ? 25 : 3,
+        width: 20, height: 20, borderRadius: '50%', background: 'white',
         transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
       }} />
     </button>
@@ -88,23 +110,25 @@ function SectionCard({ title, icon, children }: { title: string; icon: React.Rea
   )
 }
 
-function Input({ value, onChange, placeholder, type = 'text', disabled }: {
-  value: string; onChange: (v: string) => void; placeholder?: string; type?: string; disabled?: boolean
+function Input({ value, onChange, placeholder, type = 'text', disabled, inputMode }: {
+  value: string; onChange: (v: string) => void; placeholder?: string; type?: string; disabled?: boolean; inputMode?: string
 }) {
   return (
     <input
       type={type}
+      inputMode={inputMode as any}  // reason: React types lag behind HTML spec for inputMode values
       value={value}
       onChange={e => onChange(e.target.value)}
       placeholder={placeholder}
       disabled={disabled}
       style={{
-        width: '100%', padding: '9px 12px', borderRadius: 9,
+        width: '100%', padding: '12px', borderRadius: 9,
         border: '1.5px solid var(--dl-card-border)',
         background: disabled ? 'var(--dl-card-border)' : 'var(--dl-sidebar-bg)',
         color: 'var(--dl-text-primary)',
-        fontSize: '0.82rem', fontFamily: 'DM Sans, sans-serif',
+        fontSize: '16px', fontFamily: 'DM Sans, sans-serif',
         outline: 'none', boxSizing: 'border-box', opacity: disabled ? 0.6 : 1,
+        minHeight: 44,
       }}
     />
   )
@@ -124,10 +148,12 @@ function ActionButton({ children, onClick, variant = 'secondary', disabled }: {
       type="button"
       onClick={onClick}
       disabled={disabled}
+      className="touch-target"
       style={{
-        padding: '9px 18px', borderRadius: 9, fontSize: '0.8rem', fontWeight: 700,
+        padding: '12px 18px', borderRadius: 9, fontSize: '0.875rem', fontWeight: 700,
         cursor: disabled ? 'not-allowed' : 'pointer', opacity: disabled ? 0.5 : 1,
         fontFamily: 'DM Sans, sans-serif', transition: 'opacity 0.15s',
+        minHeight: 44,
         ...styles[variant],
       }}
     >
@@ -143,14 +169,16 @@ function NavItem({ id, label, active, onClick }: { id: Section; label: string; a
     <button
       type="button"
       onClick={onClick}
+      className="touch-target"
       style={{
-        width: '100%', display: 'flex', alignItems: 'center', padding: '9px 12px',
+        width: '100%', display: 'flex', alignItems: 'center', padding: '12px',
         borderRadius: 9, border: `1px solid ${active ? 'var(--dl-accent-border)' : 'transparent'}`,
         background: active ? 'var(--dl-accent-light)' : 'transparent',
         color: active ? 'var(--dl-accent)' : 'var(--dl-text-muted)',
-        fontSize: '0.82rem', fontWeight: active ? 700 : 500,
+        fontSize: '0.875rem', fontWeight: active ? 700 : 500,
         cursor: 'pointer', textAlign: 'left', fontFamily: 'DM Sans, sans-serif',
         transition: 'all 0.15s',
+        minHeight: 44,
       }}
     >
       {label}
@@ -162,8 +190,33 @@ function NavItem({ id, label, active, onClick }: { id: Section; label: string; a
 
 export default function SettingsPage() {
   const { plan, has } = usePlan()
-  const [active, setActive] = useState<Section>('notifications')
+  const searchParams = useSearchParams()
+  const syncSuccess = searchParams.get('sync_success')
+  const syncError = searchParams.get('sync_error')
+  const sectionParam = searchParams.get('section')
+  const connectSuccess = searchParams.get('connect_success')
+  const connectIncomplete = searchParams.get('connect_incomplete')
+  const connectError = searchParams.get('connect_error')
+  const [active, setActive] = useState<Section>(
+    sectionParam === 'integrations' || syncSuccess || syncError || connectSuccess || connectIncomplete || connectError
+      ? 'integrations'
+      : 'notifications'
+  )
   const [saved, setSaved] = useState(false)
+  const [syncMsg, setSyncMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(
+    connectSuccess ? { type: 'success', text: 'Stripe Connect configure avec succes ! Vos paiements arrivent directement sur votre compte.' } :
+    connectIncomplete ? { type: 'error', text: 'Onboarding Stripe incomplet. Cliquez sur "Configurer Stripe" pour continuer.' } :
+    connectError ? { type: 'error', text: `Erreur Stripe Connect : ${connectError}` } :
+    syncSuccess ? { type: 'success', text: 'Google Calendar connecte avec succes !' } :
+    syncError ? { type: 'error', text: `Erreur de connexion : ${syncError}` } : null
+  )
+
+  useEffect(() => {
+    if (syncMsg) {
+      const t = setTimeout(() => setSyncMsg(null), 6000)
+      return () => clearTimeout(t)
+    }
+  }, [syncMsg])
   const [notif, setNotif] = useState<NotifSettings>({
     email_new_booking: true,
     email_reminder_24h: true,
@@ -175,6 +228,32 @@ export default function SettingsPage() {
   const [contactPhone, setContactPhone] = useState('')
   const [profileLoaded, setProfileLoaded] = useState(false)
   const [savingNotif, setSavingNotif] = useState(false)
+
+  // Google Calendar state
+  const [gcal, setGcal] = useState<GoogleCalStatus>({ connected: false })
+  const [gcalLoading, setGcalLoading] = useState(true)
+  const [gcalDisconnecting, setGcalDisconnecting] = useState(false)
+
+  // Stripe payment settings state
+  const [stripe, setStripe] = useState<StripeSettings>({
+    online_payment_enabled: false,
+    deposit_required: false,
+    deposit_type: 'percent',
+    deposit_value: 25,
+    allow_full_online_payment: false,
+  })
+  const [stripeLoaded, setStripeLoaded] = useState(false)
+  const [savingStripe, setSavingStripe] = useState(false)
+
+  // User plan for commission display
+  const [userPlan, setUserPlan] = useState<'free' | 'premium' | 'infinity'>('free')
+
+  // Stripe Connect state
+  const [connectStatus, setConnectStatus] = useState<{
+    connected: boolean; charges_enabled: boolean; payouts_enabled: boolean; onboarding_complete: boolean; stripe_connect_id?: string
+  }>({ connected: false, charges_enabled: false, payouts_enabled: false, onboarding_complete: false })
+  const [connectLoading, setConnectLoading] = useState(true)
+  const [connectOnboarding, setConnectOnboarding] = useState(false)
 
   // Load profile data
   useEffect(() => {
@@ -204,6 +283,84 @@ export default function SettingsPage() {
       .catch(() => {})
   }, [])
 
+  // Load Google Calendar status
+  useEffect(() => {
+    fetch('/api/calendar/google/status')
+      .then(r => r.json())
+      .then((d: GoogleCalStatus) => setGcal(d))
+      .catch(() => {})
+      .finally(() => setGcalLoading(false))
+  }, [])
+
+  // Load Stripe payment settings from profile
+  useEffect(() => {
+    fetch('/api/profile')
+      .then(r => r.json())
+      .then((d: Record<string, unknown>) => {
+        setStripe({
+          online_payment_enabled: d.online_payment_enabled === true,
+          deposit_required: d.deposit_required === true,
+          deposit_type: d.deposit_type === 'fixed' ? 'fixed' : 'percent',
+          deposit_value: Number(d.deposit_value) || 25,
+          allow_full_online_payment: d.allow_full_online_payment === true,
+        })
+        if (d.plan && typeof d.plan === 'string') {
+          setUserPlan(d.plan as 'free' | 'premium' | 'infinity')
+        }
+        setStripeLoaded(true)
+      })
+      .catch(() => setStripeLoaded(true))
+  }, [])
+
+  // Load Stripe Connect status
+  useEffect(() => {
+    fetch('/api/stripe/connect/status')
+      .then(r => r.json())
+      .then(d => setConnectStatus(d))
+      .catch(() => {})
+      .finally(() => setConnectLoading(false))
+  }, [])
+
+  const startConnectOnboarding = useCallback(async () => {
+    setConnectOnboarding(true)
+    try {
+      const res = await fetch('/api/stripe/connect/onboarding', { method: 'POST' })
+      const data = await res.json()
+      if (data.url) window.location.href = data.url
+    } catch { /* silent */ }
+    setConnectOnboarding(false)
+  }, [])
+
+  const disconnectGcal = useCallback(async () => {
+    setGcalDisconnecting(true)
+    try {
+      await fetch('/api/calendar/google/disconnect', { method: 'POST' })
+      setGcal({ connected: false })
+    } catch {}
+    setGcalDisconnecting(false)
+  }, [])
+
+  const saveStripeSettings = useCallback(async () => {
+    setSavingStripe(true)
+    try {
+      await fetch('/api/pro/site-settings', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          online_payment_enabled: stripe.online_payment_enabled,
+          deposit_required: stripe.deposit_required,
+          deposit_type: stripe.deposit_type,
+          deposit_value: stripe.deposit_value,
+          allow_full_online_payment: stripe.allow_full_online_payment,
+        }),
+      })
+      showSaved()
+    } catch (e) {
+      logger.error('Failed to save Stripe settings', e)
+    }
+    setSavingStripe(false)
+  }, [stripe])
+
   const showSaved = () => {
     setSaved(true)
     setTimeout(() => setSaved(false), 2500)
@@ -219,7 +376,7 @@ export default function SettingsPage() {
       })
       showSaved()
     } catch (e) {
-      console.error('Failed to save notifications', e)
+      logger.error('Failed to save notifications', e)
     }
     setSavingNotif(false)
   }, [notif])
@@ -242,7 +399,7 @@ export default function SettingsPage() {
   ]
 
   return (
-    <div style={{ padding: '28px 32px', fontFamily: 'DM Sans, sans-serif', maxWidth: 960 }}>
+    <div className="px-4 sm:px-6 lg:px-8 py-6 sm:py-8" style={{ fontFamily: 'DM Sans, sans-serif', maxWidth: 960 }}>
 
       {/* Header */}
       <div style={{ marginBottom: 28 }}>
@@ -278,6 +435,33 @@ export default function SettingsPage() {
 
         {/* Content */}
         <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 16 }}>
+
+          {/* Sync message banner */}
+          {syncMsg && (
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 10,
+              padding: '10px 16px', borderRadius: 10,
+              background: syncMsg.type === 'success' ? 'rgba(16,185,129,0.08)' : 'rgba(239,68,68,0.08)',
+              border: `1px solid ${syncMsg.type === 'success' ? 'rgba(16,185,129,0.2)' : 'rgba(239,68,68,0.2)'}`,
+              fontSize: '0.78rem', fontWeight: 600,
+              color: syncMsg.type === 'success' ? '#059669' : '#dc2626',
+              fontFamily: 'DM Sans, sans-serif',
+            }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                {syncMsg.type === 'success'
+                  ? <polyline points="20 6 9 17 4 12" />
+                  : <><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></>}
+              </svg>
+              {syncMsg.text}
+              <button
+                type="button"
+                onClick={() => setSyncMsg(null)}
+                style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', color: 'inherit', fontSize: '0.9rem', lineHeight: 1 }}
+              >
+                x
+              </button>
+            </div>
+          )}
 
           {/* ── NOTIFICATIONS ── */}
           {active === 'notifications' && (
@@ -375,39 +559,210 @@ export default function SettingsPage() {
           {/* ── INTEGRATIONS ── */}
           {active === 'integrations' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-              <SectionCard title="Calendriers" icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-                  <div>
-                    <p style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--dl-text-primary)', margin: 0, fontFamily: 'DM Sans, sans-serif' }}>Google Calendar</p>
-                    <p style={{ fontSize: '0.68rem', color: 'var(--dl-text-muted)', margin: '2px 0 0', fontFamily: 'DM Sans, sans-serif' }}>Synchronisez vos reservations automatiquement</p>
-                  </div>
-                  <ActionButton variant="secondary" disabled>Bientot disponible</ActionButton>
-                </div>
-              </SectionCard>
 
-              <SectionCard title="Paiements" icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-                  <div>
-                    <p style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--dl-text-primary)', margin: 0, fontFamily: 'DM Sans, sans-serif' }}>Stripe</p>
-                    <p style={{ fontSize: '0.68rem', color: 'var(--dl-text-muted)', margin: '2px 0 0', fontFamily: 'DM Sans, sans-serif' }}>Configurez les paiements en ligne</p>
+              {/* ─── GOOGLE CALENDAR ─── */}
+              <SectionCard title="Google Calendar" icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>}>
+                {gcalLoading ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0' }}>
+                    <div style={{ width: 16, height: 16, border: '2px solid var(--dl-card-border)', borderTopColor: '#7c3aed', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+                    <span style={{ fontSize: '0.78rem', color: 'var(--dl-text-muted)', fontFamily: 'DM Sans, sans-serif' }}>Chargement...</span>
                   </div>
-                  <ActionButton variant="secondary">Configurer Stripe</ActionButton>
-                </div>
-              </SectionCard>
-
-              <SectionCard title="Webhooks" icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>}>
-                {has('infinity') ? (
-                  <div>
-                    <p style={{ fontSize: '0.78rem', color: 'var(--dl-text-muted)', margin: '0 0 12px', fontFamily: 'DM Sans, sans-serif' }}>
-                      Connectez CalendaPro a Zapier, Make ou votre propre systeme.
-                    </p>
-                    <ActionButton variant="secondary">Ajouter un webhook</ActionButton>
+                ) : gcal.connected ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                    {/* Status badge */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderRadius: 10, background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.15)' }}>
+                      <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#10b981', flexShrink: 0 }} />
+                      <div style={{ flex: 1 }}>
+                        <p style={{ fontSize: '0.8rem', fontWeight: 700, color: '#059669', margin: 0, fontFamily: 'DM Sans, sans-serif' }}>
+                          Connecte
+                        </p>
+                        <p style={{ fontSize: '0.68rem', color: 'var(--dl-text-muted)', margin: '1px 0 0', fontFamily: 'DM Sans, sans-serif' }}>
+                          {gcal.provider_email || 'Compte Google'}
+                        </p>
+                      </div>
+                      {gcal.watch_active && (
+                        <span style={{ fontSize: '0.6rem', fontWeight: 700, color: '#7c3aed', background: 'rgba(124,58,237,0.08)', padding: '3px 8px', borderRadius: 100, fontFamily: 'DM Sans, sans-serif' }}>
+                          Sync temps reel
+                        </span>
+                      )}
+                    </div>
+                    {/* Stats */}
+                    <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                      <div style={{ flex: 1, minWidth: 100, padding: '10px 12px', borderRadius: 8, background: 'var(--dl-sidebar-bg)', border: '1px solid var(--dl-card-border)' }}>
+                        <p style={{ fontSize: '0.6rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--dl-text-muted)', margin: '0 0 4px', fontFamily: 'DM Sans, sans-serif' }}>Evenements bloques</p>
+                        <p style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--dl-text-primary)', margin: 0, fontFamily: "'Clash Display', sans-serif" }}>{gcal.blocked_events_count ?? 0}</p>
+                      </div>
+                      <div style={{ flex: 1, minWidth: 100, padding: '10px 12px', borderRadius: 8, background: 'var(--dl-sidebar-bg)', border: '1px solid var(--dl-card-border)' }}>
+                        <p style={{ fontSize: '0.6rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--dl-text-muted)', margin: '0 0 4px', fontFamily: 'DM Sans, sans-serif' }}>Derniere synchro</p>
+                        <p style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--dl-text-primary)', margin: 0, fontFamily: 'DM Sans, sans-serif' }}>
+                          {gcal.last_synced_at
+                            ? new Date(gcal.last_synced_at).toLocaleString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
+                            : 'Jamais'}
+                        </p>
+                      </div>
+                    </div>
+                    {/* Recent syncs */}
+                    {gcal.recent_syncs && gcal.recent_syncs.length > 0 && (
+                      <div>
+                        <p style={{ fontSize: '0.6rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--dl-text-muted)', margin: '0 0 6px', fontFamily: 'DM Sans, sans-serif' }}>Historique recent</p>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                          {gcal.recent_syncs.slice(0, 3).map((s, i) => (
+                            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.7rem', fontFamily: 'DM Sans, sans-serif', color: 'var(--dl-text-muted)' }}>
+                              <span style={{ width: 6, height: 6, borderRadius: '50%', background: s.status === 'success' ? '#10b981' : '#ef4444', flexShrink: 0 }} />
+                              <span>{s.events_synced} evenement{s.events_synced !== 1 ? 's' : ''}</span>
+                              <span style={{ marginLeft: 'auto', fontSize: '0.65rem' }}>
+                                {new Date(s.started_at).toLocaleString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {/* Disconnect */}
+                    <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                      <ActionButton variant="danger" onClick={disconnectGcal} disabled={gcalDisconnecting}>
+                        {gcalDisconnecting ? 'Deconnexion...' : 'Deconnecter Google Calendar'}
+                      </ActionButton>
+                    </div>
                   </div>
                 ) : (
-                  <FeatureGate required="infinity" current={plan}>
-                    <div style={{ height: 60 }} />
-                  </FeatureGate>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                    <div>
+                      <p style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--dl-text-primary)', margin: 0, fontFamily: 'DM Sans, sans-serif' }}>Google Calendar</p>
+                      <p style={{ fontSize: '0.68rem', color: 'var(--dl-text-muted)', margin: '2px 0 0', fontFamily: 'DM Sans, sans-serif' }}>
+                        Synchronisez vos evenements Google pour bloquer automatiquement les creneaux occupes
+                      </p>
+                    </div>
+                    <a
+                      href="/api/calendar/google/connect"
+                      style={{
+                        display: 'inline-flex', alignItems: 'center', gap: 8,
+                        padding: '9px 18px', borderRadius: 9, fontSize: '0.8rem', fontWeight: 700,
+                        fontFamily: 'DM Sans, sans-serif', textDecoration: 'none',
+                        background: 'linear-gradient(135deg, #7c3aed, #6366f1)', color: 'white', border: 'none',
+                        cursor: 'pointer', transition: 'opacity 0.15s',
+                      }}
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+                      Connecter Google
+                    </a>
+                  </div>
                 )}
+              </SectionCard>
+
+              {/* ─── STRIPE CONNECT ─── */}
+              <SectionCard title="Stripe Connect — Encaissement direct" icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4z"/></svg>}>
+                {connectLoading ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0' }}>
+                    <div style={{ width: 16, height: 16, border: '2px solid var(--dl-card-border)', borderTopColor: '#7c3aed', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+                    <span style={{ fontSize: '0.78rem', color: 'var(--dl-text-muted)', fontFamily: 'DM Sans, sans-serif' }}>Verification du compte Stripe...</span>
+                  </div>
+                ) : connectStatus.onboarding_complete ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    {/* Connected badge */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderRadius: 10, background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.15)' }}>
+                      <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#10b981', flexShrink: 0 }} />
+                      <div style={{ flex: 1 }}>
+                        <p style={{ fontSize: '0.8rem', fontWeight: 700, color: '#059669', margin: 0, fontFamily: 'DM Sans, sans-serif' }}>
+                          Stripe Connect actif
+                        </p>
+                        <p style={{ fontSize: '0.68rem', color: 'var(--dl-text-muted)', margin: '1px 0 0', fontFamily: 'DM Sans, sans-serif' }}>
+                          Les paiements arrivent directement sur votre compte.
+                          Commission CalendaPro : {userPlan === 'free' ? '5% (Starter)' : '0% (' + (userPlan === 'premium' ? 'Premium' : 'Infinity') + ')'}
+                        </p>
+                      </div>
+                      {connectStatus.stripe_connect_id && (
+                        <span style={{ fontSize: '0.6rem', fontWeight: 700, color: '#7c3aed', background: 'rgba(124,58,237,0.08)', padding: '3px 8px', borderRadius: 100, fontFamily: 'DM Sans, sans-serif' }}>
+                          {connectStatus.stripe_connect_id.slice(0, 12)}...
+                        </span>
+                      )}
+                    </div>
+                    {/* Stats row */}
+                    <div style={{ display: 'flex', gap: 10 }}>
+                      <div style={{ flex: 1, padding: '10px 12px', borderRadius: 8, background: 'var(--dl-sidebar-bg)', border: '1px solid var(--dl-card-border)' }}>
+                        <p style={{ fontSize: '0.6rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--dl-text-muted)', margin: '0 0 4px', fontFamily: 'DM Sans, sans-serif' }}>Paiements</p>
+                        <p style={{ fontSize: '0.8rem', fontWeight: 700, color: connectStatus.charges_enabled ? '#10b981' : '#ef4444', margin: 0, fontFamily: 'DM Sans, sans-serif' }}>
+                          {connectStatus.charges_enabled ? 'Actifs' : 'Inactifs'}
+                        </p>
+                      </div>
+                      <div style={{ flex: 1, padding: '10px 12px', borderRadius: 8, background: 'var(--dl-sidebar-bg)', border: '1px solid var(--dl-card-border)' }}>
+                        <p style={{ fontSize: '0.6rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--dl-text-muted)', margin: '0 0 4px', fontFamily: 'DM Sans, sans-serif' }}>Virements</p>
+                        <p style={{ fontSize: '0.8rem', fontWeight: 700, color: connectStatus.payouts_enabled ? '#10b981' : '#ef4444', margin: 0, fontFamily: 'DM Sans, sans-serif' }}>
+                          {connectStatus.payouts_enabled ? 'Actifs' : 'Inactifs'}
+                        </p>
+                      </div>
+                    </div>
+                    {/* Link to wallet */}
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+                      <a
+                        href="/dashboard/wallet"
+                        style={{
+                          display: 'inline-flex', alignItems: 'center', gap: 6,
+                          padding: '8px 16px', borderRadius: 9, fontSize: '0.78rem', fontWeight: 700,
+                          fontFamily: 'DM Sans, sans-serif', textDecoration: 'none',
+                          background: 'var(--dl-card-bg)', color: '#7c3aed', border: '1.5px solid rgba(124,58,237,0.2)',
+                        }}
+                      >
+                        Voir le portefeuille →
+                      </a>
+                      <a
+                        href="/dashboard/payments-reservations"
+                        style={{
+                          display: 'inline-flex', alignItems: 'center', gap: 6,
+                          padding: '8px 16px', borderRadius: 9, fontSize: '0.78rem', fontWeight: 700,
+                          fontFamily: 'DM Sans, sans-serif', textDecoration: 'none',
+                          background: 'linear-gradient(135deg, #7c3aed, #6366f1)', color: 'white', border: 'none',
+                        }}
+                      >
+                        Gérer les paiements
+                      </a>
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                    <div>
+                      <p style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--dl-text-primary)', margin: 0, fontFamily: 'DM Sans, sans-serif' }}>Encaissez directement</p>
+                      <p style={{ fontSize: '0.68rem', color: 'var(--dl-text-muted)', margin: '2px 0 0', fontFamily: 'DM Sans, sans-serif' }}>
+                        Connectez votre compte Stripe pour recevoir les paiements clients directement.
+                        {userPlan === 'free'
+                          ? ' CalendaPro preleve 5% de commission (gratuit pour les abonnements Premium/Infinity).'
+                          : ' Aucune commission CalendaPro avec votre abonnement ' + (userPlan === 'premium' ? 'Premium' : 'Infinity') + '.'}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={startConnectOnboarding}
+                      disabled={connectOnboarding}
+                      style={{
+                        display: 'inline-flex', alignItems: 'center', gap: 8, flexShrink: 0,
+                        padding: '9px 18px', borderRadius: 9, fontSize: '0.8rem', fontWeight: 700,
+                        fontFamily: 'DM Sans, sans-serif',
+                        background: 'linear-gradient(135deg, #7c3aed, #6366f1)', color: 'white', border: 'none',
+                        cursor: connectOnboarding ? 'not-allowed' : 'pointer', opacity: connectOnboarding ? 0.6 : 1,
+                      }}
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+                      {connectOnboarding ? 'Redirection...' : 'Configurer Stripe'}
+                    </button>
+                  </div>
+                )}
+              </SectionCard>
+
+              {/* ─── WEBHOOKS ─── */}
+              <SectionCard title="Webhooks" icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', background: 'rgba(124,58,237,0.06)', borderRadius: 12, border: '1px dashed rgba(124,58,237,0.25)' }}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" strokeWidth="2">
+                    <path d="M12 8v4l3 3m6-3a9 9 0 1 1-18 0 9 9 0 0 1 18 0z"/>
+                  </svg>
+                  <div>
+                    <p style={{ fontSize: '0.82rem', fontWeight: 600, color: '#7c3aed', margin: 0, fontFamily: 'DM Sans, sans-serif' }}>
+                      Bientôt disponible
+                    </p>
+                    <p style={{ fontSize: '0.72rem', color: 'var(--dl-text-muted)', margin: '2px 0 0', fontFamily: 'DM Sans, sans-serif' }}>
+                      Les webhooks arrivent bientôt avec le plan Infinity. Automatisez vos workflows avec Zapier, Make et plus.
+                    </p>
+                  </div>
+                </div>
               </SectionCard>
             </div>
           )}

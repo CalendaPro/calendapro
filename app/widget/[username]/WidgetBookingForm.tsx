@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import type { BookingPaymentSettings } from '@/lib/booking-payment-settings'
+import { logger } from '@/lib/logger'
 
 type PublicBookingSettings = BookingPaymentSettings & {
   username: string
@@ -127,7 +128,7 @@ export default function WidgetBookingForm({
             fontSize: '24px',
           }}
         >
-          ✓
+
         </div>
         <h3 style={{ margin: '0 0 8px', color: '#0f172a', fontSize: '16px' }}>Demande enregistrée !</h3>
         <p style={{ margin: 0, color: '#64748b', fontSize: '13px' }}>
@@ -276,7 +277,7 @@ export default function WidgetBookingForm({
             // Si paiement obligatoire mais impossible, bloquer
             if (paymentRequired) {
               setStatus('error')
-              console.error('Paiement obligatoire mais Stripe non configuré')
+              logger.error('Paiement obligatoire mais Stripe non configuré')
               return
             }
             

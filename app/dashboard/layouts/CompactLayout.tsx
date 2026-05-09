@@ -238,7 +238,7 @@ export default function CompactLayout({ children, userName, userEmail }: Props) 
 
           {/* Infinity card */}
           <div className="cmp-infinity">
-            <div className="cmp-infinity-title">✦ Infinity</div>
+ <div className="cmp-infinity-title"> Infinity</div>
             <p className="cmp-infinity-desc">IA + automatisations</p>
             <button className="cmp-infinity-btn">Bientôt</button>
           </div>

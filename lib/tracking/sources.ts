@@ -14,7 +14,7 @@ export const TRACKING_SOURCES: Record<string, TrackingSource> = {
   instagram: {
     id: 'instagram',
     name: 'Instagram',
-    emoji: '📸',
+ emoji: '',
     color: '#E4405F',
     icon: 'Instagram',
     description: 'Clients venant d Instagram',
@@ -22,7 +22,7 @@ export const TRACKING_SOURCES: Record<string, TrackingSource> = {
   tiktok: {
     id: 'tiktok',
     name: 'TikTok',
-    emoji: '🎵',
+ emoji: '',
     color: '#000000',
     icon: 'Music',
     description: 'Clients venant de TikTok',
@@ -30,7 +30,7 @@ export const TRACKING_SOURCES: Record<string, TrackingSource> = {
   facebook: {
     id: 'facebook',
     name: 'Facebook',
-    emoji: '👥',
+ emoji: '',
     color: '#1877F2',
     icon: 'Facebook',
     description: 'Clients venant de Facebook',
@@ -38,7 +38,7 @@ export const TRACKING_SOURCES: Record<string, TrackingSource> = {
   google: {
     id: 'google',
     name: 'Google',
-    emoji: '🔍',
+ emoji: '',
     color: '#4285F4',
     icon: 'Search',
     description: 'Clients venant de Google Search',
@@ -46,7 +46,7 @@ export const TRACKING_SOURCES: Record<string, TrackingSource> = {
   email: {
     id: 'email',
     name: 'Email',
-    emoji: '📧',
+ emoji: '',
     color: '#EA4335',
     icon: 'Mail',
     description: 'Clients venant de newsletters/emails',
@@ -54,7 +54,7 @@ export const TRACKING_SOURCES: Record<string, TrackingSource> = {
   wom: {
     id: 'wom',
     name: 'Bouche-à-oreille',
-    emoji: '👂',
+ emoji: '',
     color: '#34A853',
     icon: 'Users',
     description: 'Recommandations de clients existants',
@@ -62,7 +62,7 @@ export const TRACKING_SOURCES: Record<string, TrackingSource> = {
   direct: {
     id: 'direct',
     name: 'Direct',
-    emoji: '🔗',
+ emoji: '',
     color: '#888888',
     icon: 'Link',
     description: 'Accès direct via URL',
@@ -70,7 +70,7 @@ export const TRACKING_SOURCES: Record<string, TrackingSource> = {
   other: {
     id: 'other',
     name: 'Autre',
-    emoji: '❓',
+ emoji: '',
     color: '#999999',
     icon: 'HelpCircle',
     description: 'Source non identifiée',

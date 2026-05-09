@@ -7,7 +7,7 @@ export const metadata = {
 
 export default function ContactPage() {
   return (
-    <main style={{ minHeight: '100vh', background: '#FAF9F6', padding: '4rem 2rem' }}>
+    <main style={{ minHeight: '100vh', background: '#F7F5F0', padding: '4rem 2rem' }}>
       <div style={{ maxWidth: '600px', margin: '0 auto' }}>
         <Link href="/" style={{ color: '#7c3aed', textDecoration: 'none', fontSize: '0.9rem' }}>← Retour à l'accueil</Link>
         <h1 style={{ fontSize: '2.5rem', fontWeight: 700, margin: '2rem 0 1rem', color: '#1a1a1a', fontFamily: 'Clash Display, sans-serif' }}>

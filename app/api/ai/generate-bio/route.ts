@@ -1,5 +1,8 @@
 import { auth } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
+import { logger } from '@/lib/logger'
+
+export const dynamic = 'force-dynamic'
 
 export async function POST(request: Request) {
   const { userId } = await auth()
@@ -7,7 +10,7 @@ export async function POST(request: Request) {
 
   const apiKey = process.env.ANTHROPIC_API_KEY
   if (!apiKey) {
-    console.error('ANTHROPIC_API_KEY manquante dans .env.local')
+    logger.error('ANTHROPIC_API_KEY manquante dans .env.local')
     return NextResponse.json({ error: 'ANTHROPIC_API_KEY manquant (serveur)' }, { status: 500 })
   }
 
@@ -88,7 +91,7 @@ RETOURNE UNIQUEMENT LA BIO, RIEN D'AUTRE. Pas de guillemets. Pas de numérotatio
 
     if (!response.ok) {
       const err = await response.text()
-      console.error('Anthropic API error:', err)
+      logger.error('Anthropic API error:', err)
       throw new Error('Erreur API Anthropic')
     }
 
@@ -102,7 +105,7 @@ RETOURNE UNIQUEMENT LA BIO, RIEN D'AUTRE. Pas de guillemets. Pas de numérotatio
 
     return NextResponse.json({ bio, source: 'ai' })
   } catch (e) {
-    console.error('generate-bio error:', e)
+    logger.error('generate-bio error:', e)
     const fallback = `${fullName || metier}, ${metier} à ${city || 'votre ville'}. Réservez votre créneau directement en ligne.`
     return NextResponse.json({ bio: fallback, source: 'fallback' })
   }

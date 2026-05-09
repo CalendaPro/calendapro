@@ -17,14 +17,14 @@ export function QuickStatsWidget({
     { 
       label: 'Taux de confirmation', 
       value: `${confirmRate}%`, 
-      icon: '✓',
+ icon: '',
       color: '#10b981',
       bgColor: 'rgba(16, 185, 129, 0.1)'
     },
     { 
       label: 'Taux de no-show', 
       value: `${noShowRate}%`, 
-      icon: '✕',
+ icon: '',
       color: '#ef4444',
       bgColor: 'rgba(239, 68, 68, 0.1)'
     },

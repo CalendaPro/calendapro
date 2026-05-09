@@ -2,39 +2,39 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { WalletCard } from '@/components/WalletCard'
 import {
   ArrowDownLeft, ArrowUpRight, RefreshCcw, RotateCcw,
-  CalendarDays, ShieldCheck, Clock, ArrowRight,
+  CalendarDays, ShieldCheck, Clock, ArrowRight, Receipt,
+  CreditCard, ExternalLink, Wallet,
 } from 'lucide-react'
 
 interface Transaction {
   id: string
-  type: 'booking_payment' | 'refund' | 'cancellation_refund' | 'manual_credit'
+  booking_id: string | null
+  pro_id: string
   amount: number
+  currency: string
+  status: 'succeeded' | 'pending' | 'failed' | 'refunded' | 'partially_refunded'
   description: string
+  receipt_url: string | null
+  stripe_payment_intent_id: string | null
+  refunded_amount: number
   created_at: string
-  status: 'pending' | 'completed' | 'failed' | 'reversed'
-  metadata?: {
-    cancelled_by?: string
-    reason?: string
-  }
-}
-
-interface WalletData {
-  wallet: {
-    balance: number
-    currency: string
-    user_id: string
-  }
-  transactions: Transaction[]
 }
 
 const TRANSACTION_CONFIG = {
-  booking_payment:     { label: 'Paiement RDV',   color: '#BE123C', icon: <ArrowUpRight  size={14} strokeWidth={2} />, bg: '#FFF1F2',  border: '#FECDD3' },
-  refund:              { label: 'Remboursement',   color: '#15803D', icon: <ArrowDownLeft size={14} strokeWidth={2} />, bg: '#F0FDF4',  border: '#BBF7D0' },
-  cancellation_refund: { label: 'Annulation',      color: '#1D4ED8', icon: <RotateCcw    size={14} strokeWidth={2} />, bg: '#EFF6FF',  border: '#BFDBFE' },
-  manual_credit:       { label: 'Crédit',          color: '#7C3AED', icon: <RefreshCcw   size={14} strokeWidth={2} />, bg: '#F5F3FF',  border: '#DDD6FE' },
+  succeeded:          { label: 'Paiement',        color: '#BE123C', icon: <ArrowUpRight  size={14} strokeWidth={2} />, bg: '#FFF1F2',  border: '#FECDD3' },
+  refunded:           { label: 'Remboursé',       color: '#15803D', icon: <ArrowDownLeft size={14} strokeWidth={2} />, bg: '#F0FDF4',  border: '#BBF7D0' },
+  partially_refunded: { label: 'Partiellement remboursé', color: '#1D4ED8', icon: <RotateCcw    size={14} strokeWidth={2} />, bg: '#EFF6FF',  border: '#BFDBFE' },
+  failed:             { label: 'Échoué',          color: '#6B7280', icon: <RefreshCcw   size={14} strokeWidth={2} />, bg: '#F3F4F6',  border: '#E5E7EB' },
+  pending:            { label: 'En cours',        color: '#D97706', icon: <Clock   size={14} strokeWidth={2} />, bg: '#FFFBEB',  border: '#FDE68A' },
+}
+
+interface WalletData {
+  transactions: Transaction[]
+  totalCount: number
+  totalSpent: number
+  totalRefunded: number
 }
 
 export default function WalletPage() {
@@ -43,14 +43,14 @@ export default function WalletPage() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    fetch('/api/wallet')
+    fetch('/api/client/transactions')
       .then(r => r.json())
       .then(data => {
         setData(data)
         setLoading(false)
       })
       .catch(() => {
-        setError('Impossible de charger votre porte-monnaie')
+        setError('Impossible de charger vos transactions')
         setLoading(false)
       })
   }, [])
@@ -78,7 +78,8 @@ export default function WalletPage() {
     )
   }
 
-  const balance = data?.wallet?.balance || 0
+  const totalSpent = data?.totalSpent || 0
+  const totalRefunded = data?.totalRefunded || 0
   const transactions = data?.transactions || []
 
   return (
@@ -89,39 +90,56 @@ export default function WalletPage() {
         <p style={{ fontSize: '0.85rem', color: 'var(--cl-text-muted)', marginTop: '0.4rem', fontFamily: "'DM Sans', sans-serif" }}>Consultez votre solde et l'historique de vos transactions.</p>
       </div>
 
-      {/* Wallet Card */}
-      <div className="max-w-md mx-auto mb-12">
-        <WalletCard
-          balance={balance}
-          onUseForNextBooking={() => {
-            window.location.href = '/client/marketplace'
-          }}
-        />
+      {/* Summary Card */}
+      <div style={{ background: 'linear-gradient(135deg, #4F46E5, #6366f1)', borderRadius: 20, padding: '1.75rem', marginBottom: '1.75rem', boxShadow: '0 8px 32px rgba(79,70,229,0.25)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.25rem' }}>
+          <div style={{ width: 48, height: 48, borderRadius: 14, background: 'rgba(255,255,255,0.18)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid rgba(255,255,255,0.25)' }}>
+            <Wallet size={24} strokeWidth={1.5} style={{ color: 'white' }} />
+          </div>
+          <div>
+            <p style={{ fontSize: '0.72rem', fontWeight: 500, color: 'rgba(255,255,255,0.7)', fontFamily: "'DM Sans', sans-serif" }}>Total dépensé sur CalendaPro</p>
+            <p style={{ fontFamily: "'Clash Display', sans-serif", fontWeight: 700, fontSize: '1.5rem', color: 'white' }}>
+              {(totalSpent / 100).toFixed(2)}€
+            </p>
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: '1rem' }}>
+          <div style={{ flex: 1, padding: '0.75rem', background: 'rgba(255,255,255,0.12)', borderRadius: 12, border: '1px solid rgba(255,255,255,0.15)' }}>
+            <p style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.6)', fontFamily: "'DM Sans', sans-serif" }}>Transactions</p>
+            <p style={{ fontFamily: "'Clash Display', sans-serif", fontWeight: 700, fontSize: '1rem', color: 'white' }}>{data?.totalCount || 0}</p>
+          </div>
+          <div style={{ flex: 1, padding: '0.75rem', background: 'rgba(255,255,255,0.12)', borderRadius: 12, border: '1px solid rgba(255,255,255,0.15)' }}>
+            <p style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.6)', fontFamily: "'DM Sans', sans-serif" }}>Remboursé</p>
+            <p style={{ fontFamily: "'Clash Display', sans-serif", fontWeight: 700, fontSize: '1rem', color: '#86efac' }}>
+              +{(totalRefunded / 100).toFixed(2)}€
+            </p>
+          </div>
+        </div>
       </div>
 
-      {/* Summary cards */}
+      {/* Info cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '0.75rem', marginBottom: '1.75rem' }}>
         {[
           {
-            icon: <ArrowDownLeft size={16} strokeWidth={1.5} />,
-            iconBg: '#F0FDF4', iconBorder: '#BBF7D0', iconColor: '#15803D',
-            label: 'Remboursements',
-            value: `${transactions.filter(t => t.type === 'refund' || t.type === 'cancellation_refund').reduce((a, t) => a + t.amount, 0).toFixed(2)}€`,
-            valueColor: '#15803D',
+            icon: <CreditCard size={16} strokeWidth={1.5} />,
+            iconBg: '#FFF1F2', iconBorder: '#FECDD3', iconColor: '#BE123C',
+            label: 'Paiements Stripe',
+            value: 'Sécurisés',
+            valueColor: '#BE123C',
           },
           {
             icon: <ShieldCheck size={16} strokeWidth={1.5} />,
             iconBg: '#F5F3FF', iconBorder: '#DDD6FE', iconColor: '#7C3AED',
-            label: 'Sécurisé',
-            value: 'CalendaPay',
+            label: 'Protection',
+            value: 'PCI DSS',
             valueColor: '#7C3AED',
           },
           {
-            icon: <Clock size={16} strokeWidth={1.5} />,
-            iconBg: '#FFFBEB', iconBorder: '#FDE68A', iconColor: '#D97706',
-            label: 'Disponible',
-            value: 'Instantanément',
-            valueColor: '#D97706',
+            icon: <Receipt size={16} strokeWidth={1.5} />,
+            iconBg: '#F0FDF4', iconBorder: '#BBF7D0', iconColor: '#15803D',
+            label: 'Reçus',
+            value: 'Téléchargeables',
+            valueColor: '#15803D',
           },
         ].map(({ icon, iconBg, iconBorder, iconColor, label, value, valueColor }) => (
           <div key={label} style={{ padding: '1rem', background: 'var(--cl-surface)', border: '1.5px solid var(--cl-border)', borderRadius: 16, display: 'flex', alignItems: 'center', gap: '0.75rem', boxShadow: 'var(--cl-shadow-soft)' }}>
@@ -153,8 +171,8 @@ export default function WalletPage() {
         ) : (
           <div>
             {transactions.map((t, i) => {
-              const conf = TRANSACTION_CONFIG[t.type as keyof typeof TRANSACTION_CONFIG] ?? { label: t.type, color: 'var(--cl-text-muted)', icon: <RefreshCcw size={14} />, bg: 'var(--cl-bg)', border: 'var(--cl-border)' }
-              const isDebit = t.type === 'booking_payment'
+              const conf = TRANSACTION_CONFIG[t.status] ?? { label: t.status, color: 'var(--cl-text-muted)', icon: <RefreshCcw size={14} />, bg: 'var(--cl-bg)', border: 'var(--cl-border)' }
+              const isDebit = t.status === 'succeeded' || t.status === 'partially_refunded'
               return (
                 <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.9rem 1.2rem', borderBottom: i < transactions.length - 1 ? '1px solid var(--cl-border)' : 'none' }}>
                   <div style={{ width: 36, height: 36, borderRadius: 10, background: conf.bg, border: `1px solid ${conf.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: conf.color, flexShrink: 0 }}>
@@ -162,13 +180,33 @@ export default function WalletPage() {
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <p style={{ fontFamily: "'DM Sans', sans-serif", fontWeight: 600, fontSize: '0.82rem', color: 'var(--cl-text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{t.description || conf.label}</p>
-                    <p style={{ fontSize: '0.7rem', color: 'var(--cl-text-muted)', marginTop: 1, fontFamily: "'DM Sans', sans-serif" }}>{new Date(t.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+                    <p style={{ fontSize: '0.7rem', color: 'var(--cl-text-muted)', marginTop: 1, fontFamily: "'DM Sans', sans-serif" }}>
+                      {new Date(t.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}
+                      {t.stripe_payment_intent_id && (
+                        <span style={{ marginLeft: '0.5rem', opacity: 0.6 }}>
+                          • {t.stripe_payment_intent_id.slice(-8)}
+                        </span>
+                      )}
+                    </p>
                   </div>
                   <div style={{ textAlign: 'right' as const, flexShrink: 0 }}>
                     <p style={{ fontFamily: "'Clash Display', sans-serif", fontWeight: 700, fontSize: '0.88rem', color: isDebit ? '#BE123C' : '#15803D' }}>
-                      {isDebit ? '-' : '+'}{Math.abs(t.amount).toFixed(2)}€
+                      {isDebit ? '-' : '+'}{Math.abs(t.amount / 100).toFixed(2)}€
                     </p>
-                    <span style={{ fontSize: '0.65rem', padding: '0.1rem 0.45rem', borderRadius: 100, background: conf.bg, border: `1px solid ${conf.border}`, color: conf.color, fontWeight: 600, fontFamily: "'DM Sans', sans-serif" }}>{conf.label}</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', justifyContent: 'flex-end' }}>
+                      <span style={{ fontSize: '0.65rem', padding: '0.1rem 0.45rem', borderRadius: 100, background: conf.bg, border: `1px solid ${conf.border}`, color: conf.color, fontWeight: 600, fontFamily: "'DM Sans', sans-serif" }}>{conf.label}</span>
+                      {t.receipt_url && (
+                        <a
+                          href={t.receipt_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{ fontSize: '0.65rem', padding: '0.1rem 0.4rem', borderRadius: 100, background: '#F0FDF4', border: '1px solid #BBF7D0', color: '#15803D', fontWeight: 600, fontFamily: "'DM Sans', sans-serif", textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '0.2rem' }}
+                        >
+                          <Receipt size={10} strokeWidth={2} />
+                          Reçu
+                        </a>
+                      )}
+                    </div>
                   </div>
                 </div>
               )

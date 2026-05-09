@@ -1,13 +1,21 @@
 import Link from 'next/link'
+import type { Metadata } from 'next'
 
-export const metadata = {
+export const metadata: Metadata = {
   title: 'Politique de Confidentialité - CalendaPro',
-  description: 'Politique de confidentialité et protection des données de CalendaPro',
+  description: 'Politique de confidentialité et protection des données de CalendaPro - RGPD. Découvrez comment nous protégeons vos données personnelles.',
+  alternates: {
+    canonical: '/confidentialite',
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
 }
 
 export default function ConfidentialitePage() {
   return (
-    <main style={{ minHeight: '100vh', background: '#FAF9F6', padding: '4rem 2rem' }}>
+    <main style={{ minHeight: '100vh', background: '#F7F5F0', padding: '4rem 2rem' }}>
       <div style={{ maxWidth: '800px', margin: '0 auto' }}>
         <Link href="/" style={{ color: '#7c3aed', textDecoration: 'none', fontSize: '0.9rem' }}>← Retour à l'accueil</Link>
         <h1 style={{ fontSize: '2.5rem', fontWeight: 700, margin: '2rem 0 1rem', color: '#1a1a1a', fontFamily: 'Clash Display, sans-serif' }}>
@@ -62,7 +70,7 @@ export default function ConfidentialitePage() {
           
           <section>
             <h2 style={{ fontSize: '1.3rem', fontWeight: 600, marginBottom: '1rem', color: '#1a1a1a' }}>6. Contact DPO</h2>
-            <p>Pour exercer vos droits ou poser des questions : dpo@calendapro.fr</p>
+            <p>Pour exercer vos droits ou poser des questions : contact.calendapro@gmail.com</p>
           </section>
         </div>
       </div>

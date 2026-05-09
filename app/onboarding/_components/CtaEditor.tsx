@@ -27,10 +27,10 @@ const SUGGESTIONS = [
 ]
 
 const ACTIONS: { id: CtaConfig['action']; label: string; icon: string }[] = [
-  { id: 'modal',    label: 'Ouvrir réservation',  icon: '📅' },
-  { id: 'scroll',   label: 'Scroller aux services', icon: '⬇️' },
-  { id: 'whatsapp', label: 'Ouvrir WhatsApp',       icon: '💬' },
-  { id: 'custom',   label: 'Lien personnalisé',     icon: '🔗' },
+ { id: 'modal', label: 'Ouvrir réservation', icon: '' },
+ { id: 'scroll', label: 'Scroller aux services', icon: '⬇' },
+ { id: 'whatsapp', label: 'Ouvrir WhatsApp', icon: '' },
+ { id: 'custom', label: 'Lien personnalisé', icon: '' },
 ]
 
 interface Props {

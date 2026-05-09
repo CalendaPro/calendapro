@@ -2,6 +2,8 @@ import { auth } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 
+export const dynamic = 'force-dynamic'
+
 // GET /api/bookings/can-cancel?booking_id=xxx - Vérifier si le client peut annuler
 export async function GET(request: Request) {
   const { userId } = await auth()

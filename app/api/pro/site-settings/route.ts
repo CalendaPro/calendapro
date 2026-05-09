@@ -2,6 +2,9 @@ import { auth } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { getUserPlan } from '@/lib/subscription'
+import { logger } from '@/lib/logger'
+
+export const dynamic = 'force-dynamic'
 
 const PROFILE_FIELDS = [
   'username', 'full_name', 'bio', 'bio_generated', 'city', 'category',
@@ -76,7 +79,7 @@ export async function PATCH(req: Request) {
   const supabase = createServerSupabaseClient()
   const { error } = await supabase.from('profiles').update(updates).eq('id', userId)
   if (error) {
-    console.error('[site-settings PATCH]', error)
+    logger.error('[site-settings PATCH]', error)
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 

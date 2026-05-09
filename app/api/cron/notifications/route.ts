@@ -7,9 +7,13 @@ import {
 } from '@/lib/emails'
 import { consumeCredit } from '@/lib/sms-credits'
 import { getUserPlan } from '@/lib/subscription'
+import { logger } from '@/lib/logger'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
+
+// Lock ID unique pour ce cron (notifications) - utilisé avec pg_advisory_lock
+const CRON_LOCK_ID = 1001
 
 interface QueueRow {
   id: string
@@ -27,7 +31,7 @@ export async function GET(request: Request) {
   const expectedSecret = process.env.CRON_SECRET
 
   if (!expectedSecret) {
-    console.error('[Cron] CRON_SECRET not configured')
+    logger.error('[Cron] CRON_SECRET not configured')
     return NextResponse.json({ error: 'Server misconfiguration' }, { status: 500 })
   }
 
@@ -36,6 +40,29 @@ export async function GET(request: Request) {
   }
 
   const supabase = createServerSupabaseClient()
+
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // LOCK DISTRIBUÉ: Utiliser pg_advisory_lock pour éviter les exécutions simultanées
+  // ═══════════════════════════════════════════════════════════════════════════════
+  try {
+    const { data: lockAcquired } = await supabase.rpc('try_advisory_lock', { lock_id: CRON_LOCK_ID })
+    
+    if (!lockAcquired) {
+      logger.info('[Cron:Notifs] Lock déjà acquis par une autre instance - skip')
+      return NextResponse.json({ 
+        processed: 0, 
+        sent: 0, 
+        failed: 0, 
+        skipped: true,
+        reason: 'lock_already_acquired'
+      })
+    }
+
+    logger.info('[Cron:Notifs] Lock acquis, démarrage du traitement')
+  } catch (lockErr) {
+    logger.error('[Cron:Notifs] Erreur acquisition lock:', lockErr)
+    // Continuer sans lock en cas d'erreur (fallback)
+  }
   const now = new Date().toISOString()
 
   // Récupérer les notifications éligibles :
@@ -52,7 +79,7 @@ export async function GET(request: Request) {
     .limit(50)
 
   if (fetchErr) {
-    console.error('[Cron:Notifs] Fetch error:', fetchErr)
+    logger.error('[Cron:Notifs] Fetch error:', fetchErr)
     return NextResponse.json({ error: fetchErr.message }, { status: 500 })
   }
 
@@ -100,12 +127,21 @@ export async function GET(request: Request) {
         })
         .eq('id', notif.id)
 
-      console.error(`[Cron:Notifs] ${notif.type} → ${notif.recipient} : ${errMsg}`)
+      logger.error(`[Cron:Notifs] ${notif.type} → ${notif.recipient} : ${errMsg}`)
       failed++
     }
   }
 
-  console.log(`[Cron:Notifs] Done: ${sent} sent, ${failed} failed`)
+  logger.info(`[Cron:Notifs] Done: ${sent} sent, ${failed} failed`)
+  
+  // Libérer le lock à la fin
+  try {
+    await supabase.rpc('advisory_unlock', { lock_id: CRON_LOCK_ID })
+    logger.info('[Cron:Notifs] Lock libéré')
+  } catch (unlockErr) {
+    logger.error('[Cron:Notifs] Erreur libération lock:', unlockErr)
+  }
+  
   return NextResponse.json({ processed: rows.length, sent, failed })
 }
 
@@ -114,6 +150,29 @@ async function processNotification(
   notif: QueueRow
 ): Promise<void> {
   const { type, recipient, payload } = notif
+
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // #38 - Vérifier les préférences utilisateur avant d'envoyer
+  // ═══════════════════════════════════════════════════════════════════════════════
+  const notifType = type.includes('email') ? 'email' : type.includes('sms') ? 'sms' : 'push'
+  
+  // Récupérer le user_id depuis le booking ou payload
+  const userId = payload.proId || payload.clientId || null
+  if (userId) {
+    const { data: prefs } = await supabase
+      .from('profiles')
+      .select('notification_preferences')
+      .eq('id', userId)
+      .maybeSingle()
+    
+    if (prefs?.notification_preferences) {
+      const acceptsNotif = prefs.notification_preferences[notifType] !== false
+      if (!acceptsNotif) {
+        logger.info(`[Cron:Notifs] Skipping ${type} to ${userId} - user disabled ${notifType}`)
+        return // Skip notification
+      }
+    }
+  }
 
   switch (type) {
     case 'pro_email':

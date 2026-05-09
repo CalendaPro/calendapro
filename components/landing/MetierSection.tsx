@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 import React, { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -214,58 +214,102 @@ const Icons: Record<string, React.FC<{ className?: string; style?: React.CSSProp
 // ─── METRICS PILLS COMPONENT ─────────────────────────────────────────────────
 function MetricsPills({ metierId, color }: { metierId: string; color: string }) {
   const metrics = METRICS[metierId] || []
-  
+  const isViolet = color === T.violet
+  const glowColor = isViolet ? T.violet : T.pink
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -20 }}
       transition={{ ...SPRING, delay: 0.2 }}
-      className="mt-6 flex flex-wrap gap-3"
+      className="mt-8"
     >
-      {metrics.map((metric, i) => {
-        const MetricIcon = MetricIcons[metric.icon]
-        return (
-          <motion.div
-            key={metric.label}
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ ...SPRING, delay: 0.1 + i * 0.1 }}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-full"
-            style={{
-              background: 'rgba(15, 23, 42, 0.5)',
-              backdropFilter: 'blur(12px)',
-              WebkitBackdropFilter: 'blur(12px)',
-              border: `1px solid ${color}30`,
-              boxShadow: `0 4px 20px ${color}15`,
-            }}
-          >
-            <MetricIcon 
-              className="w-4 h-4" 
-              style={{ color }} 
-            />
-            <div className="flex items-baseline gap-1">
-              <span 
-                className="text-lg font-bold"
-                style={{ color }}
-              >
-                {metric.value}
-                {metric.suffix && (
-                  <span className="text-xs font-medium ml-0.5" style={{ opacity: 0.8 }}>
+      {/* Sub-container glass-dark intégré */}
+      <div
+        className="inline-flex items-center gap-1 p-1.5 rounded-2xl"
+        style={{
+          background: 'rgba(255, 255, 255, 0.03)',
+          backdropFilter: 'blur(12px) saturate(1.2)',
+          WebkitBackdropFilter: 'blur(12px) saturate(1.2)',
+          border: '0.5px solid rgba(255, 255, 255, 0.1)',
+          boxShadow: `
+            0 8px 32px rgba(0, 0, 0, 0.4),
+            inset 0 1px 0 rgba(255, 255, 255, 0.05)
+          `,
+        }}
+      >
+        {metrics.map((metric, i) => {
+          const MetricIcon = MetricIcons[metric.icon]
+          const pillGlowColor = i === 0 ? T.violet : i === 1 ? T.pink : T.blue
+
+          return (
+            <motion.div
+              key={metric.label}
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ ...SPRING, delay: 0.1 + i * 0.08 }}
+              className="relative flex items-center gap-2.5 px-4 py-2.5 rounded-xl"
+              style={{
+                background: 'rgba(255, 255, 255, 0.02)',
+              }}
+            >
+              {/* Halo de lueur subtil derrière chaque bulle */}
+              <div
+                className="absolute inset-0 rounded-xl blur-md -z-10"
+                style={{
+                  background: `radial-gradient(circle at center, ${pillGlowColor}15 0%, transparent 70%)`,
+                  opacity: 0.6,
+                }}
+              />
+
+              {/* Icône fine ultra-light */}
+              <MetricIcon
+                className="w-3.5 h-3.5"
+                style={{
+                  color: pillGlowColor,
+                  strokeWidth: 1,
+                }}
+              />
+
+              {/* Valeur en Satoshi Bold avec couleur éclatante */}
+              <div className="flex flex-col items-start gap-0">
+                <span
+                  className="text-base leading-none tracking-tight"
+                  style={{
+                    color: pillGlowColor,
+                    fontFamily: 'Satoshi, system-ui, sans-serif',
+                    fontWeight: 700,
+                    textShadow: `0 0 20px ${pillGlowColor}40`,
+                  }}
+                >
+                  {metric.value}
+                  <span
+                    className="text-xs ml-0.5"
+                    style={{ opacity: 0.9, fontWeight: 500 }}
+                  >
                     {metric.suffix}
                   </span>
-                )}
-              </span>
-              <span 
-                className="text-xs font-medium"
-                style={{ color: T.muted }}
-              >
-                {metric.label}
-              </span>
-            </div>
-          </motion.div>
-        )
-      })}
+                </span>
+
+                {/* Label en Cabinet Grotesk, uppercase, letter-spacing */}
+                <span
+                  className="text-[10px] leading-tight mt-0.5"
+                  style={{
+                    color: 'rgba(148, 163, 184, 0.7)',
+                    fontFamily: 'Cabinet Grotesk, system-ui, sans-serif',
+                    fontWeight: 500,
+                    letterSpacing: '0.08em',
+                    textTransform: 'uppercase',
+                  }}
+                >
+                  {metric.label}
+                </span>
+              </div>
+            </motion.div>
+          )
+        })}
+      </div>
     </motion.div>
   )
 }
@@ -347,11 +391,14 @@ function FeatureCard({ metier }: { metier: typeof METIERS[0] }) {
 
         {/* Decorative line */}
         <div
-          className="mt-8 h-px w-24"
+          className="mt-6 h-px w-24"
           style={{
             background: `linear-gradient(90deg, ${metier.color}, transparent)`,
           }}
         />
+
+        {/* Metrics Pills - Intégrés dans la carte pour effet aimanté */}
+        <MetricsPills metierId={metier.id} color={metier.color} />
       </div>
     </motion.div>
   )
@@ -527,9 +574,6 @@ export function MetierSection() {
             <AnimatePresence mode="wait">
               <FeatureCard key={activeMetier.id} metier={activeMetier} />
             </AnimatePresence>
-
-            {/* Metrics Pills - Profession-specific stats */}
-            <MetricsPills metierId={activeMetier.id} color={activeMetier.color} />
           </motion.div>
         </div>
       </div>

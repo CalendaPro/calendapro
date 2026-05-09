@@ -4,6 +4,9 @@ import { stripe } from '@/lib/stripe'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { resetCredits } from '@/lib/sms-credits'
 import type Stripe from 'stripe'
+import { logger } from '@/lib/logger'
+
+export const dynamic = 'force-dynamic'
 
 export const runtime = 'nodejs'
 
@@ -83,7 +86,7 @@ export async function POST(request: Request) {
   )
 
   if (error) {
-    console.error('❌ sync upsert error:', error)
+ logger.error(' sync upsert error:', error)
     return NextResponse.json({ error: 'Erreur Supabase', detail: error.message }, { status: 500 })
   }
 
@@ -92,6 +95,6 @@ export async function POST(request: Request) {
     await resetCredits(userId, PLAN_INITIAL_CREDITS[plan])
   }
 
-  console.log(`✅ Plan synchronisé: ${plan} pour ${userId}`)
+ logger.info(` Plan synchronisé: ${plan} pour ${userId}`)
   return NextResponse.json({ ok: true, plan })
 }

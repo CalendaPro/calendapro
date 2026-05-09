@@ -2,7 +2,7 @@ import { createServerSupabaseClient } from './supabase-server'
 
 export type Plan = 'free' | 'premium' | 'infinity'
 
-// ✅ Utilise le client serveur — sécurisé, jamais exposé au front
+// Utilise le client serveur — sécurisé, jamais exposé au front
 export async function getUserPlan(userId: string): Promise<Plan> {
   // Validation basique — évite une requête inutile si userId est vide
   if (!userId) return 'free'
@@ -24,7 +24,7 @@ export async function getUserPlan(userId: string): Promise<Plan> {
   return data.plan as Plan
 }
 
-// ✅ Nouvelle fonction utile — vérifie si un user a accès à une feature
+// Nouvelle fonction utile — vérifie si un user a accès à une feature
 export async function userHasPlan(userId: string, requiredPlan: Plan): Promise<boolean> {
   const planHierarchy: Record<Plan, number> = {
     free: 0,

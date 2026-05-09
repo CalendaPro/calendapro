@@ -1,6 +1,7 @@
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { userHasPlan } from '@/lib/subscription'
 import type { PricingRule, DiscountedSlot, PulseEmptySlot } from './types'
+import { logger } from '../logger'
 
 const REQUIRED_PLAN = 'infinity' as const
 
@@ -67,7 +68,7 @@ export async function runPricingEngine(proId?: string): Promise<{
   )
 
   if (error) {
-    console.error('[Pulse:Pricing] Empty slot scan failed:', error.message)
+    logger.error('[Pulse:Pricing] Empty slot scan failed:', error.message)
     throw new Error(`Empty slot scan failed: ${error.message}`)
   }
 
@@ -95,11 +96,11 @@ export async function runPricingEngine(proId?: string): Promise<{
     .insert(inserts)
 
   if (insertError) {
-    console.error('[Pulse:Pricing] Slot insert failed:', insertError.message)
+    logger.error('[Pulse:Pricing] Slot insert failed:', insertError.message)
     throw new Error(`Slot insert failed: ${insertError.message}`)
   }
 
-  console.log(
+  logger.info(
     `[Pulse:Pricing] Created ${inserts.length} discounted slots, expired ${expiredCount ?? 0}`
   )
 
@@ -138,7 +139,7 @@ export async function markSlotBooked(slotId: string): Promise<void> {
     .eq('id', slotId)
 
   if (error) {
-    console.error('[Pulse:Pricing] Mark booked failed:', error.message)
+    logger.error('[Pulse:Pricing] Mark booked failed:', error.message)
   }
 }
 

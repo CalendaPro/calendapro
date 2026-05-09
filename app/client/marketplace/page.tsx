@@ -461,7 +461,7 @@ export default function ClientMarketplacePage() {
               {CITIES.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
             <select className="select-styled" value={sortBy} onChange={e => setSortBy(e.target.value as 'plan' | 'name' | 'distance')}>
-              <option value="plan">✦ Mis en avant</option>
+ <option value="plan"> Mis en avant</option>
               <option value="name">A–Z Alphabétique</option>
               {userCoords && <option value="distance">A proximité</option>}
             </select>

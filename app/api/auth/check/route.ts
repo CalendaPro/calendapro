@@ -1,6 +1,9 @@
 import { auth } from '@clerk/nextjs/server'
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { logger } from '@/lib/logger'
+
+export const dynamic = 'force-dynamic'
 
 /**
  * GET /api/auth/check
@@ -47,7 +50,7 @@ export async function GET(request: NextRequest) {
     })
 
     if (insertError) {
-      console.error('Erreur création automatique profil:', insertError)
+      logger.error('Erreur création automatique profil:', insertError)
     }
 
     // Rediriger selon le rôle

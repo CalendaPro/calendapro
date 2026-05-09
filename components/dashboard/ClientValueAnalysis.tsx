@@ -72,7 +72,7 @@ export function ClientValueAnalysis({ channels, totalRevenue }: ClientValueAnaly
     return (
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">💰 Valeur Clients par Source</CardTitle>
+ <CardTitle className="text-lg"> Valeur Clients par Source</CardTitle>
         </CardHeader>
         <CardContent className="flex h-64 items-center justify-center">
           <p className="text-gray-500">Aucune donnée disponible</p>
@@ -85,7 +85,7 @@ export function ClientValueAnalysis({ channels, totalRevenue }: ClientValueAnaly
     <Card className="overflow-hidden">
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-lg">
-          💰 Valeur Clients par Source
+ Valeur Clients par Source
           <span className="text-sm font-normal text-gray-500">
             (LTV = Lifetime Value)
           </span>
@@ -129,7 +129,7 @@ export function ClientValueAnalysis({ channels, totalRevenue }: ClientValueAnaly
                   </div>
                   {isTop && (
                     <span className="mt-1 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800">
-                      🏆 Top Canal
+ Top Canal
                     </span>
                   )}
                 </div>
@@ -198,7 +198,7 @@ export function ClientValueAnalysis({ channels, totalRevenue }: ClientValueAnaly
           <div className="flex flex-wrap gap-4">
             <span className="flex items-center gap-1">
               <span className="w-2 h-2 rounded-full bg-purple-100"></span>
-              🏆 = Canal le plus rentable
+ = Canal le plus rentable
             </span>
             <span className="flex items-center gap-1">
               <span className="w-2 h-2 rounded-full bg-green-100"></span>

@@ -1,8 +1,16 @@
 import Link from 'next/link'
+import type { Metadata } from 'next'
 
-export const metadata = {
+export const metadata: Metadata = {
   title: 'Mentions Légales - CalendaPro',
-  description: 'Mentions légales de CalendaPro',
+  description: 'Mentions légales de CalendaPro - Informations sur l\'éditeur, l\'hébergeur et les conditions légales d\'utilisation du site.',
+  alternates: {
+    canonical: '/mentions-legales',
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
 }
 
 export default function MentionsLegalesPage() {
@@ -20,10 +28,10 @@ export default function MentionsLegalesPage() {
             <h2 style={{ fontSize: '1.3rem', fontWeight: 600, marginBottom: '1rem', color: '#1a1a1a' }}>Éditeur du site</h2>
             <p><strong>CalendaPro SAS</strong></p>
             <p>Siège social : Paris, France</p>
-            <p>SIRET : 000 000 000 00000</p>
+            <p>SIRET : En cours d'immatriculation</p>
             <p>RCS : Paris B 000 000 000</p>
             <p>Capital social : 10 000 €</p>
-            <p>Email : contact@calendapro.fr</p>
+            <p>Email : contact.calendapro@gmail.com</p>
           </section>
           
           <section>
@@ -35,9 +43,7 @@ export default function MentionsLegalesPage() {
             <h2 style={{ fontSize: '1.3rem', fontWeight: 600, marginBottom: '1rem', color: '#1a1a1a' }}>Hébergement</h2>
             <p>Le site est hébergé par :</p>
             <p><strong>Vercel Inc.</strong></p>
-            <p>340 S Lemon Ave #4133</p>
-            <p>Walnut, CA 91789</p>
-            <p>États-Unis</p>
+            <p>San Francisco, USA</p>
           </section>
           
           <section>
@@ -52,7 +58,7 @@ export default function MentionsLegalesPage() {
           
           <section>
             <h2 style={{ fontSize: '1.3rem', fontWeight: 600, marginBottom: '1rem', color: '#1a1a1a' }}>Contact</h2>
-            <p>Email : contact@calendapro.fr</p>
+            <p>Email : contact.calendapro@gmail.com</p>
             <p>Adresse : Paris, France</p>
           </section>
         </div>

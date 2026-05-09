@@ -1,16 +1,19 @@
 import { NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { normalizeBookingPaymentSettings } from '@/lib/booking-payment-settings'
+import { logger } from '@/lib/logger'
+
+export const dynamic = 'force-dynamic'
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const username = searchParams.get('username')?.trim()
   if (!username) {
-    console.log('[booking-settings] ❌ username manquant')
+ logger.info('[booking-settings] username manquant')
     return NextResponse.json({ error: 'username requis' }, { status: 400 })
   }
 
-  console.log(`[booking-settings] 🔍 Recherche du pro: ${username}`)
+ logger.info(`[booking-settings] Recherche du pro: ${username}`)
 
   const supabase = createServerSupabaseClient()
   
@@ -22,12 +25,12 @@ export async function GET(request: Request) {
     .maybeSingle()
 
   if (basicError) {
-    console.error(`[booking-settings] ❌ Erreur Supabase basic pour ${username}:`, basicError)
+ logger.error(`[booking-settings] Erreur Supabase basic pour ${username}:`, basicError)
     return NextResponse.json({ error: 'Erreur base de données', details: basicError.message }, { status: 500 })
   }
 
   if (!basicProfile) {
-    console.error(`[booking-settings] ❌ Profil introuvable: ${username}`)
+ logger.error(`[booking-settings] Profil introuvable: ${username}`)
     return NextResponse.json({ error: 'Profil introuvable' }, { status: 404 })
   }
 
@@ -41,7 +44,7 @@ export async function GET(request: Request) {
     .maybeSingle()
 
   if (error) {
-    console.error(`[booking-settings] ❌ Erreur Supabase settings pour ${username}:`, error)
+ logger.error(`[booking-settings] Erreur Supabase settings pour ${username}:`, error)
     // Retourner des valeurs par défaut si les colonnes n'existent pas
     return NextResponse.json({
       username: basicProfile.username,
@@ -56,18 +59,18 @@ export async function GET(request: Request) {
   }
 
   if (!profile) {
-    console.error(`[booking-settings] ❌ Profil introuvable: ${username}`)
+ logger.error(`[booking-settings] Profil introuvable: ${username}`)
     return NextResponse.json({ error: 'Profil introuvable' }, { status: 404 })
   }
 
-  console.log(`[booking-settings] ✅ Profil trouvé: ${username}`, {
+ logger.info(`[booking-settings] Profil trouvé: ${username}`, {
     online_payment_enabled: profile.online_payment_enabled,
     deposit_required: profile.deposit_required,
   })
 
   const settings = normalizeBookingPaymentSettings(profile)
 
-  console.log(`[booking-settings] ⚙️ Settings normalisés:`, settings)
+ logger.info(`[booking-settings] Settings normalisés:`, settings)
 
   return NextResponse.json({
     username: profile.username,

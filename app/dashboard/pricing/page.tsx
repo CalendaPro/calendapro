@@ -36,7 +36,7 @@ export default async function PricingPage() {
           <ul className="flex flex-col gap-2.5 mb-6">
             {PLANS.free.features.map(f => (
               <li key={f} className="flex items-center gap-2 text-sm text-stone-600">
-                <span className="text-emerald-500 font-bold">✓</span> {f}
+ <span className="text-emerald-500 font-bold"></span> {f}
               </li>
             ))}
           </ul>
@@ -64,13 +64,13 @@ export default async function PricingPage() {
           <ul className="flex flex-col gap-2.5 mb-6">
             {PLANS.premium.features.map(f => (
               <li key={f} className="flex items-center gap-2 text-sm text-stone-300">
-                <span className="text-violet-400 font-bold">✓</span> {f}
+ <span className="text-violet-400 font-bold"></span> {f}
               </li>
             ))}
           </ul>
           {currentPlan === 'premium' ? (
             <div className="w-full bg-emerald-500/20 text-emerald-400 font-semibold text-sm py-2.5 rounded-xl text-center">
-              Plan actuel ✓
+ Plan actuel
             </div>
           ) : (
             <PricingButton priceId={PLANS.premium.priceId!} label="Passer au Premium" isUpgrade={false} />
@@ -92,13 +92,13 @@ export default async function PricingPage() {
           <ul className="flex flex-col gap-2.5 mb-6">
             {PLANS.infinity.features.map(f => (
               <li key={f} className="flex items-center gap-2 text-sm text-stone-600">
-                <span className="text-pink-500 font-bold">✓</span> {f}
+ <span className="text-pink-500 font-bold"></span> {f}
               </li>
             ))}
           </ul>
           {currentPlan === 'infinity' ? (
             <div className="w-full bg-emerald-500/20 text-emerald-600 font-semibold text-sm py-2.5 rounded-xl text-center">
-              Plan actuel ✓
+ Plan actuel
             </div>
           ) : (
             <PricingButton
@@ -114,7 +114,7 @@ export default async function PricingPage() {
       {currentPlan === 'premium' && (
         <div className="mt-6 bg-violet-50 border border-violet-100 rounded-2xl p-4 text-center">
           <p className="text-violet-700 text-sm font-medium">
-            ✦ Upgrade vers Infinity : vous ne payez que la différence pour les jours restants du mois.
+ Upgrade vers Infinity : vous ne payez que la différence pour les jours restants du mois.
           </p>
         </div>
       )}

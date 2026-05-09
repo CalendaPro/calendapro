@@ -42,7 +42,7 @@ export default async function WidgetPage() {
         <h2 className="font-semibold text-stone-900 mb-4">Aperçu du widget</h2>
         <div className="bg-stone-50 rounded-xl p-8 flex items-center justify-center border border-stone-100">
           <button className="inline-flex items-center gap-2 px-6 py-3 bg-violet-600 text-white rounded-xl font-semibold text-sm hover:bg-violet-700 transition-colors">
-            📅 Prendre rendez-vous
+ Prendre rendez-vous
           </button>
         </div>
         <p className="text-stone-400 text-xs mt-3 text-center">

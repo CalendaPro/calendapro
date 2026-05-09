@@ -26,7 +26,7 @@ function ClientSignInWithRedirect() {
 
 export default function ClientSignInPage() {
   return (
-    <div className="flex min-h-screen items-center justify-center">
+    <div className="flex min-h-screen items-center justify-center" style={{ background: '#F7F5F0' }}>
       <div className="w-full max-w-md">
         <Suspense fallback={<div className="text-stone-500 text-sm">Chargement…</div>}>
           <ClientSignInWithRedirect />

@@ -1,6 +1,7 @@
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { clerkClient } from '@clerk/nextjs/server'
 import { generateUsername } from '@/lib/generateUsername'
+import { logger } from '../logger'
 
 export type EnsureProfileOptions = {
   role?: 'pro' | 'client'
@@ -58,7 +59,7 @@ export async function ensureProfile(
       email = email ?? user.emailAddresses[0]?.emailAddress ?? null
       fullName = fullName ?? user.fullName ?? null
     } catch (err) {
-      console.error('[ensureProfile] Clerk fetch failed:', err)
+      logger.error('[ensureProfile] Clerk fetch failed:', err)
     }
   }
 
@@ -81,7 +82,7 @@ export async function ensureProfile(
     .maybeSingle()
 
   if (profileError) {
-    console.error('[ensureProfile] Profile upsert error:', profileError)
+    logger.error('[ensureProfile] Profile upsert error:', profileError)
     throw new Error(`Profile creation failed: ${profileError.message}`)
   }
 
@@ -94,7 +95,7 @@ export async function ensureProfile(
     )
 
   if (subError) {
-    console.error('[ensureProfile] Subscription upsert error (non-fatal):', subError)
+    logger.error('[ensureProfile] Subscription upsert error (non-fatal):', subError)
   }
 
   return (created ?? {

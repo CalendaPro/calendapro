@@ -67,6 +67,8 @@ const ENGAGEMENTS = [
 // ─── NAV ─────────────────────────────────────────────────────────────────────
 function Nav() {
   const [scrolled, setScrolled] = useState(false)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  
   useEffect(() => {
     const fn = () => setScrolled(window.scrollY > 20)
     window.addEventListener('scroll', fn)
@@ -89,7 +91,12 @@ function Nav() {
       }}
     >
       <BrandLogo />
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+      
+      {/* Desktop Nav */}
+      <div className="nav-desktop" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+        <Link href="/" className="nav-btn-pro">
+          Vous êtes un pro ?
+        </Link>
         <Link href="/client-sign-in" className="nav-btn-ghost">
           Connexion
         </Link>
@@ -98,6 +105,39 @@ function Nav() {
           <ArrowRight size={14} strokeWidth={2.5} />
         </Link>
       </div>
+      
+      {/* Mobile Menu Button */}
+      <button 
+        className="mobile-menu-btn"
+        onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+        aria-label="Menu"
+      >
+        <div className={`hamburger ${mobileMenuOpen ? 'open' : ''}`}>
+          <span></span>
+          <span></span>
+          <span></span>
+        </div>
+      </button>
+      
+      {/* Mobile Menu */}
+      {mobileMenuOpen && (
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -20 }}
+          className="mobile-menu"
+        >
+          <Link href="/" className="mobile-nav-item" onClick={() => setMobileMenuOpen(false)}>
+            Vous êtes un pro ?
+          </Link>
+          <Link href="/client-sign-in" className="mobile-nav-item" onClick={() => setMobileMenuOpen(false)}>
+            Connexion
+          </Link>
+          <Link href="/client-sign-up" className="mobile-nav-item primary" onClick={() => setMobileMenuOpen(false)}>
+            M&apos;inscrire
+          </Link>
+        </motion.div>
+      )}
     </motion.nav>
   )
 }
@@ -473,6 +513,11 @@ function Footer() {
             <Link href="/client-sign-in">Connexion</Link>
             <Link href="/client-sign-up" className="footer-cta">M&apos;inscrire</Link>
           </div>
+        </div>
+        <div className="footer-legal">
+          <Link href="/cgu">CGU</Link>
+          <Link href="/confidentialite">Confidentialité</Link>
+          <Link href="/mentions-legales">Mentions légales</Link>
         </div>
         <div className="footer-bottom">
           <span>© 2026 CalendaPro. Tous droits réservés.</span>
@@ -1351,6 +1396,124 @@ export default function ExplorePage() {
           font-size: 0.8rem;
           color: #475569;
           font-family: 'DM Sans', sans-serif;
+        }
+        
+        /* ─── NAV PRO BUTTON ───────────────────────────────────────────── */
+        .nav-btn-pro {
+          font-size: 0.8rem;
+          font-weight: 500;
+          color: #64748b;
+          text-decoration: none;
+          padding: 0.5rem 1rem;
+          border-radius: 100px;
+          font-family: 'DM Sans', sans-serif;
+          transition: all 0.3s;
+          border: 1px solid transparent;
+          position: relative;
+        }
+        .nav-btn-pro:hover {
+          color: #059669;
+          border-color: rgba(5, 150, 105, 0.3);
+          background: rgba(5, 150, 105, 0.05);
+        }
+        
+        /* ─── MOBILE MENU ──────────────────────────────────────────────── */
+        .mobile-menu-btn {
+          display: none;
+          background: none;
+          border: none;
+          padding: 0.5rem;
+          cursor: pointer;
+        }
+        .hamburger {
+          width: 24px;
+          height: 18px;
+          position: relative;
+          display: flex;
+          flex-direction: column;
+          justify-content: space-between;
+        }
+        .hamburger span {
+          display: block;
+          height: 2px;
+          background: #64748b;
+          border-radius: 2px;
+          transition: all 0.3s;
+        }
+        .hamburger.open span:nth-child(1) {
+          transform: rotate(45deg) translate(5px, 5px);
+        }
+        .hamburger.open span:nth-child(2) {
+          opacity: 0;
+        }
+        .hamburger.open span:nth-child(3) {
+          transform: rotate(-45deg) translate(5px, -5px);
+        }
+        .mobile-menu {
+          position: absolute;
+          top: 72px;
+          left: 0;
+          right: 0;
+          background: rgba(255, 255, 255, 0.95);
+          backdrop-filter: blur(24px);
+          border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+          padding: 1rem;
+          display: flex;
+          flex-direction: column;
+          gap: 0.5rem;
+          z-index: 99;
+        }
+        .mobile-nav-item {
+          padding: 0.875rem 1rem;
+          border-radius: 12px;
+          font-size: 0.9rem;
+          font-weight: 500;
+          color: #64748b;
+          text-decoration: none;
+          font-family: 'DM Sans', sans-serif;
+          transition: all 0.2s;
+        }
+        .mobile-nav-item:hover {
+          background: rgba(124, 58, 237, 0.05);
+          color: #7c3aed;
+        }
+        .mobile-nav-item.primary {
+          background: linear-gradient(135deg, #7c3aed, #ec4899);
+          color: white;
+          text-align: center;
+          font-weight: 600;
+        }
+        .mobile-nav-item.primary:hover {
+          opacity: 0.9;
+        }
+        
+        @media (max-width: 768px) {
+          .nav-desktop {
+            display: none !important;
+          }
+          .mobile-menu-btn {
+            display: block;
+          }
+        }
+        
+        /* ─── FOOTER LEGAL ─────────────────────────────────────────────── */
+        .footer-legal {
+          display: flex;
+          justify-content: center;
+          gap: 2rem;
+          padding: 1.5rem 0;
+          border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+          flex-wrap: wrap;
+        }
+        .footer-legal a {
+          font-size: 0.75rem;
+          color: #64748b;
+          text-decoration: none;
+          font-family: 'DM Sans', sans-serif;
+          transition: color 0.2s;
+        }
+        .footer-legal a:hover {
+          color: #a78bfa;
         }
         
         /* ─── MOBILE RESPONSIVE ─────────────────────────────────────────── */

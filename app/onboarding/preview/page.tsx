@@ -96,7 +96,7 @@ function PreviewContent() {
                 ⭐ 4.9 (24 avis)
               </span>
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 10px', borderRadius: 999, background: `${acc}10`, color: muted, fontSize: '0.72rem', fontWeight: 600 }}>
-                📅 3 créneaux dispo
+ 3 créneaux dispo
               </span>
             </div>
           </div>
@@ -114,7 +114,7 @@ function PreviewContent() {
           <div>
             <div style={{ fontWeight: 800, fontSize: '1.05rem', color: text, fontFamily: `'${state.fontTitle}', sans-serif` }}>{state.serviceName}</div>
             <div style={{ marginTop: 5, fontSize: '0.82rem', color: muted }}>
-              {state.serviceDuration} · Réservation instantanée ✓
+ {state.serviceDuration} · Réservation instantanée
             </div>
           </div>
           <div style={{ fontSize: '1.7rem', fontWeight: 800, color: acc, fontFamily: `'${state.fontTitle}', sans-serif`, transition: 'color 0.3s' }}>
@@ -129,7 +129,7 @@ function PreviewContent() {
 
         {/* Info band */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10, marginBottom: 24 }}>
-          {[['🏆', 'Certifié', 'Pro vérifié'], ['💬', 'Répond vite', '< 2h en moyenne'], ['🔒', 'Sécurisé', 'Paiement protégé']].map(([ic, t, s]) => (
+ {[['', 'Certifié', 'Pro vérifié'], ['', 'Répond vite', '< 2h en moyenne'], ['', 'Sécurisé', 'Paiement protégé']].map(([ic, t, s]) => (
             <div key={t} style={{ borderRadius: 12, border: `1px solid ${border}`, padding: '0.75rem', background: bg, textAlign: 'center', transition: 'all 0.3s' }}>
               <div style={{ fontSize: '1.2rem', marginBottom: 4 }}>{ic}</div>
               <div style={{ fontWeight: 700, fontSize: '0.78rem', color: text }}>{t}</div>

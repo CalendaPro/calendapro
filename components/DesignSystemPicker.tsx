@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 import React, { useState, useCallback } from 'react'
 import { useLayout, type DashboardLayoutId } from '@/lib/layout-provider'

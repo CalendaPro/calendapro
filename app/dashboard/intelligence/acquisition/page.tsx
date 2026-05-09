@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useEffect, useState, useCallback } from 'react'
+import { useUser } from '@clerk/nextjs'
 import { usePlan } from '@/lib/hooks/usePlan'
 import FeatureGate from '@/components/dashboard/FeatureGate'
 import { AcquisitionChart } from '@/components/dashboard/AcquisitionChart'
@@ -14,14 +15,30 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
 import { RefreshCw, Download, Sparkles } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
+import { logger } from '@/lib/logger'
 
 export default function AcquisitionIntelligencePage() {
   const { plan } = usePlan()
+  const { user } = useUser()
   const { toast } = useToast()
   const [data, setData] = useState<AcquisitionData | null>(null)
   const [loading, setLoading] = useState(true)
   const [timeRange, setTimeRange] = useState<'7d' | '30d' | '90d'>('30d')
   const [isRefreshing, setIsRefreshing] = useState(false)
+  const [clientsToRelaunch, setClientsToRelaunch] = useState(0)
+
+  // Fetch clients to relaunch count
+  const fetchRelaunchCount = useCallback(async () => {
+    try {
+      const response = await fetch('/api/pro/clients-to-relaunch/count')
+      if (response.ok) {
+        const result = await response.json()
+        setClientsToRelaunch(result.count || 0)
+      }
+    } catch (error) {
+      logger.error('Error fetching relaunch count:', error)
+    }
+  }, [])
 
   // Fetch data
   const fetchData = useCallback(async () => {
@@ -32,7 +49,7 @@ export default function AcquisitionIntelligencePage() {
       const result = await response.json()
       setData(result)
     } catch (error) {
-      console.error('Error fetching acquisition data:', error)
+      logger.error('Error fetching acquisition data:', error)
       toast({
         title: 'Erreur',
         description: 'Impossible de charger les données d acquisition',
@@ -46,8 +63,9 @@ export default function AcquisitionIntelligencePage() {
   useEffect(() => {
     if (plan && plan !== 'free') {
       fetchData()
+      fetchRelaunchCount()
     }
-  }, [plan, fetchData])
+  }, [plan, fetchData, fetchRelaunchCount])
 
   // Handle advice actions
   const handleMarkRead = async (id: string) => {
@@ -68,7 +86,7 @@ export default function AcquisitionIntelligencePage() {
           : null
       )
     } catch (error) {
-      console.error('Error marking as read:', error)
+      logger.error('Error marking as read:', error)
     }
   }
 
@@ -91,10 +109,10 @@ export default function AcquisitionIntelligencePage() {
       )
       toast({
         title: 'Action enregistrée!',
-        description: 'Continue comme ça! 🚀',
+ description: 'Continue comme ça! ',
       })
     } catch (error) {
-      console.error('Error marking as actioned:', error)
+      logger.error('Error marking as actioned:', error)
     }
   }
 
@@ -114,7 +132,7 @@ export default function AcquisitionIntelligencePage() {
           : null
       )
     } catch (error) {
-      console.error('Error dismissing:', error)
+      logger.error('Error dismissing:', error)
     }
   }
 
@@ -135,7 +153,7 @@ export default function AcquisitionIntelligencePage() {
         })
       }
     } catch (error) {
-      console.error('Error refreshing advice:', error)
+      logger.error('Error refreshing advice:', error)
       toast({
         title: 'Erreur',
         description: 'Impossible de générer de nouveaux conseils',
@@ -176,7 +194,7 @@ export default function AcquisitionIntelligencePage() {
     return (
       <FeatureGate required="premium" current={plan}>
         <div className="p-8">
-          <h1 className="text-3xl font-bold mb-4">📊 Intelligence d Acquisition</h1>
+ <h1 className="text-3xl font-bold mb-4"> Intelligence d Acquisition</h1>
           <p className="text-gray-600 mb-6">
             Découvre exactement où tes clients viennent et où investir pour maximiser tes revenus.
           </p>
@@ -208,7 +226,7 @@ export default function AcquisitionIntelligencePage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold flex items-center gap-3">
-            🎯 Intelligence d Acquisition
+ Intelligence d Acquisition
           </h1>
           <p className="text-gray-600 mt-1">
             Découvre exactement où investir pour maximiser tes revenus
@@ -238,9 +256,9 @@ export default function AcquisitionIntelligencePage() {
 
       {/* Quick Actions */}
       <QuickActionCards
-        proUsername="test" // TODO: get from user
+        proUsername={user?.username || user?.firstName || 'Pro'}
         topSource={data?.summary.topSource}
-        clientsToRelaunch={0} // TODO: calculate
+        clientsToRelaunch={clientsToRelaunch}
         optimalPostTime="18:30"
       />
 
@@ -307,7 +325,7 @@ export default function AcquisitionIntelligencePage() {
             </div>
             <div className="flex-1">
               <h3 className="font-bold text-purple-900 text-lg">
-                💡 Recommandation Prioritaire
+ Recommandation Prioritaire
               </h3>
               <p className="text-purple-800 mt-1">{data.recommendations.topAction}</p>
               <p className="text-purple-600 text-sm mt-2">
@@ -315,7 +333,7 @@ export default function AcquisitionIntelligencePage() {
               </p>
               <div className="flex items-center gap-4 mt-3">
                 <span className="text-sm text-purple-700">
-                  💰 Impact estimé: €{data.recommendations.estimatedRevenue.toFixed(0)}
+ Impact estimé: €{data.recommendations.estimatedRevenue.toFixed(0)}
                 </span>
                 <span className={`text-sm font-medium ${
                   data.recommendations.priority === 'high' ? 'text-red-600' : 'text-yellow-600'

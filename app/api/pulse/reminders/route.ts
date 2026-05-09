@@ -1,6 +1,9 @@
 import { auth } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
 import { getPatternsByPro, getReminderLog } from '@/lib/pulse/patterns'
+import { logger } from '@/lib/logger'
+
+export const dynamic = 'force-dynamic'
 
 export async function GET(request: Request) {
   const { userId } = await auth()
@@ -33,7 +36,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json({ patterns, summary })
   } catch (e) {
-    console.error('[API:Pulse:Reminders] GET error:', e)
+    logger.error('[API:Pulse:Reminders] GET error:', e)
     return NextResponse.json(
       { error: 'Erreur récupération patterns' },
       { status: 500 }

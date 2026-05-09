@@ -1,5 +1,6 @@
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import type { BriefingData, DailyBriefing, BriefingAppointment } from './types'
+import { logger } from '../logger'
 
 // ── Fetch raw briefing data from the SQL function ───────────
 export async function fetchBriefingData(proId: string): Promise<BriefingData> {
@@ -10,7 +11,7 @@ export async function fetchBriefingData(proId: string): Promise<BriefingData> {
   })
 
   if (error) {
-    console.error('[Pulse:Briefing] Data fetch failed:', error.message)
+    logger.error('[Pulse:Briefing] Data fetch failed:', error.message)
     throw new Error(`Briefing data fetch failed: ${error.message}`)
   }
 
@@ -24,7 +25,7 @@ export async function generateAISummary(
 ): Promise<string> {
   const apiKey = process.env.ANTHROPIC_API_KEY
   if (!apiKey) {
-    console.warn('[Pulse:Briefing] ANTHROPIC_API_KEY missing — using template')
+    logger.warn('[Pulse:Briefing] ANTHROPIC_API_KEY missing — using template')
     return generateFallbackSummary(proName, data)
   }
 
@@ -36,7 +37,7 @@ export async function generateAISummary(
       const tags: string[] = []
       if (a.is_new_client) tags.push('🆕 Nouveau client')
       if (a.client_tag === 'fidele') tags.push('⭐ Client fidèle')
-      if (a.is_birthday) tags.push('🎂 Anniversaire aujourd\'hui')
+ if (a.is_birthday) tags.push(' Anniversaire aujourd\'hui')
       const tagStr = tags.length > 0 ? ` [${tags.join(', ')}]` : ''
       return `- ${a.date?.slice(11, 16)} → ${a.client_name ?? 'Client'}${tagStr} — ${a.title}`
     })
@@ -59,7 +60,7 @@ DONNÉES DU JOUR :
 PLANNING :
 ${clientProfiles || '(Pas de RDV aujourd\'hui)'}
 
-${birthdayNames ? `🎂 ANNIVERSAIRES : ${birthdayNames}` : ''}
+${birthdayNames ? ` ANNIVERSAIRES : ${birthdayNames}` : ''}
 
 CONSIGNES :
 1. Commence par un message d'accroche motivant et personnalisé (1 ligne)
@@ -90,7 +91,7 @@ RETOURNE UNIQUEMENT LE BRIEFING, RIEN D'AUTRE.`
 
     if (!response.ok) {
       const err = await response.text()
-      console.error('[Pulse:Briefing] Anthropic error:', err)
+      logger.error('[Pulse:Briefing] Anthropic error:', err)
       return generateFallbackSummary(proName, data)
     }
 
@@ -105,7 +106,7 @@ RETOURNE UNIQUEMENT LE BRIEFING, RIEN D'AUTRE.`
 
     return summary
   } catch (e) {
-    console.error('[Pulse:Briefing] AI generation failed:', e)
+    logger.error('[Pulse:Briefing] AI generation failed:', e)
     return generateFallbackSummary(proName, data)
   }
 }
@@ -123,7 +124,7 @@ function generateFallbackSummary(
   const lines: string[] = [
     `Bonjour ${proName} ! Voici votre briefing du jour.`,
     '',
-    `📅 ${appts.length} rendez-vous aujourd'hui — ${data.revenue_forecast}€ de revenu estimé.`,
+ ` ${appts.length} rendez-vous aujourd'hui — ${data.revenue_forecast}€ de revenu estimé.`,
   ]
 
   if (newClients.length > 0) {
@@ -140,7 +141,7 @@ function generateFallbackSummary(
 
   if (birthdays.length > 0) {
     lines.push(
-      `🎂 Anniversaire(s) : ${birthdays.map((b) => b.name).join(', ')}. Pensez à leur souhaiter !`
+ ` Anniversaire(s) : ${birthdays.map((b) => b.name).join(', ')}. Pensez à leur souhaiter !`
     )
   }
 
@@ -152,11 +153,11 @@ function generateFallbackSummary(
 
   if (data.reminder_candidates > 0) {
     lines.push(
-      `📨 ${data.reminder_candidates} client(s) pourraient être relancés via le Pulse Engine.`
+ ` ${data.reminder_candidates} client(s) pourraient être relancés via le Pulse Engine.`
     )
   }
 
-  lines.push('', 'Bonne journée ! 💪')
+ lines.push('', 'Bonne journée ! ')
 
   return lines.join('\n')
 }
@@ -211,7 +212,7 @@ export async function buildAndStoreBriefing(
     .single()
 
   if (error) {
-    console.error('[Pulse:Briefing] Store failed:', error.message)
+    logger.error('[Pulse:Briefing] Store failed:', error.message)
     throw new Error(`Briefing store failed: ${error.message}`)
   }
 

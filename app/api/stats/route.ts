@@ -2,6 +2,8 @@ import { auth } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 
+export const dynamic = 'force-dynamic'
+
 export async function GET() {
   const { userId } = await auth()
   if (!userId) return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
@@ -15,38 +17,46 @@ export async function GET() {
 
   const supabase = createServerSupabaseClient()
 
-  // RDV aujourd'hui
-  const { count: todayCount } = await supabase
-    .from('appointments')
-    .select('*', { count: 'exact', head: true })
-    .eq('user_id', userId)
-    .gte('date', today.toISOString())
-    .lt('date', tomorrow.toISOString())
+  const [todayRes, clientsRes, monthRes, pendingRes] = await Promise.all([
+    // RDV aujourd'hui (table bookings, colonne scheduled_at, filtre pro_id)
+    supabase
+      .from('bookings')
+      .select('id', { count: 'exact', head: true })
+      .eq('pro_id', userId)
+      .neq('status', 'cancelled')
+      .gte('scheduled_at', today.toISOString())
+      .lt('scheduled_at', tomorrow.toISOString()),
 
-  // Total clients
-  const { count: clientsCount } = await supabase
-    .from('clients')
-    .select('*', { count: 'exact', head: true })
-    .eq('user_id', userId)
+    // Total clients uniques (distinct client_id dans bookings)
+    supabase
+      .from('bookings')
+      .select('client_id')
+      .eq('pro_id', userId)
+      .neq('status', 'cancelled'),
 
-  // RDV ce mois
-  const { count: monthCount } = await supabase
-    .from('appointments')
-    .select('*', { count: 'exact', head: true })
-    .eq('user_id', userId)
-    .gte('date', firstDayOfMonth.toISOString())
+    // RDV ce mois
+    supabase
+      .from('bookings')
+      .select('id', { count: 'exact', head: true })
+      .eq('pro_id', userId)
+      .neq('status', 'cancelled')
+      .gte('scheduled_at', firstDayOfMonth.toISOString()),
 
-  // RDV en attente
-  const { count: pendingCount } = await supabase
-    .from('appointments')
-    .select('*', { count: 'exact', head: true })
-    .eq('user_id', userId)
-    .eq('status', 'pending')
+    // RDV en attente
+    supabase
+      .from('bookings')
+      .select('id', { count: 'exact', head: true })
+      .eq('pro_id', userId)
+      .eq('status', 'pending'),
+  ])
+
+  // Count distinct clients
+  const uniqueClients = new Set((clientsRes.data ?? []).map((b) => b.client_id))
 
   return NextResponse.json({
-    todayAppointments: todayCount ?? 0,
-    totalClients: clientsCount ?? 0,
-    monthAppointments: monthCount ?? 0,
-    pendingAppointments: pendingCount ?? 0,
+    todayAppointments: todayRes.count ?? 0,
+    totalClients: uniqueClients.size,
+    monthAppointments: monthRes.count ?? 0,
+    pendingAppointments: pendingRes.count ?? 0,
   })
 }

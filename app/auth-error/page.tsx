@@ -7,7 +7,7 @@ import ErrorContent from './error-content'
 export default function AuthErrorPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-stone-50 to-stone-100">
+      <div className="min-h-screen flex flex-col items-center justify-center" style={{ background: '#F7F5F0' }}>
         <div className="animate-pulse">
           <BrandLogo />
         </div>

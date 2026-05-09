@@ -1,6 +1,9 @@
 import { auth } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { logger } from '@/lib/logger'
+
+export const dynamic = 'force-dynamic'
 
 export async function POST(request: Request) {
   const { userId } = await auth()
@@ -27,7 +30,7 @@ export async function POST(request: Request) {
   }, { onConflict: 'user_id' })
 
   if (error) {
-    console.error('client-onboarding error:', error)
+    logger.error('client-onboarding error:', error)
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 

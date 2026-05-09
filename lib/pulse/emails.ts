@@ -97,7 +97,7 @@ export async function sendDailyBriefingEmail(
           : a.client_tag === 'fidele'
             ? '<span style="background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:600;">Fidèle</span>'
             : ''
-      const birthdayIcon = a.is_birthday ? ' 🎂' : ''
+ const birthdayIcon = a.is_birthday ? ' ' : ''
       return `
         <tr>
           <td style="padding: 12px 8px; border-bottom: 1px solid #f1f5f9; font-weight: 600; color: #7c3aed;">${time}</td>
@@ -112,7 +112,7 @@ export async function sendDailyBriefingEmail(
       ? `
         <div style="background: #fef3c7; border-radius: 12px; padding: 16px; margin-bottom: 24px;">
           <p style="margin: 0; font-weight: 600; color: #92400e;">
-            🎂 Anniversaire(s) aujourd'hui : ${birthdays.map((b) => b.name).join(', ')}
+ Anniversaire(s) aujourd'hui : ${birthdays.map((b) => b.name).join(', ')}
           </p>
         </div>`
       : ''
@@ -122,7 +122,7 @@ export async function sendDailyBriefingEmail(
   await resend.emails.send({
     from: FROM,
     to: proEmail,
-    subject: `☀️ Votre briefing du ${today}`,
+ subject: ` Votre briefing du ${today}`,
     html: `
       <div style="font-family: Inter, -apple-system, sans-serif; max-width: 640px; margin: 0 auto; padding: 40px 20px; background: #ffffff;">
         <div style="margin-bottom: 32px;">
@@ -159,7 +159,7 @@ export async function sendDailyBriefingEmail(
         <!-- AI Summary -->
         <div style="background: #f5f3ff; border-radius: 12px; padding: 20px; margin-bottom: 24px; border-left: 4px solid #7c3aed;">
           <p style="font-size: 12px; font-weight: 600; color: #7c3aed; margin: 0 0 8px 0; text-transform: uppercase; letter-spacing: 0.05em;">
-            ✨ Recommandations IA
+ Recommandations IA
           </p>
           <p style="color: #334155; line-height: 1.6; margin: 0; font-size: 14px;">${summaryHtml}</p>
         </div>

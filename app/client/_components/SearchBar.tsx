@@ -201,7 +201,7 @@ export default function SearchBar({
                   <div className="text-xs font-700 text-stone-400 uppercase tracking-wider mb-1">Villes</div>
                   {suggestions.cities.map(c => (
                     <button key={c.city} onClick={() => handleSuggestionClick(c.city)} className="w-full flex items-center gap-2 px-2 py-2 rounded-lg hover:bg-violet-50 transition-colors text-left">
-                      <span>📍</span><span className="text-stone-700 text-sm">{c.city}</span>
+ <span></span><span className="text-stone-700 text-sm">{c.city}</span>
                     </button>
                   ))}
                 </div>
@@ -211,7 +211,7 @@ export default function SearchBar({
                   <div className="text-xs font-700 text-stone-400 uppercase tracking-wider mb-1">Récentes</div>
                   {suggestions.history.map((h, i) => (
                     <button key={i} onClick={() => handleSuggestionClick(h.query)} className="w-full flex items-center gap-2 px-2 py-2 rounded-lg hover:bg-violet-50 transition-colors text-left">
-                      <span>🕑</span><span className="text-stone-700 text-sm">{h.query}</span>
+ <span></span><span className="text-stone-700 text-sm">{h.query}</span>
                     </button>
                   ))}
                 </div>
@@ -221,7 +221,7 @@ export default function SearchBar({
                   <div className="text-xs font-700 text-stone-400 uppercase tracking-wider mb-1">Populaires cette semaine</div>
                   {suggestions.popular.map((p, i) => (
                     <button key={i} onClick={() => handleSuggestionClick(p.query)} className="w-full flex items-center gap-2 px-2 py-2 rounded-lg hover:bg-violet-50 transition-colors text-left">
-                      <span>🔥</span><span className="text-stone-700 text-sm">{p.query}</span>
+ <span></span><span className="text-stone-700 text-sm">{p.query}</span>
                     </button>
                   ))}
                 </div>

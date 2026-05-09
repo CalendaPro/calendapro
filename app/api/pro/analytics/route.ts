@@ -3,6 +3,8 @@ import { NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { getUserPlan } from '@/lib/subscription'
 
+export const dynamic = 'force-dynamic'
+
 export async function GET(req: Request) {
   const { userId } = await auth()
   if (!userId) return NextResponse.json({ error: 'Non autorise' }, { status: 401 })

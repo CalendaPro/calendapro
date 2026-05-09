@@ -1,4 +1,5 @@
 import { createServerSupabaseClient } from './supabase-server'
+import { logger } from './logger'
 
 /**
  * CalendaPay — Transaction Security Middleware
@@ -198,14 +199,14 @@ export async function executeAtomicWalletCredit(
       .eq('id', request.proof.booking_id)
 
     if (bookingError) {
-      console.warn('Erreur mise à jour booking:', bookingError)
+      logger.warn('Erreur mise à jour booking:', bookingError)
       // Non bloquant - la transaction est déjà enregistrée
     }
 
     return { success: true, transaction_id: transaction.id }
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Erreur inconnue'
-    console.error('Atomic wallet credit failed:', message)
+    logger.error('Atomic wallet credit failed:', message)
     return { success: false, error: message }
   }
 }

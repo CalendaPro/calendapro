@@ -2,6 +2,9 @@ import { auth } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { getUserPlan } from '@/lib/subscription'
+import { logger } from '@/lib/logger'
+
+export const dynamic = 'force-dynamic'
 
 const BUCKET = 'pro-photos'
 const LIMITS: Record<'free' | 'premium' | 'infinity', number> = {
@@ -49,7 +52,7 @@ export async function POST(request: Request) {
   const timestamp = Date.now()
 
   for (let i = 0; i < allowedFiles.length; i++) {
-    const f = allowedFiles[i] as any
+    const f = allowedFiles[i] as any  // reason: FormData .getAll() returns FormDataEntryValue, need File
     if (!f?.name) continue
 
     const objectPath = `${prefix}${timestamp}-${String(f.name).replace(/[^\w.\- ]/g, '_')}`
@@ -63,7 +66,7 @@ export async function POST(request: Request) {
       })
 
     if (error) {
-      console.error('upload pro-photos:', error)
+      logger.error('upload pro-photos:', error)
       return NextResponse.json({ error: 'Upload impossible' }, { status: 500 })
     }
 
@@ -99,7 +102,7 @@ export async function DELETE(request: Request) {
 
   const { error } = await supabase.storage.from(BUCKET).remove(sanitized)
   if (error) {
-    console.error('remove pro-photos:', error)
+    logger.error('remove pro-photos:', error)
     return NextResponse.json({ error: 'Suppression impossible' }, { status: 500 })
   }
 
@@ -121,7 +124,7 @@ export async function GET(request: Request) {
   const photos = await Promise.all(
     items
     .map(it => {
-      const name = (it as any).name ?? ''
+      const name = (it as any).name ?? ''  // reason: FormData iterator entry lacks .name in TS lib types
       const path = `${prefix}${name}`.replace(/^\//, '')
       return { path }
     })
@@ -129,7 +132,7 @@ export async function GET(request: Request) {
     .sort((a, b) => a.path.localeCompare(b.path))
     .map(async p => {
       const { data: signed } = await supabase.storage.from(BUCKET).createSignedUrl(p.path, 60 * 60)
-      const signedUrl = (signed as any)?.signedUrl as string | undefined
+      const signedUrl = (signed as any)?.signedUrl as string | undefined  // reason: Supabase signedUrl shape not in generated types
       if (signedUrl) return { ...p, url: signedUrl }
 
       const { data: pub } = supabase.storage.from(BUCKET).getPublicUrl(p.path)

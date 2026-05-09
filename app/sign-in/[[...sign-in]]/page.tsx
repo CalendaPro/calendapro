@@ -28,13 +28,18 @@ function SignInWithRedirect() {
   const redirectUrl = safeRelativeRedirect(searchParams.get('redirect_url'))
 
   // Construire le redirect_url avec planId si fourni
-  let finalRedirectUrl = redirectUrl || '/api/auth/sync'
+  // Si planId est fourni, passer par /api/auth/sync pour gérer le paiement du plan
+  // Sinon, ne PAS passer par sync (il redirige toujours vers onboarding),
+  // le callback fera la bonne redirection selon l'état onboarding
+  let callbackUrl: string
   if (planId) {
-    const separator = finalRedirectUrl.includes('?') ? '&' : '?'
-    finalRedirectUrl = `${finalRedirectUrl}${separator}planId=${encodeURIComponent(planId)}`
+    let syncUrl = `/api/auth/sync?planId=${encodeURIComponent(planId)}`
+    callbackUrl = `/api/auth/callback?role=pro&redirect_url=${encodeURIComponent(redirectUrl || syncUrl)}`
+  } else {
+    callbackUrl = redirectUrl
+      ? `/api/auth/callback?role=pro&redirect_url=${encodeURIComponent(redirectUrl)}`
+      : `/api/auth/callback?role=pro`
   }
-
-  const callbackUrl = `/api/auth/callback?role=pro&redirect_url=${encodeURIComponent(finalRedirectUrl)}`
 
   // Pendant le chargement ou si déjà connecté, ne pas afficher le formulaire
   if (!isLoaded || isSignedIn) {
@@ -56,7 +61,7 @@ function SignInWithRedirect() {
 
 export default function SignInPage() {
   return (
-    <div className="flex min-h-screen items-center justify-center">
+    <div className="flex min-h-screen items-center justify-center" style={{ background: '#F7F5F0' }}>
       <div className="w-full max-w-md">
         <Suspense fallback={<div className="text-stone-500 text-sm">Chargement…</div>}>
           <SignInWithRedirect />

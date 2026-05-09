@@ -7,6 +7,9 @@ import {
   getActiveDiscounts,
   getPricingStats,
 } from '@/lib/pulse/pricing'
+import { logger } from '@/lib/logger'
+
+export const dynamic = 'force-dynamic'
 
 const REQUIRED_PLAN = 'infinity' as const
 
@@ -40,7 +43,7 @@ export async function GET(request: Request) {
     const rule = await getPricingRule(userId)
     return NextResponse.json({ rule })
   } catch (e) {
-    console.error('[API:Pulse:Pricing] GET error:', e)
+    logger.error('[API:Pulse:Pricing] GET error:', e)
     return NextResponse.json(
       { error: 'Erreur récupération tarification' },
       { status: 500 }

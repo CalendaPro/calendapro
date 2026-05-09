@@ -482,7 +482,8 @@ export default function AppointmentsPage() {
     setCancelling(true)
 
     try {
-      const res = await fetch('/api/bookings/cancel', {
+      // Utiliser la nouvelle API cancel-with-refund qui gère automatiquement le remboursement Stripe
+      const res = await fetch('/api/bookings/cancel-with-refund', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -499,11 +500,18 @@ export default function AppointmentsPage() {
             ? {
                 ...apt,
                 status: 'cancelled',
-                payment_status: result.wallet_credited ? 'refunded' : apt.payment_status
+                payment_status: result.stripe_refund || result.wallet_credited ? 'refunded' : apt.payment_status
               }
             : apt
         ))
         setCancelModal(null)
+        
+        // Afficher un message de confirmation avec le type de remboursement
+        if (result.stripe_refund) {
+          alert(`Remboursement Stripe de ${(result.refund_amount / 100).toFixed(2)}€ initié avec succès`)
+        } else if (result.wallet_credited) {
+          alert('Rendez-vous annulé et crédit porte-monnaie effectué')
+        }
       } else {
         const error = await res.json()
         alert(error.error || 'Erreur lors de l\'annulation')
@@ -610,7 +618,7 @@ export default function AppointmentsPage() {
           </div>
           <Link
             href="/dashboard/calendar"
-            className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-violet-600 hover:bg-violet-700 text-white rounded-xl font-medium transition-all shadow-lg shadow-violet-200 hover:shadow-violet-300 active:scale-[0.98]"
+            className="inline-flex items-center justify-center gap-2 px-5 py-3 sm:py-2.5 bg-violet-600 hover:bg-violet-700 text-white rounded-xl font-medium transition-all shadow-lg shadow-violet-200 hover:shadow-violet-300 active:scale-[0.98] touch-target"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -635,7 +643,7 @@ export default function AppointmentsPage() {
             ].map(({ key, label, count, badge }) => (
               <button
                 key={key}
-                onClick={() => setStatusFilter(key as any)}
+                onClick={() => setStatusFilter(key as any)}  // reason: Object.keys() returns string[], not the union literal
                 className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all ${
                   statusFilter === key
                     ? 'bg-violet-600 text-white shadow-md shadow-violet-200'
@@ -669,7 +677,7 @@ export default function AppointmentsPage() {
         </div>
 
         {/* Statistiques financières modernes */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
           {/* Acomptes reçus */}
           <div className="relative p-5 bg-white border border-slate-200 rounded-2xl overflow-hidden hover:shadow-md transition-shadow">
             <div className="absolute top-0 right-0 w-20 h-20 bg-emerald-50 rounded-full -translate-y-1/2 translate-x-1/2" />
@@ -757,7 +765,7 @@ export default function AppointmentsPage() {
         </h2>
 
         {loading ? (
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
             {[...Array(4)].map((_, i) => (
               <div key={i} className="h-64 bg-slate-200 rounded-2xl animate-pulse" />
             ))}
@@ -775,7 +783,7 @@ export default function AppointmentsPage() {
             </p>
           </div>
         ) : (
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
             {activeAppointments.map(apt => (
               <AppointmentCard
                 key={apt.id}
@@ -794,7 +802,7 @@ export default function AppointmentsPage() {
             <span className="w-2 h-2 rounded-full bg-slate-400" />
             Historique
           </h2>
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
             {pastAppointments.map(apt => (
               <AppointmentCard
                 key={apt.id}

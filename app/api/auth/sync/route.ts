@@ -2,6 +2,9 @@ import { auth } from '@clerk/nextjs/server'
 import { NextRequest, NextResponse } from 'next/server'
 import { ensureProfile } from '@/lib/auth/ensure-profile'
 import { stripe } from '@/lib/stripe'
+import { logger } from '@/lib/logger'
+
+export const dynamic = 'force-dynamic'
 
 /**
  * GET /api/auth/sync
@@ -19,13 +22,13 @@ import { stripe } from '@/lib/stripe'
  *   4. Sinon → redirect vers onboarding
  */
 export async function GET(request: NextRequest) {
-  console.log('🔄 AUTH SYNC STARTED')
+ logger.info(' AUTH SYNC STARTED')
 
   const { userId } = await auth()
 
   // 1. Pas connecté → retour sign-up
   if (!userId) {
-    console.log('❌ No userId, redirecting to /sign-up')
+ logger.info(' No userId, redirecting to /sign-up')
     return NextResponse.redirect(new URL('/sign-up', request.url))
   }
 
@@ -33,16 +36,16 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   const planId = searchParams.get('planId') || 'starter'
 
-  console.log('👤 userId:', userId)
-  console.log('📦 planId:', planId)
+ logger.info(' userId:', userId)
+ logger.info(' planId:', planId)
 
   // 3. Vérifier/créer le profil (upsert idempotent, protège les plans payants)
   let profile: { email: string | null } | null = null
   try {
     profile = await ensureProfile(userId, { role: 'pro' })
-    console.log('✅ ensureProfile OK pour', userId)
+ logger.info(' ensureProfile OK pour', userId)
   } catch (err) {
-    console.error('❌ ensureProfile failed in sync:', err)
+ logger.error(' ensureProfile failed in sync:', err)
     return NextResponse.redirect(new URL('/auth-error?error=profile_creation', request.url))
   }
 
@@ -50,12 +53,12 @@ export async function GET(request: NextRequest) {
 
   // Plan Starter → onboarding direct
   if (planId === 'starter') {
-    console.log('🚀 Starter plan → redirecting to /onboarding')
+ logger.info(' Starter plan → redirecting to /onboarding')
     return NextResponse.redirect(new URL('/onboarding', request.url))
   }
 
   // Plans Premium/Infinity → Stripe Checkout
-  console.log('💳 Paid plan detected, creating Stripe session...')
+ logger.info(' Paid plan detected, creating Stripe session...')
 
   // Récupérer les price IDs depuis les variables d'env
   const priceIds: Record<string, string> = {
@@ -66,7 +69,7 @@ export async function GET(request: NextRequest) {
   const priceId = priceIds[planId]
 
   if (!priceId) {
-    console.error('❌ Missing price ID for plan:', planId)
+ logger.error(' Missing price ID for plan:', planId)
     const errorUrl = new URL('/auth-error', request.url)
     errorUrl.searchParams.set('error', 'invalid_plan')
     errorUrl.searchParams.set('planId', planId)
@@ -88,13 +91,13 @@ export async function GET(request: NextRequest) {
       customer_email: profile?.email ?? undefined,
     })
 
-    console.log('✅ Stripe session created:', session.id)
+ logger.info(' Stripe session created:', session.id)
 
     // Redirect vers Stripe Checkout
     return NextResponse.redirect(session.url!)
 
   } catch (error) {
-    console.error('❌ Stripe checkout error:', error)
+ logger.error(' Stripe checkout error:', error)
     const errorUrl = new URL('/auth-error', request.url)
     errorUrl.searchParams.set('error', 'stripe')
     errorUrl.searchParams.set('planId', planId)

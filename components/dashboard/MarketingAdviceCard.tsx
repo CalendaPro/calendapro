@@ -46,14 +46,14 @@ const priorityConfig = {
 }
 
 const iconMap: Record<string, React.ComponentType<{ className?: string; size?: number }>> = {
-  '🎯': Target,
-  '📈': TrendingUp,
-  '👂': Ear,
-  '🔧': AlertCircle,
-  '🚀': Sparkles,
-  '🔴': AlertCircle,
-  '🟢': CheckCircle2,
-  '🟡': Target,
+ '': Target,
+ '': TrendingUp,
+ '': Ear,
+ '': AlertCircle,
+ '': Sparkles,
+ '': AlertCircle,
+ '': CheckCircle2,
+ '': Target,
 }
 
 export function MarketingAdviceCard({
@@ -72,7 +72,7 @@ export function MarketingAdviceCard({
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="flex items-center gap-2 text-lg">
             <Sparkles className="text-purple-500" size={20} />
-            🤖 Conseils Marketing IA
+ Conseils Marketing IA
           </CardTitle>
           <Button variant="ghost" size="sm" onClick={onRefresh} disabled={isLoading}>
             <RefreshCw size={16} className={cn(isLoading && 'animate-spin')} />
@@ -100,7 +100,7 @@ export function MarketingAdviceCard({
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle className="flex items-center gap-2 text-lg">
           <Sparkles className="text-purple-500" size={20} />
-          🤖 Conseils Marketing IA
+ Conseils Marketing IA
           <Badge variant="secondary" className="ml-2">
             {advice.length} recommandations
           </Badge>
@@ -156,13 +156,13 @@ export function MarketingAdviceCard({
               {/* Action & Content */}
               <div className="mt-4 space-y-3">
                 <div className="bg-purple-50 rounded-lg p-3 border border-purple-100">
-                  <p className="text-sm font-medium text-purple-900 mb-1">💡 Action recommandée:</p>
+ <p className="text-sm font-medium text-purple-900 mb-1"> Action recommandée:</p>
                   <p className="text-sm text-purple-800">{item.action}</p>
                 </div>
 
                 {isExpanded && (
                   <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
-                    <p className="text-sm font-medium text-gray-900 mb-1">✍️ Suggestion de contenu:</p>
+ <p className="text-sm font-medium text-gray-900 mb-1"> Suggestion de contenu:</p>
                     <p className="text-sm text-gray-700">{item.contentSuggestion}</p>
                   </div>
                 )}
@@ -172,7 +172,7 @@ export function MarketingAdviceCard({
               <div className="mt-4 flex items-center justify-between">
                 <div className="flex items-center gap-4 text-sm text-gray-500">
                   <span className="flex items-center gap-1">
-                    💰 Impact estimé: €{item.estimatedRevenueImpact.toFixed(0)}
+ Impact estimé: €{item.estimatedRevenueImpact.toFixed(0)}
                   </span>
                   <button
                     onClick={() => setExpanded(isExpanded ? null : item.id)}

@@ -3,12 +3,25 @@ import { NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { getUserPlan } from '@/lib/subscription'
 import { toUiStatus } from '@/lib/booking-status'
+import { z } from 'zod'
+import { logger } from '@/lib/logger'
 
-const PLAN_LIMITS = {
-  free: 20,
-  premium: Infinity,
-  infinity: Infinity,
-}
+export const dynamic = 'force-dynamic'
+
+// Schema validation pour POST /api/appointments
+const createAppointmentSchema = z.object({
+  title: z.string().min(1, 'Le titre est requis').max(200, 'Trop long'),
+  date: z.string().datetime({ message: 'Date invalide' }),
+  duration: z.number().int().min(5).max(480).default(60),
+  notes: z.string().max(2000).optional(),
+  client_id: z.string().optional(),
+  client_name: z.string().max(100).optional(),
+})
+
+// Schema validation pour DELETE /api/appointments
+const deleteAppointmentSchema = z.object({
+  id: z.string().uuid('ID invalide'),
+})
 
 // NOTE: userId IS pro_id directement (confirmé par architecture)
 // Pas besoin de getProId() — la colonne profiles.id == Clerk userId
@@ -45,7 +58,7 @@ export async function GET() {
       .order('scheduled_at', { ascending: true })
 
     if (error) {
-      console.error('[Calendar API] GET error:', error)
+      logger.error('[Calendar API] GET error:', error)
       return NextResponse.json({ error: 'Erreur de base de données', details: error.message }, { status: 500 })
     }
 
@@ -84,7 +97,7 @@ export async function GET() {
 
     return NextResponse.json(mappedData)
   } catch (err) {
-    console.error('[Calendar API] GET exception:', err)
+    logger.error('[Calendar API] GET exception:', err)
     return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 })
   }
 }
@@ -95,13 +108,19 @@ export async function POST(request: Request) {
     if (!userId) return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
 
     const body = await request.json()
-    const { title, date, duration, notes, client_id, client_name } = body
     
-    if (!title || !date) {
-      return NextResponse.json({ error: 'Titre et date requis' }, { status: 400 })
+ // Validation Zod des entrées
+    const parseResult = createAppointmentSchema.safeParse(body)
+    if (!parseResult.success) {
+      return NextResponse.json({
+        error: 'Données invalides',
+        details: parseResult.error.issues.map(issue => ({ field: issue.path.join('.'), message: issue.message })),
+      }, { status: 400 })
     }
+    
+    const { title, date, duration, notes, client_id, client_name } = parseResult.data
 
-    // ✅ Validation anti-passé : empêcher la création de RDV dans le passé
+ // Validation anti-passé : empêcher la création de RDV dans le passé
     const appointmentDate = new Date(date)
     const now = new Date()
     if (appointmentDate < now) {
@@ -114,26 +133,35 @@ export async function POST(request: Request) {
     const supabase = createServerSupabaseClient()
     // userId IS pro_id directement
 
-    // ✅ Vérification de la limite selon le plan (sur bookings)
+ // Vérification de la limite selon le plan (mensuel)
     const plan = await getUserPlan(userId)
-    const limit = PLAN_LIMITS[plan]
-
-    if (limit !== Infinity) {
-      const { count } = await supabase
-        .from('bookings')
-        .select('*', { count: 'exact', head: true })
-        .eq('pro_id', userId)
-
-      if (count !== null && count >= limit) {
-        return NextResponse.json(
-          {
-            error: `Limite atteinte`,
-            message: `Le plan Starter est limité à ${limit} rendez-vous. Passez en Premium pour continuer.`,
-            upgrade: true,
-          },
-          { status: 403 }
-        )
+    const { data: limitCheck, error: limitError } = await supabase.rpc('can_create_booking', {
+      p_pro_id: userId,
+      p_plan: plan
+    })
+    
+    if (limitError) {
+      logger.error('[Appointments] Error checking plan limit:', limitError)
+      return NextResponse.json({ error: 'Erreur de vérification des limites' }, { status: 500 })
+    }
+    
+    if (limitCheck && !(limitCheck as { can_create: boolean }).can_create) {
+      const limitInfo = limitCheck as { 
+        can_create: boolean
+        used: number
+        limit: number
+        reset_at: string 
+        message: string
       }
+      return NextResponse.json({ 
+        error: limitInfo.message || 'Limite atteinte pour le plan Starter',
+        details: {
+          used: limitInfo.used,
+          limit: limitInfo.limit,
+          resetAt: limitInfo.reset_at,
+          upgrade: true
+        }
+      }, { status: 403 })
     }
 
     // Si client_id fourni, récupérer le nom du client
@@ -180,7 +208,7 @@ export async function POST(request: Request) {
           { status: 409 }
         )
       }
-      console.error('[Calendar API] POST error:', error)
+      logger.error('[Calendar API] POST error:', error)
       return NextResponse.json(
         { error: 'Erreur lors de la création', details: error.message },
         { status: 500 }
@@ -197,7 +225,7 @@ export async function POST(request: Request) {
       price: Number(data.price) || 0,
     })
   } catch (err) {
-    console.error('[Calendar API] POST exception:', err)
+    logger.error('[Calendar API] POST exception:', err)
     return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 })
   }
 }
@@ -207,13 +235,23 @@ export async function DELETE(request: Request) {
     const { userId } = await auth()
     if (!userId) return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
 
-    const { id } = await request.json()
-    if (!id) return NextResponse.json({ error: 'ID manquant' }, { status: 400 })
+    const body = await request.json()
+    
+    // Validation Zod des entrées
+    const parseResult = deleteAppointmentSchema.safeParse(body)
+    if (!parseResult.success) {
+      return NextResponse.json({
+        error: 'Données invalides',
+        details: parseResult.error.issues.map(issue => ({ field: issue.path.join('.'), message: issue.message })),
+      }, { status: 400 })
+    }
+    
+    const { id } = parseResult.data
 
     const supabase = createServerSupabaseClient()
     // userId IS pro_id directement
 
-    // ✅ Sécurité + Soft Delete : marquer comme cancelled, pas de hard delete
+    // Sécurité + Soft Delete : marquer comme cancelled, pas de hard delete
     const { error } = await supabase
       .from('bookings')
       .update({
@@ -225,7 +263,7 @@ export async function DELETE(request: Request) {
       .eq('pro_id', userId)
 
     if (error) {
-      console.error('[Calendar API] DELETE (soft) error:', error)
+      logger.error('[Calendar API] DELETE (soft) error:', error)
       return NextResponse.json(
         { error: 'Erreur lors de la suppression', details: error.message },
         { status: 500 }
@@ -234,7 +272,7 @@ export async function DELETE(request: Request) {
 
     return NextResponse.json({ success: true, status: 'cancelled' })
   } catch (err) {
-    console.error('[Calendar API] DELETE exception:', err)
+    logger.error('[Calendar API] DELETE exception:', err)
     return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 })
   }
 }

@@ -7,22 +7,18 @@ import { getUserPlan } from '@/lib/subscription'
 import { cookies } from 'next/headers'
 import { parseSourceCookie } from '@/lib/tracking/detect'
 import { isValidSlotTime } from '@/lib/booking-conflict'
+import { checkPersistentRateLimit } from '@/lib/rate-limit'
+import { logger } from '@/lib/logger'
 
 export const dynamic = 'force-dynamic'
 
-// Simple in-memory rate limit (remplacé par Upstash en production)
-const rateLimitMap = new Map<string, { count: number; resetAt: number }>()
-
-function checkRateLimit(key: string, maxPerMinute = 10): boolean {
-  const now = Date.now()
-  const entry = rateLimitMap.get(key)
-  if (!entry || entry.resetAt < now) {
-    rateLimitMap.set(key, { count: 1, resetAt: now + 60_000 })
-    return true
-  }
-  if (entry.count >= maxPerMinute) return false
-  entry.count++
-  return true
+// Rate limiting persistant via Supabase (Fix #12) - remplace le Map en mémoire
+async function checkRateLimit(key: string, maxPerMinute = 20): Promise<{ allowed: boolean; retryAfter?: number }> {
+  const result = await checkPersistentRateLimit(key, {
+    maxRequests: maxPerMinute,
+    windowMs: 60 * 1000, // 1 minute
+  })
+  return { allowed: result.allowed, retryAfter: result.retryAfter }
 }
 
 export async function GET(request: Request) {
@@ -79,11 +75,18 @@ export async function POST(request: Request) {
   const { userId } = await auth()
   if (!userId) return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
 
-  // Rate limiting : max 20 creations par minute par utilisateur
-  if (!checkRateLimit(`booking_create_${userId}`, 20)) {
+  // Rate limiting persistant : max 20 creations par minute par utilisateur (Fix #12)
+  const rateLimit = await checkRateLimit(`booking_create_${userId}`, 20)
+  if (!rateLimit.allowed) {
     return NextResponse.json(
-      { error: 'Trop de requetes. Veuillez patienter.' },
-      { status: 429 }
+      { 
+        error: 'Trop de requetes. Veuillez patienter.',
+        retryAfter: rateLimit.retryAfter 
+      },
+      { 
+        status: 429,
+        headers: { 'Retry-After': String(rateLimit.retryAfter ?? 60) }
+      }
     )
   }
 
@@ -120,16 +123,35 @@ export async function POST(request: Request) {
       )
     }
 
-    // Vérifier les limites du plan (pas besoin d'anti-collision avant, create_booking_safe gère ça)
+    // Vérifier les limites du plan avec la nouvelle fonction mensuelle
     const plan = await getUserPlan(userId)
-    if (plan === 'free') {
-      const { count } = await supabase
-        .from('bookings')
-        .select('*', { count: 'exact', head: true })
-        .eq('pro_id', userId)
-      if (count !== null && count >= 20) {
-        return NextResponse.json({ error: 'Limite atteinte pour le plan gratuit', upgrade: true }, { status: 403 })
+    const { data: limitCheck, error: limitError } = await supabase.rpc('can_create_booking', {
+      p_pro_id: userId,
+      p_plan: plan
+    })
+    
+    if (limitError) {
+      logger.error('[Bookings] Error checking plan limit:', limitError)
+      return NextResponse.json({ error: 'Erreur de vérification des limites' }, { status: 500 })
+    }
+    
+    if (limitCheck && !(limitCheck as { can_create: boolean }).can_create) {
+      const limitInfo = limitCheck as { 
+        can_create: boolean
+        used: number
+        limit: number
+        reset_at: string 
+        message: string
       }
+      return NextResponse.json({ 
+        error: limitInfo.message || 'Limite atteinte pour le plan Starter',
+        details: {
+          used: limitInfo.used,
+          limit: limitInfo.limit,
+          resetAt: limitInfo.reset_at,
+          upgrade: true
+        }
+      }, { status: 403 })
     }
 
     // Création via RPC atomique create_booking_safe
@@ -160,6 +182,7 @@ export async function POST(request: Request) {
     }
 
     revalidatePath('/dashboard', 'layout')
+    revalidatePath('/dashboard/calendar', 'page')
 
     return NextResponse.json({
       id: data.id,
@@ -234,6 +257,7 @@ export async function POST(request: Request) {
     await supabase.rpc('increment_marketplace_referral', { pro_id }).then(null, () => {})
   }
 
+  revalidatePath('/dashboard/calendar', 'page')
   revalidatePath('/dashboard', 'layout')
 
   return NextResponse.json(data, { status: 201 })

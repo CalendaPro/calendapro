@@ -1,5 +1,8 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
+import { logger } from '@/lib/logger'
+
+export const dynamic = 'force-dynamic'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -21,7 +24,7 @@ export async function GET(request: Request) {
     .in('pro_id', proIds)
 
   if (error) {
-    console.error('[ProScarcity] Error:', error.message)
+    logger.error('[ProScarcity] Error:', error.message)
     return NextResponse.json({ stats: {} })
   }
 

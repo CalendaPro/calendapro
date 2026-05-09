@@ -1,6 +1,9 @@
 import { auth } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { logger } from '@/lib/logger'
+
+export const dynamic = 'force-dynamic'
 
 export async function GET() {
   try {
@@ -16,7 +19,7 @@ export async function GET() {
       .eq('pro_id', userId)
 
     if (bookingsError) {
-      console.error('[Pro Clients API] Error fetching bookings:', bookingsError)
+      logger.error('[Pro Clients API] Error fetching bookings:', bookingsError)
       return NextResponse.json({ error: 'Erreur de base de données' }, { status: 500 })
     }
 
@@ -34,7 +37,7 @@ export async function GET() {
       .order('first_name', { ascending: true })
 
     if (clientsError) {
-      console.error('[Pro Clients API] Error fetching clients:', clientsError)
+      logger.error('[Pro Clients API] Error fetching clients:', clientsError)
       return NextResponse.json({ error: 'Erreur de base de données' }, { status: 500 })
     }
 
@@ -49,7 +52,7 @@ export async function GET() {
 
     return NextResponse.json(clientsWithName)
   } catch (err) {
-    console.error('[Pro Clients API] Exception:', err)
+    logger.error('[Pro Clients API] Exception:', err)
     return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 })
   }
 }

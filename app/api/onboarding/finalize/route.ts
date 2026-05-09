@@ -1,10 +1,14 @@
 import { auth } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { z } from 'zod'
+import { logger } from '@/lib/logger'
+
+export const dynamic = 'force-dynamic'
 
 type ServiceInput = {
   name: string
-  duration: string
+  duration: string | number
   price: number | string
 }
 
@@ -48,11 +52,60 @@ type FinalizeBody = {
   showReviews?: boolean
 }
 
+// Schema de validation strict pour l'étape 1 (identité)
+const Step1Schema = z.object({
+  username: z.string().min(3, 'Username minimum 3 caractères'),
+  fullName: z.string().min(2, 'Nom complet minimum 2 caractères'),
+  city: z.string().min(2, 'Ville requise'),
+  category: z.string().min(1, 'Catégorie/métier requis'),
+})
+
+// Schema de validation pour les services
+const ServiceSchema = z.object({
+  name: z.string().min(1),
+  duration: z.union([z.string(), z.number()]),
+  price: z.union([z.number(), z.string()]),
+})
+
+// Schema complet avec validation stricte
+const FinalizeSchema = z.object({
+  username: z.string().min(3),
+  fullName: z.string().min(2),
+  bio: z.string().min(10, 'Bio minimum 10 caractères').optional(),
+  city: z.string().min(2),
+  category: z.string().min(1),
+  accentColor: z.string().optional(),
+  template: z.string().optional(),
+  vibe: z.string().optional(),
+  fontPair: z.string().optional(),
+  btnStyle: z.string().optional(),
+  services: z.array(ServiceSchema).min(1, 'Au moins un service requis'),
+})
+
 export async function POST(request: Request) {
   const { userId } = await auth()
   if (!userId) return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
 
-  const body: FinalizeBody = await request.json().catch(() => ({}))
+  let body: FinalizeBody
+  try {
+    body = await request.json()
+  } catch {
+    return NextResponse.json({ error: 'JSON invalide' }, { status: 400 })
+  }
+
+  // Validation stricte des champs requis (étape 1 complète)
+  const validationResult = FinalizeSchema.safeParse(body)
+  if (!validationResult.success) {
+    const errors = validationResult.error.issues.map(e => {
+      const path = Array.isArray(e.path) ? e.path.join('.') : String(e.path)
+      return `${path}: ${e.message}`
+    })
+    return NextResponse.json({ 
+      error: 'Données incomplètes', 
+      details: errors,
+      step: 'L\'étape 1 (Identité) doit être complète: username (3+ chars), nom (2+ chars), ville, catégorie, au moins 1 service avec nom'
+    }, { status: 400 })
+  }
   const {
     username,
     fullName,
@@ -147,7 +200,7 @@ export async function POST(request: Request) {
     .eq('id', userId)
 
   if (profileError) {
-    console.error('[finalize] profile update error:', profileError)
+    logger.error('[finalize] profile update error:', profileError)
     return NextResponse.json({ error: profileError.message }, { status: 500 })
   }
 
@@ -160,12 +213,12 @@ export async function POST(request: Request) {
       validServices.map(s => ({
         user_id: userId,
         name: s.name.trim(),
-        duration: s.duration ?? '1h',
+        duration: typeof s.duration === 'number' ? `${s.duration}min` : (s.duration ?? '60min'),
         price: Number(s.price) || 0,
       }))
     )
     if (svcError) {
-      console.error('[finalize] services insert error:', svcError)
+      logger.error('[finalize] services insert error:', svcError)
     }
   }
 

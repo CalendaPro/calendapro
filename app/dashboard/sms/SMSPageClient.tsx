@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import PurchaseConfirmModal from '@/components/PurchaseConfirmModal'
+import { logger } from '@/lib/logger'
 
 // ─── TYPES ────────────────────────────────────────────────────────────────────
 interface SmsLog {
@@ -161,16 +162,16 @@ function PackButton({ credits, price, popular, priceId }: { credits: number; pri
       try {
         if (text) data = JSON.parse(text)
       } catch {
-        console.error('Réponse checkout invalide', res.status, text.slice(0, 120))
+        logger.error('Réponse checkout invalide', res.status, text.slice(0, 120))
         return
       }
       if (!res.ok) {
-        console.error(data.error ?? res.statusText)
+        logger.error(data.error ?? res.statusText)
         return
       }
       if (data.url) window.location.href = data.url
     } catch (e) {
-      console.error(e)
+      logger.error(e)
     }
     setLoading(false)
   }
@@ -500,7 +501,7 @@ export default function SMSPageClient({ credits, history }: { credits: number; h
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
             </div>
             <div>
-              <div className="sp-bonus-title">🎁 Complétez votre profil → 10 crédits offerts</div>
+ <div className="sp-bonus-title"> Complétez votre profil → 10 crédits offerts</div>
               <div className="sp-bonus-desc">Ajoutez une photo et un service pour recevoir vos premiers crédits SMS gratuits.</div>
             </div>
             <Link href="/dashboard/site-customize" className="sp-bonus-btn">Compléter</Link>

@@ -8,6 +8,7 @@ import FeatureGate from '@/components/dashboard/FeatureGate'
 import type { WeekSchedule, ScheduleException } from '@/app/onboarding/_components/ScheduleEditor'
 import type { LocationData } from '@/app/onboarding/_components/LocationEditor'
 import type { CtaConfig } from '@/app/onboarding/_components/CtaEditor'
+import { logger } from '@/lib/logger'
 
 const ScheduleEditor = dynamic(() => import('@/app/onboarding/_components/ScheduleEditor'), { ssr: false })
 const LocationEditor = dynamic(() => import('@/app/onboarding/_components/LocationEditor'), { ssr: false })
@@ -464,7 +465,7 @@ function ServicesManager({
       setEditing(null)
       setIsAdding(false)
     } catch (e) {
-      console.error('Failed to save service:', e)
+      logger.error('Failed to save service:', e)
       setError('Erreur de connexion')
     } finally {
       setLoading(false)
@@ -480,7 +481,7 @@ function ServicesManager({
         setServices(services.filter(s => s.id !== id))
       }
     } catch (e) {
-      console.error('Failed to delete service:', e)
+      logger.error('Failed to delete service:', e)
     }
     setLoading(false)
   }
@@ -661,7 +662,7 @@ function ReviewsManager({
             </div>
             <div>
               <div className="text-yellow-500 text-lg">
-                {'★'.repeat(Math.round(avgRating))}{'☆'.repeat(5 - Math.round(avgRating))}
+ {''.repeat(Math.round(avgRating))}{''.repeat(5 - Math.round(avgRating))}
               </div>
               <p className="text-sm text-[var(--dl-text-muted)]">
                 {reviews.length} avis reçus
@@ -676,7 +677,7 @@ function ReviewsManager({
           <Card key={review.id} className="p-3">
             <div className="flex items-start gap-3">
               <div className="text-yellow-500 text-sm">
-                {'★'.repeat(review.rating)}{'☆'.repeat(5 - review.rating)}
+ {''.repeat(review.rating)}{''.repeat(5 - review.rating)}
               </div>
               <div className="flex-1">
                 <p className="text-sm text-[var(--dl-text-primary)] line-clamp-2">
@@ -889,7 +890,7 @@ export default function SiteBuilderPage() {
         if (d.reviews) setReviews(d.reviews)
         if (d.avgRating !== undefined) setAvgRating(d.avgRating ?? null)
       })
-      .catch(console.error)
+      .catch(logger.error)
       .finally(() => setLoading(false))
   }, [])
 
@@ -955,7 +956,7 @@ export default function SiteBuilderPage() {
     clearTimeout(previewTimer.current)
     previewTimer.current = setTimeout(() => {
       setDebouncedPreviewUrl(buildPreviewUrl(settings, services))
-    }, 600)
+    }, 500)
   }, [settings, services, buildPreviewUrl])
 
   // Update sections visibility helper

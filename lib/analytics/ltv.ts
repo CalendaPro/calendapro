@@ -2,6 +2,7 @@
 // Calcul Lifetime Value (LTV) par canal d'acquisition
 
 import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { logger } from '../logger'
 
 export interface ClientValueMetrics {
   sourceChannel: string
@@ -53,7 +54,7 @@ export async function calculateLTVBySource(
   })
   
   if (error) {
-    console.error('Error calculating LTV:', error)
+    logger.error('Error calculating LTV:', error)
     throw error
   }
   
@@ -85,7 +86,7 @@ export async function getAcquisitionTrends(
   })
   
   if (error) {
-    console.error('Error getting trends:', error)
+    logger.error('Error getting trends:', error)
     throw error
   }
   
@@ -112,7 +113,7 @@ export async function generateMarketingAdvice(
   })
   
   if (error) {
-    console.error('Error generating advice:', error)
+    logger.error('Error generating advice:', error)
     // Fallback: générer localement
     return generateLocalAdvice(proId)
   }
@@ -149,7 +150,7 @@ async function generateLocalAdvice(proId: string): Promise<MarketingAdvice[]> {
     return [{
       id: `advice-${Date.now()}-start`,
       priority: 'high',
-      icon: '🚀',
+ icon: '',
       title: 'Commence à partager ton lien',
       description: 'Aucun client tracké encore. Partage ton lien sur tes réseaux sociaux.',
       action: 'Copie ton lien et partage sur Instagram/TikTok',
@@ -174,7 +175,7 @@ async function generateLocalAdvice(proId: string): Promise<MarketingAdvice[]> {
     advice.push({
       id: `advice-${Date.now()}-top`,
       priority: 'high',
-      icon: '🎯',
+ icon: '',
       title: `${topSource.sourceChannel} est TON canal golden`,
       description: `${topSource.clientCount} clients, €${topSource.totalRevenue.toFixed(2)} générés, panier moyen €${topSource.averageBasket.toFixed(2)}`,
       action: `Double down sur ${topSource.sourceChannel} maintenant`,
@@ -192,7 +193,7 @@ async function generateLocalAdvice(proId: string): Promise<MarketingAdvice[]> {
     advice.push({
       id: `advice-${Date.now()}-second`,
       priority: 'medium',
-      icon: '📈',
+ icon: '',
       title: `${secondSource.sourceChannel} a du potentiel non exploité`,
       description: `Seulement ${secondSource.clientCount} clients vs ${topSource.clientCount} sur ${topSource.sourceChannel}`,
       action: `Poste 3x par semaine sur ${secondSource.sourceChannel}`,
@@ -210,7 +211,7 @@ async function generateLocalAdvice(proId: string): Promise<MarketingAdvice[]> {
     advice.push({
       id: `advice-${Date.now()}-wom`,
       priority: 'high',
-      icon: '👂',
+ icon: '',
       title: 'Crée un programme de parrainage',
       description: `Bouche-à-oreille = ${womSource.retentionRate}% de fidélité, c'est ton meilleur canal!`,
       action: 'Offre €10 à chaque client qui ramène un ami',
@@ -228,7 +229,7 @@ async function generateLocalAdvice(proId: string): Promise<MarketingAdvice[]> {
     advice.push({
       id: `advice-${Date.now()}-weak`,
       priority: 'low',
-      icon: '🔧',
+ icon: '',
       title: `Optimise ton ${worstSource.sourceChannel}`,
       description: `Panier moyen de €${worstSource.averageBasket.toFixed(2)} vs €${topSource.averageBasket.toFixed(2)} sur ${topSource.sourceChannel}`,
       action: `Teste un nouveau format de contenu sur ${worstSource.sourceChannel}`,
@@ -297,7 +298,7 @@ export async function getMarketingAdvice(
   const { data, error } = await query.limit(10)
   
   if (error) {
-    console.error('Error fetching advice:', error)
+    logger.error('Error fetching advice:', error)
     return []
   }
   

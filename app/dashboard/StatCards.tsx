@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 import { useLayout } from '@/lib/layout-provider'
 

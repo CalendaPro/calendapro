@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { BrandLogo } from '@/components/BrandLogo'
+import { logger } from '@/lib/logger'
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -48,7 +49,7 @@ function LoginContent() {
           router.push(res.url)
         }
       })
-      .catch(console.error)
+      .catch(logger.error)
   }, [router])
 
   return (
@@ -146,10 +147,10 @@ function LoginContent() {
           <p className="text-stone-500 text-sm">
             Pas encore de compte ?{' '}
             <Link
-              href="/login"
+              href="/sign-up"
               className="text-violet-600 hover:text-violet-700 font-medium"
             >
-              Choisissez votre profil pour vous inscrire
+              Inscrivez-vous gratuitement
             </Link>
           </p>
         </motion.div>
@@ -160,7 +161,7 @@ function LoginContent() {
 
 export default function LoginPage() {
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-stone-50 to-stone-100 px-4">
+    <div className="min-h-screen flex flex-col items-center justify-center px-4" style={{ background: '#F7F5F0' }}>
       <Suspense fallback={<div>Chargement...</div>}>
         <LoginContent />
       </Suspense>

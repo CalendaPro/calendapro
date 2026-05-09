@@ -1,6 +1,7 @@
 import { Resend } from 'resend'
 import { generateReceiptPDF } from './generate-receipt'
 import twilio from 'twilio'
+import { logger } from './logger'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 
@@ -118,7 +119,7 @@ export async function sendBookingConfirmation({
 
         <div style="background: #f0fdf4; border-radius: 16px; padding: 32px; margin-bottom: 24px; border: 1px solid #bbf7d0;">
           <div style="text-align: center; margin-bottom: 20px;">
-            <div style="width: 56px; height: 56px; background: #dcfce7; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 24px;">✓</div>
+ <div style="width: 56px; height: 56px; background: #dcfce7; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 24px;"></div>
           </div>
           <h2 style="font-size: 20px; font-weight: 600; color: #0f172a; margin: 0 0 8px 0; text-align: center;">
             Demande envoyée !
@@ -185,9 +186,9 @@ export async function sendPaymentConfirmationWithReceipt({
       transactionId,
       service,
     })
-    console.log(`✅ PDF généré avec succès pour ${clientEmail}`)
+ logger.info(` PDF généré avec succès pour ${clientEmail}`)
   } catch (pdfErr) {
-    console.error('❌ Erreur génération PDF:', pdfErr)
+ logger.error(' Erreur génération PDF:', pdfErr)
     throw pdfErr
   }
 
@@ -205,7 +206,7 @@ export async function sendPaymentConfirmationWithReceipt({
           </div>
           <div style="background: #f0fdf4; border-radius: 16px; padding: 32px; margin-bottom: 24px; border: 1px solid #bbf7d0;">
             <div style="text-align: center; margin-bottom: 20px;">
-              <div style="width: 56px; height: 56px; background: #dcfce7; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 24px;">✓</div>
+ <div style="width: 56px; height: 56px; background: #dcfce7; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 24px;"></div>
             </div>
             <h2 style="font-size: 20px; font-weight: 600; color: #0f172a; margin: 0 0 8px 0; text-align: center;">Paiement confirme !</h2>
             <p style="color: #64748b; margin: 0; text-align: center;">
@@ -228,7 +229,7 @@ export async function sendPaymentConfirmationWithReceipt({
       ]
     })
   } catch (emailErr) {
-    console.error(`❌ Erreur envoi email à ${clientEmail}:`, emailErr)
+ logger.error(` Erreur envoi email à ${clientEmail}:`, emailErr)
     throw emailErr
   }
 }
@@ -288,7 +289,7 @@ export async function sendReminderEmail({
         </div>
         <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
           <a href="${proUrl}" style="background: linear-gradient(135deg, #7c3aed, #ec4899); color: white; padding: 12px 20px; border-radius: 10px; text-decoration: none; font-weight: 600; font-size: 14px; display: inline-block;">Voir la page du pro</a>
-          <a href="${icsUrl}" style="background: #f1f5f9; color: #0f172a; padding: 12px 20px; border-radius: 10px; text-decoration: none; font-weight: 600; font-size: 14px; display: inline-block;">📅 Ajouter au calendrier</a>
+ <a href="${icsUrl}" style="background: #f1f5f9; color: #0f172a; padding: 12px 20px; border-radius: 10px; text-decoration: none; font-weight: 600; font-size: 14px; display: inline-block;"> Ajouter au calendrier</a>
         </div>
         <p style="text-align: center; color: #94a3b8; font-size: 12px; margin-top: 32px;">Propulsé par CalendaPro · <a href="${appUrl}/client/settings" style="color: #94a3b8;">Gérer mes rappels</a></p>
       </div>
@@ -391,5 +392,352 @@ export async function sendReminderSMS({
     body: `CalendaPro : Rappel, vous avez un RDV avec ${professionalName} demain ${formattedDate}. À bientôt !`,
     from: process.env.TWILIO_PHONE_NUMBER,
     to,
+  })
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// AUDIT #9 — Emails d'activation Pro onboarding
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export async function sendWelcomeProEmail({
+  proEmail,
+  proName,
+  publicUrl,
+}: {
+  proEmail: string
+  proName: string
+  publicUrl: string
+}) {
+  await resend.emails.send({
+    from: 'CalendaPro <onboarding@resend.dev>',
+    to: proEmail,
+ subject: `Bienvenue sur CalendaPro, ${proName} ! `,
+    html: `
+      <div style="font-family: Inter, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 20px; background: #ffffff;">
+        <div style="margin-bottom: 32px; text-align: center;">
+          <h1 style="font-size: 28px; font-weight: 700; color: #0f172a; margin: 0;">
+            Calenda<span style="color: #7c3aed;">Pro</span>
+          </h1>
+        </div>
+        <div style="background: linear-gradient(135deg, #f5f3ff, #fdf2f8); border-radius: 20px; padding: 40px 32px; margin-bottom: 32px; text-align: center; border: 1px solid rgba(124,58,237,0.15);">
+ <div style="font-size: 56px; margin-bottom: 16px;"></div>
+          <h2 style="font-size: 24px; font-weight: 700; color: #0f172a; margin: 0 0 12px 0;">
+            Bienvenue, ${proName} !
+          </h2>
+          <p style="color: #64748b; margin: 0; font-size: 16px; line-height: 1.6;">
+            Votre compte est créé. Finalisez votre profil en quelques minutes pour recevoir vos premiers clients.
+          </p>
+        </div>
+        <div style="text-align: center; margin-bottom: 32px;">
+          <a href="${process.env.NEXT_PUBLIC_APP_URL}/onboarding" 
+             style="background: linear-gradient(135deg, #7c3aed, #ec4899); color: white; padding: 16px 32px; border-radius: 12px; text-decoration: none; font-weight: 700; font-size: 16px; display: inline-block; box-shadow: 0 4px 16px rgba(124,58,237,0.3);">
+            Finaliser mon profil →
+          </a>
+        </div>
+        <p style="text-align: center; color: #94a3b8; font-size: 12px; margin-top: 32px;">Propulsé par CalendaPro</p>
+      </div>
+    `,
+  })
+}
+
+export async function sendOnboardingReminderEmail({
+  proEmail,
+  proName,
+  daysSinceSignup,
+  completionPercentage,
+  publicUrl,
+}: {
+  proEmail: string
+  proName: string
+  daysSinceSignup: number
+  completionPercentage: number
+  publicUrl: string
+}) {
+  await resend.emails.send({
+    from: 'CalendaPro <onboarding@resend.dev>',
+    to: proEmail,
+    subject: `Finalisez votre profil CalendaPro — vous y êtes presque !`,
+    html: `
+      <div style="font-family: Inter, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 20px; background: #ffffff;">
+        <div style="background: #fef3c7; border-radius: 16px; padding: 32px; margin-bottom: 24px; border: 1px solid #fde68a;">
+          <div style="text-align: center; font-size: 40px; margin-bottom: 16px;">⏰</div>
+          <h2 style="font-size: 20px; font-weight: 700; color: #0f172a; margin: 0 0 8px 0; text-align: center;">
+            Vous y êtes presque, ${proName} !
+          </h2>
+          <p style="color: #92400e; text-align: center; margin: 0; font-size: 15px;">
+            Il y a ${daysSinceSignup} jour${daysSinceSignup > 1 ? 's' : ''}, vous avez commencé à créer votre profil.
+          </p>
+        </div>
+        <div style="text-align: center; margin-bottom: 32px;">
+          <a href="${process.env.NEXT_PUBLIC_APP_URL}/onboarding" 
+             style="background: linear-gradient(135deg, #7c3aed, #ec4899); color: white; padding: 16px 32px; border-radius: 12px; text-decoration: none; font-weight: 700; font-size: 16px; display: inline-block;">
+            Continuer mon profil →
+          </a>
+        </div>
+        <p style="text-align: center; color: #94a3b8; font-size: 12px; margin-top: 32px;">Propulsé par CalendaPro</p>
+      </div>
+    `,
+  })
+}
+
+export async function sendPageLiveEmail({
+  proEmail,
+  proName,
+  publicUrl,
+}: {
+  proEmail: string
+  proName: string
+  publicUrl: string
+}) {
+  await resend.emails.send({
+    from: 'CalendaPro <onboarding@resend.dev>',
+    to: proEmail,
+ subject: ` Votre page est en ligne ! Commencez à recevoir des clients`,
+    html: `
+      <div style="font-family: Inter, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 20px; background: #ffffff;">
+        <div style="background: linear-gradient(135deg, #f0fdf4, #dcfce7); border-radius: 20px; padding: 40px 32px; margin-bottom: 32px; text-align: center; border: 1px solid rgba(16,185,129,0.2);">
+ <div style="font-size: 64px; margin-bottom: 16px;"></div>
+          <h2 style="font-size: 26px; font-weight: 700; color: #0f172a; margin: 0 0 12px 0;">
+            Votre page est en ligne !
+          </h2>
+          <p style="color: #64748b; margin: 0; font-size: 16px; line-height: 1.6;">
+            Félicitations ${proName}, votre page de réservation est maintenant publique.
+          </p>
+        </div>
+        <div style="background: #f8fafc; border-radius: 16px; padding: 28px; margin-bottom: 32px; text-align: center;">
+          <p style="color: #0f172a; font-weight: 700; font-size: 20px; margin: 0 0 16px 0;">
+            ${publicUrl}
+          </p>
+        </div>
+        <p style="text-align: center; color: #94a3b8; font-size: 12px; margin-top: 32px;">Propulsé par CalendaPro</p>
+      </div>
+    `,
+  })
+}
+
+export async function sendFirstBookingCelebrationEmail({
+  proEmail,
+  proName,
+  clientName,
+  serviceName,
+  date,
+  publicUrl,
+}: {
+  proEmail: string
+  proName: string
+  clientName: string
+  serviceName: string
+  date: string
+  publicUrl: string
+}) {
+  const formattedDate = new Date(date).toLocaleDateString('fr-FR', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+
+  await resend.emails.send({
+    from: 'CalendaPro <onboarding@resend.dev>',
+    to: proEmail,
+ subject: ` Votre premier client ! Félicitations ${proName}`,
+    html: `
+      <div style="font-family: Inter, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 20px; background: #ffffff;">
+        <div style="background: linear-gradient(135deg, #fef3c7, #fde68a); border-radius: 20px; padding: 40px 32px; margin-bottom: 32px; text-align: center; border: 1px solid rgba(217,119,6,0.2);">
+ <div style="font-size: 64px; margin-bottom: 16px;"></div>
+          <h2 style="font-size: 28px; font-weight: 800; color: #0f172a; margin: 0 0 12px 0;">
+            Votre premier client !
+          </h2>
+          <p style="color: #92400e; margin: 0; font-size: 16px; line-height: 1.6;">
+            Félicitations ${proName} ! ${clientName} vient de réserver votre premier rendez-vous.
+          </p>
+        </div>
+        <div style="background: #f8fafc; border-radius: 16px; padding: 28px; margin-bottom: 32px;">
+          <p style="color: #7c3aed; font-weight: 700; font-size: 14px;">${formattedDate}</p>
+        </div>
+        <p style="text-align: center; color: #94a3b8; font-size: 12px; margin-top: 32px;">Propulsé par CalendaPro</p>
+      </div>
+    `,
+  })
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// AUDIT #10 — Webhook notification functions
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export async function sendRefundNotificationToClient({
+  clientEmail,
+  clientName,
+  professionalName,
+  serviceName,
+  amount,
+  date,
+  isPartial,
+}: {
+  clientEmail: string
+  clientName: string
+  professionalName: string
+  serviceName?: string
+  amount: number // en centimes
+  date: string
+  isPartial: boolean
+}) {
+  const amountInEuros = (amount / 100).toFixed(2)
+  const formattedDate = new Date(date).toLocaleDateString('fr-FR', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  })
+
+  await resend.emails.send({
+    from: 'CalendaPro <onboarding@resend.dev>',
+    to: clientEmail,
+    subject: isPartial
+      ? `Remboursement partiel de ${amountInEuros} € — ${professionalName}`
+      : `Remboursement de ${amountInEuros} € — ${professionalName}`,
+    html: `
+      <div style="font-family: Inter, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 20px; background: #ffffff;">
+        <div style="margin-bottom: 32px; text-align: center;">
+          <h1 style="font-size: 24px; font-weight: 700; color: #0f172a; margin: 0;">Calenda<span style="color: #7c3aed;">Pro</span></h1>
+        </div>
+        <div style="background: #fef2f2; border-radius: 16px; padding: 32px; margin-bottom: 24px; border: 1px solid #fecaca;">
+ <div style="text-align: center; font-size: 40px; margin-bottom: 16px;"></div>
+          <h2 style="font-size: 20px; font-weight: 700; color: #0f172a; margin: 0 0 8px 0; text-align: center;">
+            ${isPartial ? 'Remboursement partiel' : 'Remboursement effectué'}
+          </h2>
+          <p style="color: #64748b; text-align: center; margin: 0;">
+            Bonjour ${clientName}, un remboursement a été effectué pour votre rendez-vous.
+          </p>
+        </div>
+        <div style="background: #f8fafc; border-radius: 12px; padding: 20px; margin-bottom: 24px;">
+          <div style="margin-bottom: 12px;">
+            <div style="font-size: 11px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 3px;">Montant remboursé</div>
+            <div style="font-size: 24px; font-weight: 700; color: #16a34a;">${amountInEuros} €</div>
+          </div>
+          <div style="margin-bottom: 12px;">
+            <div style="font-size: 11px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 3px;">Professionnel</div>
+            <div style="font-size: 16px; font-weight: 600; color: #0f172a;">${professionalName}</div>
+          </div>
+          ${serviceName ? `<div style="margin-bottom: 12px;"><div style="font-size: 11px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 3px;">Service</div><div style="font-size: 15px; color: #1e293b;">${serviceName}</div></div>` : ''}
+          <div>
+            <div style="font-size: 11px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 3px;">Date du RDV</div>
+            <div style="font-size: 15px; color: #1e293b;">${formattedDate}</div>
+          </div>
+        </div>
+        <p style="color: #64748b; font-size: 14px; text-align: center;">
+          Le remboursement sera visible sur votre compte bancaire sous 5 à 10 jours ouvrés.
+        </p>
+        <p style="text-align: center; color: #94a3b8; font-size: 12px; margin-top: 32px;">Propulsé par CalendaPro</p>
+      </div>
+    `,
+  })
+}
+
+export async function sendPayoutNotificationToPro({
+  proEmail,
+  proName,
+  amount,
+  periodStart,
+  periodEnd,
+  bankAccountLast4,
+}: {
+  proEmail: string
+  proName: string
+  amount: number // en centimes
+  periodStart: string
+  periodEnd: string
+  bankAccountLast4?: string | null
+}) {
+  const amountInEuros = (amount / 100).toFixed(2)
+  const formattedStart = new Date(periodStart).toLocaleDateString('fr-FR')
+  const formattedEnd = new Date(periodEnd).toLocaleDateString('fr-FR')
+
+  await resend.emails.send({
+    from: 'CalendaPro <onboarding@resend.dev>',
+    to: proEmail,
+ subject: ` Virement reçu : ${amountInEuros} €`,
+    html: `
+      <div style="font-family: Inter, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 20px; background: #ffffff;">
+        <div style="margin-bottom: 32px; text-align: center;">
+          <h1 style="font-size: 24px; font-weight: 700; color: #0f172a; margin: 0;">Calenda<span style="color: #7c3aed;">Pro</span></h1>
+        </div>
+        <div style="background: linear-gradient(135deg, #f0fdf4, #dcfce7); border-radius: 16px; padding: 32px; margin-bottom: 24px; border: 1px solid #86efac;">
+ <div style="text-align: center; font-size: 48px; margin-bottom: 16px;"></div>
+          <h2 style="font-size: 22px; font-weight: 700; color: #0f172a; margin: 0 0 8px 0; text-align: center;">Virement reçu !</h2>
+          <p style="color: #64748b; text-align: center; margin: 0;">Bonjour ${proName}, un virement vient d'être effectué sur votre compte.</p>
+        </div>
+        <div style="background: #f8fafc; border-radius: 12px; padding: 24px; margin-bottom: 24px; text-align: center;">
+          <div style="font-size: 12px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 8px;">Montant</div>
+          <div style="font-size: 36px; font-weight: 800; color: #16a34a;">${amountInEuros} €</div>
+        </div>
+        <div style="background: #f8fafc; border-radius: 12px; padding: 20px; margin-bottom: 24px;">
+          <div style="margin-bottom: 12px;">
+            <div style="font-size: 11px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 3px;">Période</div>
+            <div style="font-size: 15px; color: #1e293b;">${formattedStart} — ${formattedEnd}</div>
+          </div>
+          ${bankAccountLast4 ? `<div><div style="font-size: 11px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 3px;">Compte bancaire</div><div style="font-size: 15px; color: #1e293b;">**** ${bankAccountLast4}</div></div>` : ''}
+        </div>
+        <p style="text-align: center; color: #94a3b8; font-size: 12px; margin-top: 32px;">Propulsé par CalendaPro</p>
+      </div>
+    `,
+  })
+}
+
+export async function sendPaymentFailedNotification({
+  clientEmail,
+  clientName,
+  professionalName,
+  serviceName,
+  amount,
+  retryUrl,
+}: {
+  clientEmail: string
+  clientName: string
+  professionalName: string
+  serviceName?: string
+  amount: number // en centimes
+  retryUrl: string
+}) {
+  const amountInEuros = (amount / 100).toFixed(2)
+
+  await resend.emails.send({
+    from: 'CalendaPro <onboarding@resend.dev>',
+    to: clientEmail,
+ subject: ` Paiement échoué — Action requise`,
+    html: `
+      <div style="font-family: Inter, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 20px; background: #ffffff;">
+        <div style="margin-bottom: 32px; text-align: center;">
+          <h1 style="font-size: 24px; font-weight: 700; color: #0f172a; margin: 0;">Calenda<span style="color: #7c3aed;">Pro</span></h1>
+        </div>
+        <div style="background: #fef2f2; border-radius: 16px; padding: 32px; margin-bottom: 24px; border: 1px solid #fecaca;">
+ <div style="text-align: center; font-size: 40px; margin-bottom: 16px;"></div>
+          <h2 style="font-size: 20px; font-weight: 700; color: #0f172a; margin: 0 0 8px 0; text-align: center;">Paiement échoué</h2>
+          <p style="color: #64748b; text-align: center; margin: 0;">
+            Bonjour ${clientName}, votre paiement de ${amountInEuros} € n'a pas pu être traité.
+          </p>
+        </div>
+        <div style="background: #f8fafc; border-radius: 12px; padding: 20px; margin-bottom: 24px;">
+          <div style="margin-bottom: 12px;">
+            <div style="font-size: 11px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 3px;">Professionnel</div>
+            <div style="font-size: 16px; font-weight: 600; color: #0f172a;">${professionalName}</div>
+          </div>
+          ${serviceName ? `<div style="margin-bottom: 12px;"><div style="font-size: 11px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 3px;">Service</div><div style="font-size: 15px; color: #1e293b;">${serviceName}</div></div>` : ''}
+          <div>
+            <div style="font-size: 11px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 3px;">Montant</div>
+            <div style="font-size: 18px; font-weight: 700; color: #dc2626;">${amountInEuros} €</div>
+          </div>
+        </div>
+        <div style="text-align: center; margin-bottom: 24px;">
+          <a href="${retryUrl}" style="background: linear-gradient(135deg, #7c3aed, #ec4899); color: white; padding: 14px 28px; border-radius: 12px; text-decoration: none; font-weight: 700; font-size: 15px; display: inline-block;">Réessayer le paiement</a>
+        </div>
+        <p style="color: #64748b; font-size: 14px; text-align: center;">
+          Votre rendez-vous n'est pas confirmé tant que le paiement n'est pas effectué.
+        </p>
+        <p style="text-align: center; color: #94a3b8; font-size: 12px; margin-top: 32px;">Propulsé par CalendaPro</p>
+      </div>
+    `,
   })
 }

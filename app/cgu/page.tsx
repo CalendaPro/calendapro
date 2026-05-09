@@ -1,13 +1,21 @@
 import Link from 'next/link'
+import type { Metadata } from 'next'
 
-export const metadata = {
+export const metadata: Metadata = {
   title: 'Conditions Générales d\'Utilisation - CalendaPro',
-  description: 'Conditions générales d\'utilisation de CalendaPro',
+  description: 'Conditions générales d\'utilisation de CalendaPro - Découvrez les termes et conditions d\'utilisation de notre plateforme de gestion de rendez-vous.',
+  alternates: {
+    canonical: '/cgu',
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
 }
 
 export default function CGUPage() {
   return (
-    <main style={{ minHeight: '100vh', background: '#FAF9F6', padding: '4rem 2rem' }}>
+    <main style={{ minHeight: '100vh', background: '#F7F5F0', padding: '4rem 2rem' }}>
       <div style={{ maxWidth: '800px', margin: '0 auto' }}>
         <Link href="/" style={{ color: '#7c3aed', textDecoration: 'none', fontSize: '0.9rem' }}>← Retour à l'accueil</Link>
         <h1 style={{ fontSize: '2.5rem', fontWeight: 700, margin: '2rem 0 1rem', color: '#1a1a1a', fontFamily: 'Clash Display, sans-serif' }}>
@@ -55,7 +63,7 @@ export default function CGUPage() {
           
           <section>
             <h2 style={{ fontSize: '1.3rem', fontWeight: 600, marginBottom: '1rem', color: '#1a1a1a' }}>7. Contact</h2>
-            <p>Pour toute question : contact@calendapro.fr</p>
+            <p>Pour toute question : contact.calendapro@gmail.com</p>
           </section>
         </div>
       </div>

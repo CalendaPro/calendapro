@@ -1,5 +1,8 @@
 import { NextResponse } from 'next/server'
 import { getActiveDiscounts } from '@/lib/pulse/pricing'
+import { logger } from '@/lib/logger'
+
+export const dynamic = 'force-dynamic'
 
 // Public endpoint — no auth required
 // Used by the booking page to show discounted slots
@@ -18,7 +21,7 @@ export async function GET(request: Request) {
     const discounts = await getActiveDiscounts(proId)
     return NextResponse.json({ discounts })
   } catch (e) {
-    console.error('[API:Public:PulseDiscounts] error:', e)
+    logger.error('[API:Public:PulseDiscounts] error:', e)
     return NextResponse.json(
       { error: 'Erreur récupération promotions' },
       { status: 500 }

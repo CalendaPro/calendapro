@@ -2,6 +2,9 @@ import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
 import { sendReminderEmail, sendReviewRequestEmail, sendBookingConfirmation, sendReminderSMS } from '@/lib/emails'
 import { clerkClient } from '@clerk/nextjs/server'
+import { logger } from '@/lib/logger'
+
+export const dynamic = 'force-dynamic'
 
 export const runtime = 'nodejs'
 
@@ -54,12 +57,12 @@ export async function POST(request: Request) {
 
   // ── 1. Insert in-app notification ────────────────────────
   const notifMap: Record<TriggerType, { title: string; message: string }> = {
-    booking_confirmed:       { title: '✅ Réservation confirmée', message: `Votre RDV avec ${data.pro_name ?? 'le pro'} est confirmé.` },
-    booking_cancelled:       { title: '❌ Réservation annulée',  message: `Votre RDV avec ${data.pro_name ?? 'le pro'} a été annulé.` },
+ booking_confirmed: { title: ' Réservation confirmée', message: `Votre RDV avec ${data.pro_name ?? 'le pro'} est confirmé.` },
+ booking_cancelled: { title: ' Réservation annulée', message: `Votre RDV avec ${data.pro_name ?? 'le pro'} a été annulé.` },
     reminder_24h:            { title: '⏰ Rappel RDV demain',     message: `N'oubliez pas votre RDV avec ${data.pro_name ?? 'le pro'}.` },
     review_request:          { title: '⭐ Donnez votre avis',     message: `Comment s'est passé votre RDV avec ${data.pro_name ?? 'le pro'} ?` },
-    pro_update:              { title: '🔔 Mise à jour pro',       message: `${data.pro_name ?? 'Un pro'} a mis à jour ses disponibilités.` },
-    favorite_pro_available:  { title: '💜 Nouveau créneau dispo', message: `${data.pro_name ?? 'Un de vos favoris'} a de nouvelles disponibilités !` },
+ pro_update: { title: ' Mise à jour pro', message: `${data.pro_name ?? 'Un pro'} a mis à jour ses disponibilités.` },
+ favorite_pro_available: { title: ' Nouveau créneau dispo', message: `${data.pro_name ?? 'Un de vos favoris'} a de nouvelles disponibilités !` },
   }
 
   const notif = notifMap[type]
@@ -108,7 +111,7 @@ export async function POST(request: Request) {
         results.push('email:review_request')
       }
     } catch (err) {
-      console.error(`trigger: email error for ${type}`, err)
+      logger.error(`trigger: email error for ${type}`, err)
     }
   }
 
@@ -129,7 +132,7 @@ export async function POST(request: Request) {
         })
         results.push('sms')
       } catch (err) {
-        console.error(`trigger: sms error for ${type}`, err)
+        logger.error(`trigger: sms error for ${type}`, err)
       }
     }
   }

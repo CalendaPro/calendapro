@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect, useRef } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { UserButton } from '@clerk/nextjs'
@@ -14,11 +14,45 @@ interface Props {
   userEmail: string
 }
 
+// Hook for mobile breakpoint detection
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(false)
+
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768)
+    checkMobile()
+    window.addEventListener('resize', checkMobile)
+    return () => window.removeEventListener('resize', checkMobile)
+  }, [])
+
+  return isMobile
+}
 
 export default function ModernLayout({ children, userName, userEmail }: Props) {
   const pathname = usePathname()
   const navRef = useRef<HTMLElement>(null)
   const { activeMode, setThemeMode } = useTheme()
+  const isMobile = useIsMobile()
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const sidebarRef = useRef<HTMLElement>(null)
+
+  // Close sidebar on route change (mobile)
+  useEffect(() => {
+    setSidebarOpen(false)
+  }, [pathname])
+
+  // Close sidebar when clicking outside
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (sidebarRef.current && !sidebarRef.current.contains(e.target as Node)) {
+        setSidebarOpen(false)
+      }
+    }
+    if (sidebarOpen) {
+      document.addEventListener('mousedown', handleClickOutside)
+      return () => document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [sidebarOpen])
 
   useEffect(() => {
     if (!navRef.current) return
@@ -39,6 +73,45 @@ export default function ModernLayout({ children, userName, userEmail }: Props) {
       <style>{`
         .ml-root { display: flex; min-height: 100vh; background: var(--dl-bg, #ffffff); }
 
+        /* ── Mobile Header ── */
+        .ml-mobile-header {
+          display: none;
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          height: 56px;
+          background: var(--dl-sidebar-bg, #f8fafc);
+          border-bottom: 1px solid var(--dl-sidebar-border, #e2e8f0);
+          z-index: 50;
+          align-items: center;
+          justify-content: space-between;
+          padding: 0 1rem;
+        }
+
+        .ml-hamburger {
+          width: 44px;
+          height: 44px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: transparent;
+          border: none;
+          cursor: pointer;
+          border-radius: 8px;
+          color: var(--dl-text-primary, #0f172a);
+          touch-action: manipulation;
+        }
+
+        .ml-hamburger:hover {
+          background: var(--dl-sidebar-hover-bg, #f8f7f4);
+        }
+
+        .ml-hamburger svg {
+          width: 24px;
+          height: 24px;
+        }
+
         /* ── Sidebar ── */
         .ml-sidebar {
           width: 252px; min-width: 252px;
@@ -47,7 +120,63 @@ export default function ModernLayout({ children, userName, userEmail }: Props) {
           position: fixed; top: 0; left: 0; height: 100vh;
           display: flex; flex-direction: column;
           z-index: 40;
-          transition: background 0.25s, border-color 0.25s;
+          transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), background 0.25s, border-color 0.25s;
+        }
+
+        /* Mobile sidebar overlay */
+        .ml-sidebar-overlay {
+          display: none;
+          position: fixed;
+          inset: 0;
+          background: rgba(0, 0, 0, 0.5);
+          z-index: 35;
+          opacity: 0;
+          transition: opacity 0.3s ease;
+        }
+
+        .ml-sidebar-overlay.open {
+          opacity: 1;
+        }
+
+        /* ── Mobile Responsive ── */
+        @media (max-width: 767px) {
+          .ml-mobile-header {
+            display: flex;
+          }
+
+          .ml-sidebar {
+            transform: translateX(-100%);
+            box-shadow: 4px 0 24px rgba(0, 0, 0, 0.15);
+          }
+
+          .ml-sidebar.open {
+            transform: translateX(0);
+          }
+
+          .ml-sidebar-overlay {
+            display: block;
+          }
+
+          .ml-main {
+            margin-left: 0 !important;
+            width: 100% !important;
+            padding-top: 56px;
+          }
+
+          .ml-logo-wrap {
+            padding-top: 0.75rem;
+            padding-bottom: 0.75rem;
+          }
+
+          /* Larger touch targets on mobile */
+          .ml-link {
+            min-height: 48px;
+            padding: 0.75rem 0.875rem;
+          }
+
+          .ml-user {
+            padding: 0.75rem 1rem;
+          }
         }
 
         /* ── Logo ── */
@@ -186,6 +315,14 @@ export default function ModernLayout({ children, userName, userEmail }: Props) {
           transition: background 0.25s;
           animation: ml-page-in 0.35s cubic-bezier(0.4,0,0.2,1);
         }
+
+        @media (max-width: 767px) {
+          .ml-main {
+            margin-left: 0;
+            width: 100%;
+            padding-top: 56px;
+          }
+        }
         @keyframes ml-page-in {
           from { opacity: 0; transform: translateY(8px); }
           to   { opacity: 1; transform: translateY(0); }
@@ -194,7 +331,39 @@ export default function ModernLayout({ children, userName, userEmail }: Props) {
       `}</style>
 
       <div className="ml-root">
-        <aside className="ml-sidebar">
+        {/* Mobile Header with Hamburger */}
+        <header className="ml-mobile-header">
+          <button
+            className="ml-hamburger"
+            onClick={() => setSidebarOpen(!sidebarOpen)}
+            aria-label={sidebarOpen ? 'Fermer le menu' : 'Ouvrir le menu'}
+            aria-expanded={sidebarOpen}
+          >
+            {sidebarOpen ? (
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            ) : (
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="3" y1="12" x2="21" y2="12" />
+                <line x1="3" y1="6" x2="21" y2="6" />
+                <line x1="3" y1="18" x2="21" y2="18" />
+              </svg>
+            )}
+          </button>
+          <BrandLogo href="/" size="compact" />
+          <div style={{ width: 44 }} /> {/* Spacer for balance */}
+        </header>
+
+        {/* Sidebar Overlay (mobile) */}
+        <div
+          className={`ml-sidebar-overlay ${sidebarOpen ? 'open' : ''}`}
+          onClick={() => setSidebarOpen(false)}
+          aria-hidden="true"
+        />
+
+        <aside ref={sidebarRef} className={`ml-sidebar ${sidebarOpen ? 'open' : ''}`}>
           <div className="ml-logo-wrap">
             <BrandLogo href="/" size="compact" />
             <div style={{ marginTop: 8, display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(124,58,237,0.08)', border: '1px solid rgba(124,58,237,0.15)', borderRadius: 100, padding: '3px 10px' }}>
@@ -223,13 +392,13 @@ export default function ModernLayout({ children, userName, userEmail }: Props) {
           </nav>
 
           <div className="ml-upgrade">
-            <div className="ml-upgrade-title">✦ CalendaPro Infinity</div>
+ <div className="ml-upgrade-title"> CalendaPro Infinity</div>
             <p className="ml-upgrade-desc">IA conversationnelle + automatisations avancées</p>
             <button className="ml-upgrade-btn">Bientôt disponible</button>
           </div>
 
           <div className="ml-user">
-            <UserButton appearance={{ elements: { avatarBox: 'h-9 w-9 ring-2 ring-[var(--dl-accent-light,#ede9fe)] ring-offset-2' } }} />
+            <UserButton appearance={{ elements: { avatarBox: 'h-10 w-10 ring-2 ring-[var(--dl-accent-light,#ede9fe)] ring-offset-2' } }} />
             <div style={{ flex: 1, minWidth: 0 }}>
               <div className="ml-user-name">{userName}</div>
               <div className="ml-user-email">{userEmail}</div>

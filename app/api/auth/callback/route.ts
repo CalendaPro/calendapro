@@ -3,6 +3,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { ensureProfile } from '@/lib/auth/ensure-profile'
 import { cookies } from 'next/headers'
+import { logger } from '@/lib/logger'
+
+export const dynamic = 'force-dynamic'
 
 /**
  * GET /api/auth/callback
@@ -20,17 +23,17 @@ import { cookies } from 'next/headers'
  *   Profil inexistant → Créer le profil automatiquement puis rediriger
  */
 export async function GET(request: NextRequest) {
-  console.log('🔄 CALLBACK CALLED')
+ logger.info(' CALLBACK CALLED')
   
   const { userId } = await auth()
-  console.log('👤 userId:', userId)
+ logger.info(' userId:', userId)
 
   // Récupérer les query params dès le début
   const { searchParams } = new URL(request.url)
 
   // Pas connecté → retour au sign-in (avec planId conservé si présent)
   if (!userId) {
-    console.log('❌ No userId, redirecting to /login')
+ logger.info(' No userId, redirecting to /login')
     const loginUrl = new URL('/login', request.url)
     const planId = searchParams.get('planId')
     if (planId) {
@@ -42,8 +45,8 @@ export async function GET(request: NextRequest) {
   const expectedRole = searchParams.get('role') || 'pro'
   const rawRedirect = searchParams.get('redirect_url') ?? ''
   
-  console.log('🎯 expectedRole:', expectedRole)
-  console.log('🔗 rawRedirect:', rawRedirect)
+ logger.info(' expectedRole:', expectedRole)
+ logger.info(' rawRedirect:', rawRedirect)
   
   // Sécurité : on n'accepte que les URLs relatives commençant par /
   const safeRedirect =
@@ -58,31 +61,31 @@ export async function GET(request: NextRequest) {
     .eq('id', userId)
     .maybeSingle()
   
-  console.log('📊 profile:', profile)
+ logger.info(' profile:', profile)
 
   // Aucun profil → créer automatiquement le profil avec le rôle attendu
   if (!profile) {
-    console.log('🆕 No profile found, calling ensureProfile...')
+    logger.info('🆕 No profile found, calling ensureProfile...')
 
     try {
       await ensureProfile(userId, { role: expectedRole as 'pro' | 'client' })
-      console.log('✅ Profile ensured successfully')
+ logger.info(' Profile ensured successfully')
     } catch (err) {
-      console.error('❌ ensureProfile failed in callback:', err)
+ logger.error(' ensureProfile failed in callback:', err)
     }
 
     // Si un redirect_url est fourni (ex: /api/auth/sync avec planId), l'utiliser
     if (safeRedirect) {
-      console.log('🚀 Redirecting to safeRedirect:', safeRedirect)
+ logger.info(' Redirecting to safeRedirect:', safeRedirect)
       return NextResponse.redirect(new URL(safeRedirect, request.url))
     }
 
     // Sinon, rediriger selon le rôle par défaut
     if (expectedRole === 'client') {
-      console.log('🚀 Redirecting CLIENT to /client/onboarding')
+ logger.info(' Redirecting CLIENT to /client/onboarding')
       return NextResponse.redirect(new URL('/client/onboarding', request.url))
     }
-    console.log('🚀 Redirecting PRO to /onboarding')
+ logger.info(' Redirecting PRO to /onboarding')
     return NextResponse.redirect(new URL('/onboarding', request.url))
   }
 
@@ -106,56 +109,40 @@ export async function GET(request: NextRequest) {
   // Role correct : rediriger selon onboarding et redirect_url
   const onboardingCompleted = profile.onboarding_completed ?? false
 
-  // 🔴 PRIORITÉ ABSOLUE #1 : Si redirect_url contient /api/auth/sync (sélection de plan)
+ // PRIORITÉ ABSOLUE #1 : Si redirect_url contient /api/auth/sync (sélection de plan)
   // On doit TOUJOURS passer par là pour gérer les plans payants, même si onboarding pas fait
   if (safeRedirect && safeRedirect.includes('/api/auth/sync')) {
-    console.log('🚀 Redirecting to sync route (plan selection):', safeRedirect)
+ logger.info(' Redirecting to sync route (plan selection):', safeRedirect)
     return NextResponse.redirect(new URL(safeRedirect, request.url))
   }
 
-  // 🔴 PRIORITÉ #2 : Si redirect_url générique fourni, l'utiliser
+ // PRIORITÉ #2 : Si redirect_url générique fourni, l'utiliser
   if (safeRedirect) {
-    console.log('🚀 Redirecting to safeRedirect:', safeRedirect)
+ logger.info(' Redirecting to safeRedirect:', safeRedirect)
     return NextResponse.redirect(new URL(safeRedirect, request.url))
   }
 
   if (expectedRole === 'client') {
-    // CLIENT : si onboarding terminé → dashboard client ou pro sélectionné, sinon onboarding
-    if (onboardingCompleted) {
-      // Check for pending pro selection cookie (priority redirect)
-      const cookieStore = await cookies()
-      const pendingPro = cookieStore.get('pending_pro_selection')
-      if (pendingPro) {
-        try {
-          const pendingProData = JSON.parse(decodeURIComponent(pendingPro.value))
-          if (pendingProData.proUsername && Date.now() - pendingProData.timestamp < 3600000) {
-            // Valid cookie - redirect to client booking page and clear cookie
-            const response = NextResponse.redirect(new URL(`/client/${pendingProData.proUsername}`, request.url))
-            response.cookies.delete('pending_pro_selection')
-            return response
-          }
-        } catch {
-          // Invalid cookie format, ignore
-        }
-      }
-      const destination = safeRedirect ?? '/client'
-      return NextResponse.redirect(new URL(destination, request.url))
-    }
-    // Redirect to onboarding with pro context if available
+    // CLIENT : jamais rediriger vers /onboarding - toujours vers le dashboard ou la page pro sélectionnée
+    // Check for pending pro selection cookie (priority redirect)
     const cookieStore = await cookies()
     const pendingPro = cookieStore.get('pending_pro_selection')
-    let onboardingUrl = '/client/onboarding'
     if (pendingPro) {
       try {
         const pendingProData = JSON.parse(decodeURIComponent(pendingPro.value))
         if (pendingProData.proUsername && Date.now() - pendingProData.timestamp < 3600000) {
-          onboardingUrl = `/client/onboarding?pro=${pendingProData.proUsername}&flow=direct`
+          // Valid cookie - redirect to client booking page and clear cookie
+          const response = NextResponse.redirect(new URL(`/client/${pendingProData.proUsername}`, request.url))
+          response.cookies.delete('pending_pro_selection')
+          return response
         }
       } catch {
-        // Invalid cookie, use default onboarding
+        // Invalid cookie format, ignore
       }
     }
-    return NextResponse.redirect(new URL(onboardingUrl, request.url))
+    // Si un redirect_url est fourni, l'utiliser, sinon rediriger vers /client (dashboard client)
+    const destination = safeRedirect ?? '/client'
+    return NextResponse.redirect(new URL(destination, request.url))
   }
 
   // PRO : onboarding par défaut (seulement si pas de redirect_url fourni - déjà vérifié plus haut)

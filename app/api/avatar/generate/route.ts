@@ -1,5 +1,8 @@
 import { generateAvatarSVG } from '@/lib/avatar/avatar-generator';
 import { NextRequest, NextResponse } from 'next/server';
+import { logger } from '@/lib/logger'
+
+export const dynamic = 'force-dynamic'
 
 export async function POST(request: NextRequest) {
   try {
@@ -45,7 +48,7 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error('Avatar generation error:', error);
+    logger.error('Avatar generation error:', error);
     return NextResponse.json(
       { error: 'Failed to generate avatar' },
       { status: 500 }
@@ -93,7 +96,7 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error('Avatar generation error:', error);
+    logger.error('Avatar generation error:', error);
     return NextResponse.json(
       { error: 'Failed to generate avatar' },
       { status: 500 }

@@ -28,7 +28,7 @@ export default function BlogPage() {
   ]
 
   return (
-    <main style={{ minHeight: '100vh', background: '#FAF9F6' }}>
+    <main style={{ minHeight: '100vh', background: '#F7F5F0' }}>
       {/* Hero */}
       <section style={{ padding: '6rem 2rem 4rem', textAlign: 'center', background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)', color: 'white' }}>
         <Link href="/" style={{ color: '#a78bfa', textDecoration: 'none', fontSize: '0.9rem' }}>← Retour à l'accueil</Link>

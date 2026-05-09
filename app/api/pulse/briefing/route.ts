@@ -2,6 +2,9 @@ import { auth } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { buildAndStoreBriefing, getLatestBriefing } from '@/lib/pulse/briefing'
+import { logger } from '@/lib/logger'
+
+export const dynamic = 'force-dynamic'
 
 export async function GET() {
   const { userId } = await auth()
@@ -14,7 +17,7 @@ export async function GET() {
     }
     return NextResponse.json({ briefing })
   } catch (e) {
-    console.error('[API:Pulse:Briefing] GET error:', e)
+    logger.error('[API:Pulse:Briefing] GET error:', e)
     return NextResponse.json(
       { error: 'Erreur récupération briefing' },
       { status: 500 }
@@ -42,7 +45,7 @@ export async function POST() {
     const briefing = await buildAndStoreBriefing(userId, proName)
     return NextResponse.json({ briefing })
   } catch (e) {
-    console.error('[API:Pulse:Briefing] POST error:', e)
+    logger.error('[API:Pulse:Briefing] POST error:', e)
     return NextResponse.json(
       { error: 'Erreur génération briefing' },
       { status: 500 }

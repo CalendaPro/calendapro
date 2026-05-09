@@ -113,7 +113,7 @@ export function AcquisitionTrend({ trends, days }: AcquisitionTrendProps) {
     return (
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">📈 Tendances d'Acquisition</CardTitle>
+ <CardTitle className="text-lg"> Tendances d'Acquisition</CardTitle>
         </CardHeader>
         <CardContent className="flex h-64 items-center justify-center">
           <p className="text-gray-500">Aucune donnée disponible</p>
@@ -126,7 +126,7 @@ export function AcquisitionTrend({ trends, days }: AcquisitionTrendProps) {
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-lg">
-          📈 Tendances d'Acquisition
+ Tendances d'Acquisition
           <span className="text-sm font-normal text-gray-500">({days} derniers jours)</span>
         </CardTitle>
       </CardHeader>

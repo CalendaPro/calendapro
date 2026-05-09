@@ -9,6 +9,7 @@ import {
   CheckCircle2, AlertCircle, XCircle, UserX,
   Wallet, ArrowRight, RefreshCcw,
 } from 'lucide-react'
+import { logger } from '@/lib/logger'
 
 // Types
 interface Booking {
@@ -395,7 +396,7 @@ export default function AppointmentsPage() {
       setToast({ message: 'Rendez-vous annule avec succes', type: 'success' })
       setTimeout(() => setToast(null), 3500)
     } catch (err) {
-      console.error('[Appointments] Cancel error:', err)
+      logger.error('[Appointments] Cancel error:', err)
       setToast({ message: err instanceof Error ? err.message : 'Impossible d\'annuler ce rendez-vous.', type: 'error' })
       setTimeout(() => setToast(null), 3500)
     } finally {
@@ -466,7 +467,7 @@ export default function AppointmentsPage() {
           </div>
         </div>
         <Link href="/client/wallet" style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '0.45rem 0.9rem', background: 'rgba(255,255,255,0.18)', color: 'white', borderRadius: 10, fontSize: '0.78rem', fontWeight: 700, textDecoration: 'none', border: '1px solid rgba(255,255,255,0.25)', transition: 'all 0.2s', fontFamily: "'DM Sans', sans-serif" }}>
-          Voir le wallet
+          Voir le portefeuille
           <ArrowRight size={12} strokeWidth={2.5} />
         </Link>
       </div>
@@ -477,7 +478,7 @@ export default function AppointmentsPage() {
           onClick={() => setActiveTab('upcoming')}
           style={tabStyle(activeTab === 'upcoming')}
         >
-          A venir
+          À venir
           <span style={{ fontSize: '0.64rem', padding: '0.13rem 0.5rem', borderRadius: 100, background: 'var(--cl-accent-soft)', color: 'var(--cl-accent)', border: '1px solid var(--cl-accent-20)', fontWeight: 600, fontFamily: "'DM Sans', sans-serif" }}>
             {upcomingCount}
           </span>

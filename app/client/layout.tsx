@@ -21,7 +21,7 @@ export default function ClientLayout({
 
   useEffect(() => {
     if (isLoaded && !user) {
-      router.push('/login')
+      router.push('/client-sign-in')
     }
   }, [user, isLoaded, router])
 

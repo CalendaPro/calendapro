@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
 import { generateAvatarSVG, getColorFromName, svgToDataURI } from '@/lib/avatar/avatar-generator';
+import { logger } from '@/lib/logger'
+
+export const dynamic = 'force-dynamic'
 
 export async function GET(
   request: NextRequest,
@@ -33,7 +36,7 @@ export async function GET(
         .single();
 
       if (error) {
-        console.error('Profile fetch error:', error);
+        logger.error('Profile fetch error:', error);
         return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
       }
 
@@ -50,7 +53,7 @@ export async function GET(
         .single();
 
       if (error) {
-        console.error('Client profile fetch error:', error);
+        logger.error('Client profile fetch error:', error);
         // Generate generic avatar if no profile found
         userName = 'User';
       } else {
@@ -83,7 +86,7 @@ export async function GET(
       },
     });
   } catch (error) {
-    console.error('Avatar fetch error:', error);
+    logger.error('Avatar fetch error:', error);
     return NextResponse.json(
       { error: 'Failed to fetch avatar' },
       { status: 500 }

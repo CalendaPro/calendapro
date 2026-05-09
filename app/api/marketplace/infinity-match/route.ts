@@ -3,6 +3,9 @@ import { NextResponse } from 'next/server'
 import { addDays, format, setHours, startOfDay } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { haversineKm, PLAN_SORT_RANK } from '@/lib/geo'
+import { logger } from '@/lib/logger'
+
+export const dynamic = 'force-dynamic'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -51,17 +54,18 @@ async function suggestSlot(proUserId: string, userQuery: string) {
   const day0 = startOfDay(tomorrow)
   const day1 = addDays(day0, 1)
   const { data: busy } = await supabase
-    .from('appointments')
-    .select('date')
-    .eq('user_id', proUserId)
-    .gte('date', day0.toISOString())
-    .lt('date', day1.toISOString())
+    .from('bookings')
+    .select('scheduled_at')
+    .eq('pro_id', proUserId)
+    .neq('status', 'cancelled')
+    .gte('scheduled_at', day0.toISOString())
+    .lt('scheduled_at', day1.toISOString())
 
   const hours = prefersMorning(userQuery)
     ? [9, 10, 11, 12]
     : [10, 11, 14, 15, 16, 17]
 
-  const taken = new Set((busy ?? []).map(a => new Date(a.date).getHours()))
+  const taken = new Set((busy ?? []).map(a => new Date(a.scheduled_at as string).getHours()))
   for (const h of hours) {
     if (!taken.has(h)) {
       const d = setHours(day0, h)
@@ -173,7 +177,7 @@ export async function POST(request: Request) {
         : 'Recherche élargie à tous les pros — affinez avec un métier (ex. coach sportif).',
     })
   } catch (e) {
-    console.error('infinity-match', e)
+    logger.error('infinity-match', e)
     return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 })
   }
 }
