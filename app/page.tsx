@@ -16,7 +16,8 @@ const fadeUp = {
 function GlobalStyles() {
   return (
     <style>{`
-      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+      @import url('https://api.fontshare.com/v2/css?f[]=clash-display@400,500,600,700,800,900&display=swap');
+      @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&display=swap');
       *, *::before, *::after { box-sizing: border-box; }
       html { scroll-behavior: smooth; }
       body { margin: 0; }
@@ -24,6 +25,8 @@ function GlobalStyles() {
       @keyframes tickerLeft  { from { transform: translateX(0);    } to { transform: translateX(-50%); } }
       @keyframes tickerRight { from { transform: translateX(-50%); } to { transform: translateX(0);    } }
       @keyframes pulseDot    { 0%,100% { transform:scale(1);   opacity:.8; } 50% { transform:scale(2.4); opacity:.15; } }
+      @keyframes floatY  { 0%,100% { transform: translateY(0px); } 50% { transform: translateY(-6px); } }
+      @keyframes floatY2 { 0%,100% { transform: translateY(0px); } 50% { transform: translateY(-4px); } }
 
       /* ── layout helpers ── */
       .cp-nav-links    { display: flex; gap: 32px; align-items: center; }
@@ -62,7 +65,8 @@ function GlobalStyles() {
 
 // ─── DESIGN TOKENS ────────────────────────────────────────────────────────────
 const G = 'linear-gradient(135deg,#7C3AED,#EC4899)'
-const FONT = 'Inter,-apple-system,BlinkMacSystemFont,sans-serif'
+const FONT = "'DM Sans',-apple-system,BlinkMacSystemFont,sans-serif"
+const FONT_TITLE = "'Clash Display','DM Sans',sans-serif"
 
 // ─── TINY HELPERS ─────────────────────────────────────────────────────────────
 function Grad({ children }: { children: React.ReactNode }) {
@@ -100,7 +104,7 @@ const W = { maxWidth: '1140px', margin: '0 auto' }
 const PAD = 'clamp(20px,5vw,60px)'
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// §1 — NAVBAR
+// §1 - NAVBAR
 // ═══════════════════════════════════════════════════════════════════════════════
 function Navbar() {
   const [scrolled, setScrolled] = useState(false)
@@ -150,73 +154,103 @@ function Navbar() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// §2 — HERO
+// §2 - HERO
 // ═══════════════════════════════════════════════════════════════════════════════
-function DashboardMockup() {
-  const appts = [
-    { col: 0, time: '9h00',  name: 'Marie L.',  v: true  },
-    { col: 1, time: '10h30', name: 'Karim D.',  v: false },
-    { col: 2, time: '14h00', name: 'Sophie B.', v: true  },
-    { col: 3, time: '11h00', name: 'Thomas G.', v: false },
-    { col: 4, time: '16h00', name: 'Lucas P.',  v: true  },
-  ]
-  const stats = [
- { t: "8 RDV aujourd'hui", bg: '#F3F0FF', c: '#7C3AED', i: '' },
- { t: '+245€ ce mois', bg: '#FDF2F8', c: '#EC4899', i: '' },
- { t: '0 no-show', bg: '#F0FDF4', c: '#10B981', i: '' },
- { t: '3 nouveaux clients', bg: '#F3F0FF', c: '#7C3AED', i: '' },
-  ]
+function HeroProductComposition() {
   return (
     <motion.div
       initial={{ opacity: 0, y: 32 }} animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.8, delay: 0.5, ease: [0.25, 0.1, 0.25, 1] }}
-      style={{ marginTop: '64px', maxWidth: '920px', marginLeft: 'auto', marginRight: 'auto', borderRadius: '16px', border: '1px solid #E5E7EB', boxShadow: '0 0 0 1px rgba(0,0,0,.04),0 32px 64px -12px rgba(0,0,0,.14),0 16px 32px -8px rgba(0,0,0,.08)', overflow: 'hidden' }}>
-      {/* macOS bar */}
-      <div style={{ background: '#F9FAFB', height: '40px', borderBottom: '1px solid #E5E7EB', display: 'flex', alignItems: 'center', padding: '0 16px', position: 'relative' }}>
-        <div style={{ display: 'flex', gap: '8px' }}>
-          {['#FF5F57', '#FFBD2E', '#28C840'].map(c => <div key={c} style={{ width: '12px', height: '12px', borderRadius: '50%', background: c }} />)}
+      style={{ position: 'relative', width: '100%', maxWidth: '580px', margin: '48px auto 0', padding: '40px 24px' }}
+    >
+      {/* Toast notification - top right */}
+      <div style={{
+        position: 'absolute', top: '-20px', right: '-20px',
+        background: '#fff', borderRadius: '12px', padding: '12px 16px',
+        boxShadow: '0 8px 32px rgba(0,0,0,0.1)', border: '1px solid rgba(0,0,0,0.06)',
+        width: '220px', zIndex: 10,
+        animation: 'floatY 4s ease-in-out infinite',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0 }}>
+            <circle cx="12" cy="12" r="10" stroke="#059669" strokeWidth="2"/>
+            <path d="M8 12l3 3 5-5" stroke="#059669" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+          <span style={{ fontSize: '12px', fontWeight: 700, color: '#1A1A2E', fontFamily: FONT }}>Acompte reçu</span>
         </div>
-        <span style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)', fontSize: '13px', color: '#6B7280', fontWeight: 500 }}>CalendaPro — Dashboard</span>
+        <div style={{ fontSize: '11px', color: '#6B7280', marginBottom: '8px', fontFamily: FONT }}>30,00 € · Sophie M.</div>
+        <div style={{ position: 'relative', height: '3px', background: '#f0ede8', borderRadius: '2px' }}>
+          <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: '40%', background: G, borderRadius: '2px' }} />
+        </div>
+        <div style={{ fontSize: '10px', color: '#9CA3AF', marginTop: '4px', textAlign: 'right', fontFamily: FONT }}>40% encaissé</div>
       </div>
-      {/* Body */}
-      <div style={{ background: '#fff', padding: '24px' }}>
-        {/* Stat cards */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '12px', marginBottom: '24px' }}>
-          {stats.map(s => (
-            <div key={s.t} style={{ background: '#FAFAF9', border: '1px solid #E5E7EB', borderRadius: '10px', padding: '12px 16px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: s.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', color: s.c, fontWeight: 700, flexShrink: 0 }}>{s.i}</div>
-              <span style={{ fontSize: '12px', fontWeight: 600, color: '#0A0A0A', lineHeight: 1.3 }}>{s.t}</span>
+
+      {/* Main agenda block */}
+      <div style={{
+        background: '#fff', borderRadius: '16px', border: '1px solid rgba(0,0,0,0.07)',
+        boxShadow: '0 20px 60px rgba(0,0,0,0.08)', padding: '24px',
+        position: 'relative', maxWidth: '520px', margin: '0 auto',
+      }}>
+        {/* Header */}
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '20px' }}>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
+              <span style={{ position: 'relative', display: 'inline-block', width: '8px', height: '8px' }}>
+                <span style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: '#059669', opacity: 0.3, animation: 'pulseDot 2s ease-in-out infinite' }} />
+                <span style={{ position: 'absolute', inset: '2px', borderRadius: '50%', background: '#059669' }} />
+              </span>
+              <span style={{ fontSize: '11px', fontWeight: 600, color: '#059669', fontFamily: FONT, letterSpacing: '0.04em' }}>En direct</span>
             </div>
-          ))}
+            <div style={{ fontSize: '13px', fontWeight: 700, color: '#0A0A0A', fontFamily: FONT }}>Semaine du 19 mai</div>
+            <div style={{ fontSize: '11px', color: '#9CA3AF', fontFamily: FONT, marginTop: '2px' }}>3 rendez-vous confirmés</div>
+          </div>
         </div>
-        {/* Calendar */}
-        <div style={{ border: '1px solid #F3F4F6', borderRadius: '12px', overflow: 'hidden' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', background: '#FAFAF9', borderBottom: '1px solid #F3F4F6' }}>
-            {['Lun', 'Mar', 'Mer', 'Jeu', 'Ven'].map(d => (
-              <div key={d} style={{ padding: '10px 12px', fontSize: '12px', fontWeight: 600, color: '#6B7280', textAlign: 'center', letterSpacing: '0.04em' }}>{d}</div>
-            ))}
+
+        {/* Agenda rows */}
+        {[
+          { day: 'Lundi',    time: '09h00', name: 'Sophie M.',  service: 'Consultation', duration: '45min', bg: '#f3f0ff', color: '#7C3AED' },
+          { day: 'Mardi',    time: '10h30', name: 'Marc D.',    service: 'Coaching',     duration: '1h',    bg: '#fff0f7', color: '#EC4899' },
+          { day: 'Vendredi', time: '14h00', name: 'Clara R.',   service: 'Bilan',        duration: '30min', bg: '#f0fdf4', color: '#059669' },
+        ].map((row, i) => (
+          <div key={row.day} style={{
+            display: 'grid', gridTemplateColumns: '70px 45px 1fr auto',
+            alignItems: 'center', gap: '12px',
+            padding: '10px 8px',
+            borderBottom: i < 2 ? '1px solid #f0ede8' : 'none',
+            borderRadius: '6px',
+            cursor: 'default',
+            transition: 'background 150ms',
+          }}
+            onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.background = 'rgba(124,58,237,0.04)' }}
+            onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = 'transparent' }}
+          >
+            <span style={{ fontSize: '11px', fontWeight: 600, color: '#9CA3AF', fontFamily: FONT }}>{row.day}</span>
+            <span style={{ fontSize: '11px', color: '#6B7280', fontFamily: FONT }}>{row.time}</span>
+            <span style={{ fontSize: '12px', fontWeight: 600, color: '#0A0A0A', fontFamily: FONT }}>{row.name}</span>
+            <span style={{ fontSize: '10px', fontWeight: 600, color: row.color, background: row.bg, padding: '2px 8px', borderRadius: '100px', whiteSpace: 'nowrap', fontFamily: FONT }}>{row.service}</span>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', padding: '12px', gap: '8px', background: '#fff', minHeight: '90px' }}>
-            {[0, 1, 2, 3, 4].map(i => {
-              const a = appts.find(x => x.col === i)
-              return (
-                <div key={i}>
-                  {a && (
-                    <div style={{ borderRadius: '6px', padding: '6px 8px', background: a.v ? '#EDE9FE' : '#FCE7F3', color: a.v ? '#7C3AED' : '#EC4899', fontSize: '11px', fontWeight: 500, lineHeight: 1.4 }}>
-                      <div style={{ fontSize: '10px', opacity: 0.7, marginBottom: '2px' }}>{a.time}</div>
-                      {a.name}
-                    </div>
-                  )}
-                </div>
-              )
-            })}
-          </div>
+        ))}
+      </div>
+
+      {/* SMS badge - bottom left */}
+      <div style={{
+        position: 'absolute', bottom: '-16px', left: '-16px',
+        background: '#fff', borderRadius: '10px', padding: '10px 14px',
+        boxShadow: '0 4px 20px rgba(0,0,0,0.08)', border: '1px solid rgba(0,0,0,0.06)',
+        width: '200px', zIndex: 10,
+        animation: 'floatY2 3s ease-in-out 1s infinite',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0 }}>
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" stroke="#7C3AED" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+          <span style={{ fontSize: '11px', fontWeight: 700, color: '#1A1A2E', fontFamily: FONT }}>Rappel SMS envoyé</span>
+          <span style={{ fontSize: '9px', fontWeight: 700, color: '#059669', background: '#f0fdf4', padding: '2px 6px', borderRadius: '100px', marginLeft: 'auto', whiteSpace: 'nowrap', fontFamily: FONT }}>Livré</span>
         </div>
       </div>
     </motion.div>
   )
 }
-
 function HeroSection() {
   return (
     <section style={{ padding: `140px ${PAD} 80px`, textAlign: 'center', fontFamily: FONT }}>
@@ -225,11 +259,11 @@ function HeroSection() {
         style={{ display: 'flex', justifyContent: 'center', marginBottom: '32px' }}>
         <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: '#F3F0FF', border: '1px solid #DDD6FE', borderRadius: '100px', padding: '6px 16px', fontSize: '13px', fontWeight: 600, color: '#7C3AED' }}>
           <span style={{ fontSize: '8px' }}>●</span>
-          Bêta ouverte — Rejoignez les premiers
+          Bêta ouverte · Rejoignez les premiers
         </div>
       </motion.div>
 
-      {/* Title — no opacity:0 initial so always readable */}
+      {/* Title (no opacity:0 initial, always readable) */}
       <motion.h1 initial={{ y: 24 }} animate={{ y: 0 }} transition={{ duration: 0.6, delay: 0.1, ease: [0.25, 0.1, 0.25, 1] }}
         style={{ fontSize: 'clamp(60px,8vw,100px)', fontWeight: 900, letterSpacing: '-0.04em', lineHeight: 0.92, color: '#0A0A0A', margin: '0 0 4px' }}>
         Vos rendez-vous,
@@ -241,7 +275,7 @@ function HeroSection() {
 
       {/* Subtitle */}
       <p style={{ fontSize: '18px', lineHeight: 1.75, color: '#6B7280', maxWidth: '520px', margin: '0 auto 40px' }}>
-        Réservations automatiques, zéro no-show, nouveaux clients — depuis un seul endroit.
+        Réservations automatiques, zéro no-show, nouveaux clients · depuis un seul endroit.
       </p>
 
       {/* Buttons */}
@@ -253,11 +287,11 @@ function HeroSection() {
           onMouseDown={e => { e.currentTarget.style.transform = 'scale(0.98)' }}>
           Démarrer gratuitement →
         </Link>
-        <Link href="#demo"
+        <Link href="/explore"
           style={{ display: 'inline-flex', alignItems: 'center', height: '52px', padding: '0 28px', borderRadius: '100px', background: '#fff', border: '1.5px solid #E5E7EB', color: '#0A0A0A', fontSize: '16px', fontWeight: 500, textDecoration: 'none', transition: 'border-color 150ms, color 150ms' }}
           onMouseEnter={e => { e.currentTarget.style.borderColor = '#7C3AED'; e.currentTarget.style.color = '#7C3AED' }}
           onMouseLeave={e => { e.currentTarget.style.borderColor = '#E5E7EB'; e.currentTarget.style.color = '#0A0A0A' }}>
-          Voir une démo
+          Explorer la marketplace
         </Link>
       </motion.div>
 
@@ -266,13 +300,13 @@ function HeroSection() {
         Gratuit pour commencer · Sans carte bancaire · Annulation à tout moment
       </p>
 
-      <DashboardMockup />
+      <HeroProductComposition />
     </section>
   )
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// §3 — TICKER
+// §3 - TICKER
 // ═══════════════════════════════════════════════════════════════════════════════
 function TickerRow({ items, reverse }: { items: string[]; reverse?: boolean }) {
   const content = items.map((item, i) => (
@@ -282,7 +316,7 @@ function TickerRow({ items, reverse }: { items: string[]; reverse?: boolean }) {
   ))
   return (
     <div style={{ overflow: 'hidden', padding: '5px 0' }}>
-      <div style={{ display: 'inline-flex', whiteSpace: 'nowrap', animation: `${reverse ? 'tickerRight' : 'tickerLeft'} 28s linear infinite`, fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.12em', color: '#9CA3AF' }}>
+      <div style={{ display: 'inline-flex', whiteSpace: 'nowrap', animation: `${reverse ? 'tickerRight' : 'tickerLeft'} 28s linear infinite`, fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#9090A8' }}>
         {content}{content}
       </div>
     </div>
@@ -291,7 +325,7 @@ function TickerRow({ items, reverse }: { items: string[]; reverse?: boolean }) {
 
 function TickerSection() {
   return (
-    <div style={{ borderTop: '1px solid #E5E7EB', borderBottom: '1px solid #E5E7EB', background: '#fff', padding: '18px 0', overflow: 'hidden' }}>
+    <div style={{ borderTop: '1px solid rgba(0,0,0,0.06)', borderBottom: '1px solid rgba(0,0,0,0.06)', background: 'transparent', padding: '14px 0', overflow: 'hidden' }}>
       <TickerRow items={['BARBIERS', 'COACHS', 'PHOTOGRAPHES', 'TATOUEURS', 'ESTHETICIENNES', 'CONSULTANTS', 'KINESITHERAPEUTES', 'THERAPEUTES', 'ARTISTES', 'FREELANCES']} />
       <TickerRow items={['RESERVATION EN LIGNE', 'ZERO NO-SHOW', 'RAPPELS SMS', 'PAIEMENT INTEGRE', 'MARKETPLACE', 'AGENDA INTELLIGENT', 'ACOMPTE AUTOMATIQUE', 'MINI-SITE PERSO']} reverse />
     </div>
@@ -299,7 +333,7 @@ function TickerSection() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// §4 — STATS
+// §4 - STATS
 // ═══════════════════════════════════════════════════════════════════════════════
 function useCountUp(target: number, duration: number, go: boolean) {
   const [v, setV] = useState(0)
@@ -346,7 +380,7 @@ function StatsSection() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// §5 — MÉTIERS — preview components
+// §5 - METIERS - preview components
 // ═══════════════════════════════════════════════════════════════════════════════
 function PrevBarber() {
   return (
@@ -365,10 +399,10 @@ function PrevBarber() {
 function PrevPhoto() {
   return (
     <div style={{ background: '#FAFAF9', border: '1px solid #E5E7EB', borderRadius: '12px', padding: '16px', marginTop: '20px' }}>
-      <div style={{ fontSize: '15px', fontWeight: 700, color: '#0A0A0A', marginBottom: '6px' }}>Shooting portrait — Sarah M.</div>
+      <div style={{ fontSize: '15px', fontWeight: 700, color: '#0A0A0A', marginBottom: '6px' }}>Shooting portrait · Sarah M.</div>
       <div style={{ fontSize: '13px', color: '#6B7280', marginBottom: '12px' }}>Samedi 12 mai, 10h00</div>
       <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-        <span style={{ background: '#F0FDF4', color: '#10B981', border: '1px solid #BBF7D0', borderRadius: '100px', padding: '4px 12px', fontSize: '12px', fontWeight: 600 }}>Acompte reçu — 75€</span>
+        <span style={{ background: '#F0FDF4', color: '#10B981', border: '1px solid #BBF7D0', borderRadius: '100px', padding: '4px 12px', fontSize: '12px', fontWeight: 600 }}>Acompte reçu · 75€</span>
         <span style={{ background: '#F3F0FF', color: '#7C3AED', border: '1px solid #DDD6FE', borderRadius: '100px', padding: '4px 12px', fontSize: '12px', fontWeight: 600 }}>Brief envoyé</span>
       </div>
     </div>
@@ -383,7 +417,7 @@ function PrevCoach() {
   ]
   return (
     <div style={{ background: '#FAFAF9', border: '1px solid #E5E7EB', borderRadius: '12px', padding: '16px', marginTop: '20px' }}>
-      <div style={{ fontSize: '12px', fontWeight: 600, color: '#6B7280', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Semaine du 5 mai — 11 séances</div>
+      <div style={{ fontSize: '12px', fontWeight: 600, color: '#6B7280', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Semaine du 5 mai · 11 séances</div>
       {slots.map(s => (
         <div key={s.d} style={{ display: 'flex', alignItems: 'center', gap: '8px', borderRadius: '8px', padding: '8px 12px', background: s.v ? '#EDE9FE' : '#FCE7F3', marginBottom: '6px' }}>
           <span style={{ fontSize: '11px', fontWeight: 700, color: '#9CA3AF', width: '28px' }}>{s.d}</span>
@@ -398,8 +432,8 @@ function PrevCoach() {
 function PrevTattoo() {
   return (
     <div style={{ background: '#FAFAF9', border: '1px solid #E5E7EB', borderRadius: '12px', padding: '16px', marginTop: '20px' }}>
-      <div style={{ fontSize: '15px', fontWeight: 700, color: '#0A0A0A', marginBottom: '4px' }}>Sleeve japonais — Marco D.</div>
-      <div style={{ fontSize: '13px', color: '#6B7280', marginBottom: '4px' }}>Durée : 4h — Vendredi 10 mai, 13h</div>
+      <div style={{ fontSize: '15px', fontWeight: 700, color: '#0A0A0A', marginBottom: '4px' }}>Sleeve japonais · Marco D.</div>
+      <div style={{ fontSize: '13px', color: '#6B7280', marginBottom: '4px' }}>Durée : 4h · Vendredi 10 mai, 13h</div>
       <div style={{ fontSize: '13px', color: '#6B7280', marginBottom: '14px' }}>Acompte 50€ encaissé via Stripe</div>
  <span style={{ background: '#F0FDF4', color: '#10B981', border: '1px solid #BBF7D0', borderRadius: '100px', padding: '4px 12px', fontSize: '12px', fontWeight: 600 }}> Confirmé</span>
     </div>
@@ -421,7 +455,7 @@ function PrevKine() {
             {p.n.split(' ').map(x => x[0]).join('')}
           </div>
           <div>
-            <div style={{ fontSize: '13px', fontWeight: 600, color: '#0A0A0A' }}>{p.t} — {p.n}</div>
+            <div style={{ fontSize: '13px', fontWeight: 600, color: '#0A0A0A' }}>{p.t} · {p.n}</div>
             <div style={{ fontSize: '12px', color: '#6B7280' }}>{p.s}</div>
           </div>
         </div>
@@ -456,7 +490,7 @@ function PrevProf() {
     <div style={{ background: '#FAFAF9', border: '1px solid #E5E7EB', borderRadius: '12px', padding: '16px', marginTop: '20px' }}>
       {cours.map(c => (
         <div key={c.m} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', background: c.v ? '#F3F0FF' : '#FDF2F8', borderRadius: '8px', marginBottom: '6px' }}>
-          <span style={{ fontSize: '13px', fontWeight: 600, color: c.v ? '#7C3AED' : '#EC4899' }}>{c.m} — {c.e}, {c.h}</span>
+          <span style={{ fontSize: '13px', fontWeight: 600, color: c.v ? '#7C3AED' : '#EC4899' }}>{c.m} · {c.e}, {c.h}</span>
           <span style={{ background: '#F0FDF4', color: '#10B981', borderRadius: '100px', padding: '2px 8px', fontSize: '11px', fontWeight: 700 }}>Payé</span>
         </div>
       ))}
@@ -524,7 +558,7 @@ function MetiersSection() {
         {/* Header */}
         <div style={{ textAlign: 'center', marginBottom: '80px' }}>
           <Pill>Conçu pour vous</Pill>
-          <h2 style={{ fontSize: 'clamp(40px,5vw,68px)', fontWeight: 800, letterSpacing: '-0.03em', lineHeight: 1.05, color: '#0A0A0A', margin: 0 }}>
+          <h2 style={{ fontFamily: FONT_TITLE, fontSize: 'clamp(1.6rem,2.8vw,2.2rem)', fontWeight: 800, letterSpacing: '-0.03em', lineHeight: 1.1, color: '#0A0A0A', margin: 0 }}>
             Quel que soit votre métier,<br />
             <Grad>CalendaPro s&apos;adapte.</Grad>
           </h2>
@@ -579,14 +613,14 @@ function MetiersSection() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// §6 — PROBLÈME
+// §6 - PROBLEME
 // ═══════════════════════════════════════════════════════════════════════════════
 function ProblemSection() {
   return (
     <section style={{ background: '#F9F8FF', padding: `140px ${PAD}`, textAlign: 'center', fontFamily: FONT }}>
       <motion.div {...fadeUp}>
         <Pill>Le problème</Pill>
-        <h2 style={{ fontSize: 'clamp(40px,5vw,68px)', fontWeight: 900, letterSpacing: '-0.03em', lineHeight: 1.05, color: '#0A0A0A', margin: '0 auto 32px', maxWidth: '800px' }}>
+        <h2 style={{ fontFamily: FONT_TITLE, fontSize: 'clamp(1.6rem,2.8vw,2.2rem)', fontWeight: 900, letterSpacing: '-0.03em', lineHeight: 1.1, color: '#0A0A0A', margin: '0 auto 32px', maxWidth: '800px' }}>
           Chaque lapin vous coûte <Grad>de l&apos;argent que vous</Grad> ne récupérerez jamais.
         </h2>
         <p style={{ fontSize: '20px', lineHeight: 1.8, color: '#4B5563', maxWidth: '600px', margin: '0 auto' }}>
@@ -598,7 +632,7 @@ function ProblemSection() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// §7 — BENTO FEATURES
+// §7 - BENTO FEATURES
 // ═══════════════════════════════════════════════════════════════════════════════
 function BCard({ tag, title, text, className, children }: { tag: string; title: string; text: string; className?: string; children?: React.ReactNode }) {
   const [hov, setHov] = useState(false)
@@ -619,12 +653,12 @@ function BentoSection() {
     <section style={{ background: '#FAFAF9', padding: `140px ${PAD}`, fontFamily: FONT }}>
       <div style={{ ...W }}>
         <motion.div {...fadeUp} style={{ textAlign: 'center', marginBottom: '60px' }}>
-          <h2 style={{ fontSize: 'clamp(40px,5vw,68px)', fontWeight: 800, letterSpacing: '-0.03em', color: '#0A0A0A', margin: '0 0 8px' }}>Tout ce dont vous avez besoin.</h2>
+          <h2 style={{ fontFamily: FONT_TITLE, fontSize: 'clamp(1.6rem,2.8vw,2.2rem)', fontWeight: 800, letterSpacing: '-0.03em', lineHeight: 1.1, color: '#0A0A0A', margin: '0 0 8px' }}>Tout ce dont vous avez besoin.</h2>
           <p style={{ fontSize: '20px', color: '#6B7280', margin: 0 }}>Rien de superflu.</p>
         </motion.div>
 
         <div className="cp-ben-grid">
-          {/* A — row span 2 */}
+          {/* A - row span 2 */}
           <BCard tag="Agenda" title="Votre calendrier, toujours à jour." text="Synchronisation Google Calendar, détection des conflits, vue semaine et jour." className="cp-ben-a">
             <div style={{ marginTop: '24px', border: '1px solid #F3F4F6', borderRadius: '12px', overflow: 'hidden' }}>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', background: '#FAFAF9', borderBottom: '1px solid #F3F4F6' }}>
@@ -661,7 +695,7 @@ function BentoSection() {
             </div>
           </BCard>
 
-          {/* D — col span 2 */}
+          {/* D - col span 2 */}
           <BCard tag="Marketplace" title="De nouveaux clients, sans publicité." text="Votre profil référencé dans notre annuaire géolocalisé. Des clients vous trouvent par ville et par spécialité." className="cp-ben-d">
             <div style={{ marginTop: '24px', display: 'flex', alignItems: 'center', gap: '32px', flexWrap: 'wrap' }}>
               {/* France SVG map */}
@@ -691,17 +725,17 @@ function BentoSection() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// §8 — BEFORE / AFTER
+// §8 - BEFORE / AFTER
 // ═══════════════════════════════════════════════════════════════════════════════
 function BeforeAfterSection() {
   const before = ['SMS manuels pour confirmer chaque RDV', 'Clients qui oublient et ne préviennent pas', 'Paiements à la caisse, impayés impossibles', 'Agenda papier ou Excel impossible à partager', 'Aucun nouveau client sans publicité payante', 'Des heures perdues chaque semaine']
-  const after  = ['Rappels automatiques sans lever le petit doigt', 'Acompte encaissé — les lapins disparaissent', 'Paiement Stripe dès la réservation', 'Page publique partageable en 1 lien', 'Marketplace pour être trouvé sans budget pub', 'Dashboard en temps réel, partout']
+  const after  = ['Rappels automatiques sans lever le petit doigt', 'Acompte encaissé · les lapins disparaissent', 'Paiement Stripe dès la réservation', 'Page publique partageable en 1 lien', 'Marketplace pour être trouvé sans budget pub', 'Dashboard en temps réel, partout']
   return (
     <section style={{ background: '#fff', padding: `140px ${PAD}`, fontFamily: FONT }}>
       <div style={{ ...W }}>
         <motion.div {...fadeUp} style={{ textAlign: 'center', marginBottom: '64px' }}>
           <Pill>La différence</Pill>
-          <h2 style={{ fontSize: 'clamp(40px,5vw,68px)', fontWeight: 800, letterSpacing: '-0.03em', color: '#0A0A0A', margin: 0 }}>Votre quotidien, avant et après.</h2>
+          <h2 style={{ fontFamily: FONT_TITLE, fontSize: 'clamp(1.6rem,2.8vw,2.2rem)', fontWeight: 800, letterSpacing: '-0.03em', lineHeight: 1.1, color: '#0A0A0A', margin: 0 }}>Votre quotidien, avant et après.</h2>
         </motion.div>
         <div className="cp-ba-grid">
           {/* Before */}
@@ -741,19 +775,19 @@ function BeforeAfterSection() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// §9 — TÉMOIGNAGES
+// §9 - TEMOIGNAGES
 // ═══════════════════════════════════════════════════════════════════════════════
 function TestimonialsSection() {
   const data = [
-    { name: 'Thomas M.', role: 'Barbier — Lyon',       init: 'TM', grad: 'linear-gradient(135deg,#7C3AED,#EC4899)', pad: '32px', text: "Avant CalendaPro, je perdais en moyenne 4 rendez-vous par semaine. En un mois, j'ai récupéré plus de 400€ que je donnais aux lapins sans même m'en rendre compte." },
-    { name: 'Camille R.', role: 'Coach — Paris',        init: 'CR', grad: 'linear-gradient(135deg,#EC4899,#F472B6)', pad: '40px', text: "Mes clients reçoivent un rappel automatique la veille et une heure avant. Plus personne n'oublie. Et moi je n'ai plus à passer 30 minutes par soir à envoyer des messages." },
-    { name: 'Axel D.',    role: 'Tatoueur — Bordeaux', init: 'AD', grad: 'linear-gradient(135deg,#7C3AED,#A78BFA)', pad: '28px', text: "L'acompte automatique à la réservation a tout changé. Les gens réfléchissent à deux fois. Et quand ils viennent, c'est parce qu'ils sont vraiment engagés." },
+    { name: 'Thomas M.', role: 'Barbier · Lyon',       init: 'TM', grad: 'linear-gradient(135deg,#7C3AED,#EC4899)', pad: '32px', text: "Avant CalendaPro, je perdais en moyenne 4 rendez-vous par semaine. En un mois, j'ai récupéré plus de 400€ que je donnais aux lapins sans même m'en rendre compte." },
+    { name: 'Camille R.', role: 'Coach · Paris',        init: 'CR', grad: 'linear-gradient(135deg,#EC4899,#F472B6)', pad: '40px', text: "Mes clients reçoivent un rappel automatique la veille et une heure avant. Plus personne n'oublie. Et moi je n'ai plus à passer 30 minutes par soir à envoyer des messages." },
+    { name: 'Axel D.',    role: 'Tatoueur · Bordeaux', init: 'AD', grad: 'linear-gradient(135deg,#7C3AED,#A78BFA)', pad: '28px', text: "L'acompte automatique à la réservation a tout changé. Les gens réfléchissent à deux fois. Et quand ils viennent, c'est parce qu'ils sont vraiment engagés." },
   ]
   return (
     <section style={{ background: '#FAFAF9', padding: `140px ${PAD}`, fontFamily: FONT }}>
       <div style={{ ...W }}>
         <motion.h2 {...fadeUp}
-          style={{ fontSize: 'clamp(40px,5vw,68px)', fontWeight: 800, letterSpacing: '-0.03em', color: '#0A0A0A', margin: '0 0 64px', textAlign: 'center' }}>
+          style={{ fontFamily: FONT_TITLE, fontSize: 'clamp(1.6rem,2.8vw,2.2rem)', fontWeight: 800, letterSpacing: '-0.03em', lineHeight: 1.1, color: '#0A0A0A', margin: '0 0 64px', textAlign: 'center' }}>
           Ils ont arrêté de perdre de l&apos;argent.
         </motion.h2>
         <div className="cp-test-grid">
@@ -782,7 +816,7 @@ function TestimonialsSection() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// §10 — PRICING
+// §10 - PRICING
 // ═══════════════════════════════════════════════════════════════════════════════
 type CtaVariant = 'outline' | 'gradient' | 'violet'
 
@@ -830,7 +864,7 @@ function PricingSection() {
               )
             })}
           </div>
-          <h2 style={{ fontSize: 'clamp(40px,5vw,68px)', fontWeight: 800, letterSpacing: '-0.03em', color: '#0A0A0A', margin: '0 0 12px' }}>Des prix qui ont du sens.</h2>
+          <h2 style={{ fontFamily: FONT_TITLE, fontSize: 'clamp(1.6rem,2.8vw,2.2rem)', fontWeight: 800, letterSpacing: '-0.03em', lineHeight: 1.1, color: '#0A0A0A', margin: '0 0 12px' }}>Des prix qui ont du sens.</h2>
           <p style={{ fontSize: '18px', color: '#6B7280', margin: 0 }}>Commencez gratuitement. Évoluez quand vous êtes prêt.</p>
         </motion.div>
 
@@ -867,7 +901,7 @@ function PricingSection() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// §11 — FAQ
+// §11 - FAQ
 // ═══════════════════════════════════════════════════════════════════════════════
 function FaqItem({ q, a }: { q: string; a: string }) {
   const [open, setOpen] = useState(false)
@@ -902,7 +936,7 @@ function FAQSection() {
     <section style={{ background: '#fff', padding: `140px ${PAD}`, fontFamily: FONT }}>
       <div style={{ maxWidth: '720px', margin: '0 auto' }}>
         <motion.h2 {...fadeUp}
-          style={{ fontSize: 'clamp(40px,5vw,68px)', fontWeight: 800, letterSpacing: '-0.03em', color: '#0A0A0A', margin: '0 0 48px', textAlign: 'center' }}>
+          style={{ fontFamily: FONT_TITLE, fontSize: 'clamp(1.6rem,2.8vw,2.2rem)', fontWeight: 800, letterSpacing: '-0.03em', lineHeight: 1.1, color: '#0A0A0A', margin: '0 0 48px', textAlign: 'center' }}>
           Questions fréquentes.
         </motion.h2>
         {faqs.map(f => <FaqItem key={f.q} q={f.q} a={f.a} />)}
@@ -912,20 +946,20 @@ function FAQSection() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// §12 — CTA FINAL
+// §12 - CTA FINAL
 // ═══════════════════════════════════════════════════════════════════════════════
 function CTASection() {
   return (
     <section style={{ padding: `0 ${PAD}`, marginBottom: '100px', fontFamily: FONT }}>
       <motion.div initial={{ opacity: 0, y: 32 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: 0.2 }} transition={{ duration: 0.6 }}
         style={{ ...W, background: 'linear-gradient(135deg,#F9F8FF,#FDF4FF)', borderRadius: '24px', padding: '100px 60px', textAlign: 'center' }}>
-        <h2 style={{ fontSize: 'clamp(40px,5vw,64px)', fontWeight: 900, letterSpacing: '-0.03em', color: '#0A0A0A', margin: '0 0 16px' }}>Prêt à reprendre le contrôle&nbsp;?</h2>
+        <h2 style={{ fontFamily: FONT_TITLE, fontSize: 'clamp(1.6rem,2.8vw,2.2rem)', fontWeight: 900, letterSpacing: '-0.03em', lineHeight: 1.1, color: '#0A0A0A', margin: '0 0 16px' }}>Prêt à reprendre le contrôle&nbsp;?</h2>
         <p style={{ fontSize: '20px', color: '#6B7280', margin: '0 0 48px' }}>Rejoignez les indépendants français qui ont choisi de ne plus subir.</p>
         <Link href="/sign-up"
           style={{ display: 'inline-flex', alignItems: 'center', height: '60px', padding: '0 48px', borderRadius: '100px', background: G, color: '#fff', fontSize: '18px', fontWeight: 700, textDecoration: 'none', boxShadow: '0 12px 32px rgba(124,58,237,0.35)', transition: 'transform 250ms, box-shadow 250ms' }}
           onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 16px 40px rgba(124,58,237,0.45)' }}
           onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 12px 32px rgba(124,58,237,0.35)' }}>
-          Démarrer gratuitement — c&apos;est gratuit
+          Démarrer gratuitement · c&apos;est gratuit
         </Link>
         <p style={{ fontSize: '13px', color: '#9CA3AF', marginTop: '16px', margin: '16px 0 0' }}>Aucune carte bancaire requise</p>
       </motion.div>
@@ -934,7 +968,7 @@ function CTASection() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// §13 — FOOTER
+// §13 - FOOTER
 // ═══════════════════════════════════════════════════════════════════════════════
 function Footer() {
   const cols = [
