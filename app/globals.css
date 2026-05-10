@@ -1,8 +1,57 @@
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&display=swap');
+/* Typography — Clash Display (Fontshare, headings) + DM Sans (Google, body) */
+@import url('https://api.fontshare.com/v2/css?f[]=clash-display@600,700,800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+:root {
+  --cp-bg: #FAFAF9;
+  --cp-bg-dark: #09090E;
+  --cp-card: #FFFFFF;
+  --cp-text: #0A0A0A;
+  --cp-muted: #6B7280;
+  --cp-text-on-dark: #F0EFF5;
+  --cp-violet: #7C3AED;
+  --cp-pink: #EC4899;
+  --cp-grad: linear-gradient(135deg, #7C3AED, #EC4899);
+  --cp-border: #E5E7EB;
+  --cp-border-dark: rgba(255, 255, 255, 0.07);
+}
+
+html, body {
+  background: var(--cp-bg);
+  color: var(--cp-text);
+  font-family: 'DM Sans', system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  font-size: 18px;
+  line-height: 1.75;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Clash Display', 'DM Sans', sans-serif;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+  margin: 0;
+}
+
+button { font-family: inherit; }
+
+/* Animations */
+@keyframes cp-ticker {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+@keyframes cp-pulse-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: 0.55; transform: scale(0.85); }
+}
+@keyframes cp-shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
 
 /* Leaflet — marqueurs marketplace */
 .cp-marketplace-marker-wrap {
