@@ -116,6 +116,20 @@ const nextConfig: NextConfig = {
           },
         ],
       },
+      // Widget embeddable — autorise l'affichage en iframe sur n'importe quel domaine
+      {
+        source: '/widget/:path*',
+        headers: [
+          {
+            key: 'X-Frame-Options',
+            value: 'ALLOWALL',
+          },
+          {
+            key: 'Content-Security-Policy',
+            value: 'frame-ancestors *',
+          },
+        ],
+      },
     ];
   },
 };
