@@ -192,9 +192,10 @@ export async function DELETE(
     const { id } = await params
     const supabase = createServerSupabaseClient()
 
+    // Soft-delete: never hard-delete bookings — mark as cancelled instead
     const { error } = await supabase
       .from('bookings')
-      .delete()
+      .update({ status: 'cancelled', updated_at: new Date().toISOString() })
       .eq('id', id)
       .eq('pro_id', userId)
 

@@ -121,9 +121,11 @@ export async function POST(request: Request) {
         .eq('id', bookingId)
 
       // Créer la transaction client
-      if (clientEmail && session.amount_total) {
+      // Utilise le client_id résolu par le pipeline (Clerk userId si trouvé, sinon email)
+      const resolvedClientId = (result.appointment as { client_id?: string })?.client_id || clientEmail
+      if (resolvedClientId && session.amount_total) {
         await supabase.from('client_transactions').insert({
-          user_id: clientEmail, // TODO: remplacer par le vrai userId du client quand auth dispo
+          user_id: resolvedClientId,
           booking_id: bookingId,
           pro_id: proId || '',
           stripe_payment_intent_id: piId,
