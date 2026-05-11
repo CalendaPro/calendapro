@@ -7,7 +7,7 @@ import type { Variants } from 'framer-motion'
 
 // ─── PALETTE ───────────────────────────────────────────────────────────────────
 const C = {
-  bg: '#FAFAF9',
+  bg: '#F7F5F0',
   bgDark: '#09090E',
   card: '#FFFFFF',
   text: '#0A0A0A',
@@ -318,8 +318,33 @@ const Hero: React.FC = () => (
   >
     <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 32px' }}>
       <FadeUp>
-        <div style={{ marginBottom: 28 }}>
-          <TagPill>Bêta ouverte — places limitées</TagPill>
+        <div style={{ marginBottom: 32 }}>
+          <div
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 8,
+              padding: '6px 16px',
+              background: 'rgba(124,58,237,0.06)',
+              border: '1px solid rgba(124,58,237,0.2)',
+              borderRadius: 100,
+              fontSize: 12,
+              fontWeight: 600,
+              color: '#7C3AED',
+              fontFamily: "'DM Sans', sans-serif",
+            }}
+          >
+            <div
+              style={{
+                width: 6,
+                height: 6,
+                borderRadius: '50%',
+                background: '#059669',
+                animation: 'pulse 2s ease-in-out infinite',
+              }}
+            />
+            Bêta ouverte · places limitées
+          </div>
         </div>
       </FadeUp>
 
@@ -327,11 +352,11 @@ const Hero: React.FC = () => (
         <h1
           style={{
             fontFamily: F.display,
-            fontWeight: 800,
-            fontSize: 'clamp(64px, 9vw, 104px)',
-            lineHeight: 0.9,
-            letterSpacing: '-0.04em',
-            color: C.text,
+            fontWeight: 700,
+            fontSize: 'clamp(2.8rem, 5vw, 4.2rem)',
+            lineHeight: 1.05,
+            letterSpacing: '-0.03em',
+            color: '#1A1A2E',
             margin: 0,
           }}
         >
@@ -369,7 +394,32 @@ const Hero: React.FC = () => (
           <PrimaryButton href="/login" size="lg" shadow="strong">
             Démarrer gratuitement
           </PrimaryButton>
-          <SecondaryButton href="#demo">Voir la démo</SecondaryButton>
+          <Link
+            href="/explore"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 8,
+              padding: '13px 24px',
+              background: 'transparent',
+              border: '1.5px solid rgba(26,26,46,0.15)',
+              borderRadius: 100,
+              fontSize: '0.9rem',
+              fontWeight: 600,
+              color: '#4A4A6A',
+              textDecoration: 'none',
+              fontFamily: "'DM Sans', sans-serif",
+              transition: 'all 220ms cubic-bezier(0.23,1,0.32,1)',
+              cursor: 'pointer',
+            }}
+          >
+            Explorer la marketplace
+            <svg width="14" height="14" viewBox="0 0 24 24"
+              fill="none" stroke="currentColor" strokeWidth="2"
+              strokeLinecap="round">
+              <path d="M5 12h14M12 5l7 7-7 7"/>
+            </svg>
+          </Link>
         </div>
       </FadeUp>
 
@@ -395,209 +445,349 @@ const Hero: React.FC = () => (
 )
 
 const DashboardMockup: React.FC = () => {
-  const stats = [
-    { label: 'Réservations', value: 'Cette semaine', accent: '#F3F0FF' },
-    { label: 'No-shows', value: 'Évités', accent: '#FFF5FA' },
-    { label: 'Revenus', value: 'Encaissés', accent: '#F3F0FF' },
-    { label: 'Nouveaux clients', value: 'Marketplace', accent: '#FFF5FA' },
-  ]
-  const days = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven']
-  const slots: Array<{ day: number; start: number; len: number; color: string; label: string }> = [
-    { day: 0, start: 1, len: 2, color: '#7C3AED', label: 'Coupe + Barbe' },
-    { day: 1, start: 0, len: 1, color: '#EC4899', label: 'Coupe' },
-    { day: 1, start: 3, len: 2, color: '#7C3AED', label: 'Coloration' },
-    { day: 2, start: 2, len: 3, color: '#EC4899', label: 'Soin barbe' },
-    { day: 3, start: 1, len: 2, color: '#7C3AED', label: 'Coupe' },
-    { day: 4, start: 0, len: 2, color: '#EC4899', label: 'Coupe enfant' },
-    { day: 4, start: 4, len: 2, color: '#7C3AED', label: 'Forfait' },
-  ]
-  const hours = ['09', '10', '11', '12', '13', '14', '15']
   return (
-    <div
-      style={{
-        maxWidth: 960,
-        margin: '80px auto 0',
-        background: '#fff',
-        border: `1px solid ${C.border}`,
+    <div style={{
+      position: 'relative',
+      width: '100%',
+      maxWidth: 560,
+      margin: '64px auto 0',
+      padding: '48px 32px 32px',
+    }}>
+      {/* Element principal - Apercu agenda */}
+      <div style={{
+        background: '#FFFFFF',
         borderRadius: 20,
-        boxShadow: '0 40px 80px -20px rgba(0,0,0,0.14)',
+        border: '1px solid rgba(0,0,0,0.06)',
+        boxShadow: `
+          0 0 0 1px rgba(0,0,0,0.03),
+          0 8px 16px rgba(0,0,0,0.04),
+          0 24px 48px rgba(0,0,0,0.06)
+        `,
         overflow: 'hidden',
-        textAlign: 'left',
-      }}
-    >
-      {/* macOS bar */}
-      <div
-        style={{
+        position: 'relative',
+        zIndex: 2,
+      }}>
+        {/* Barre gradient top signature */}
+        <div style={{
+          height: 2,
+          background: 'linear-gradient(90deg, #7C3AED, #EC4899)',
+        }} />
+
+        {/* Header */}
+        <div style={{
+          padding: '16px 20px 12px',
+          borderBottom: '1px solid #F5F3EF',
           display: 'flex',
           alignItems: 'center',
-          gap: 8,
-          padding: '14px 18px',
-          borderBottom: `1px solid ${C.border}`,
-          background: '#FAFAF9',
-        }}
-      >
-        <span style={{ width: 12, height: 12, borderRadius: '50%', background: '#FF5F57' }} />
-        <span style={{ width: 12, height: 12, borderRadius: '50%', background: '#FEBC2E' }} />
-        <span style={{ width: 12, height: 12, borderRadius: '50%', background: '#28C840' }} />
-        <span
-          style={{
-            marginLeft: 14,
-            fontFamily: F.sans,
-            fontSize: 12,
-            color: '#9CA3AF',
-            fontWeight: 500,
-          }}
-        >
-          calendapro.app/dashboard
-        </span>
-      </div>
-
-      {/* Stats */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(4, 1fr)',
-          gap: 16,
-          padding: 28,
-          borderBottom: `1px solid ${C.border}`,
-        }}
-      >
-        {stats.map((s) => (
-          <div
-            key={s.label}
-            style={{
-              background: s.accent,
-              border: `1px solid ${C.border}`,
-              borderRadius: 14,
-              padding: 18,
-            }}
-          >
-            <div style={{ fontFamily: F.sans, fontSize: 12, fontWeight: 600, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-              {s.label}
+          justifyContent: 'space-between',
+        }}>
+          <div>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              marginBottom: 2,
+            }}>
+              <div style={{
+                width: 6, height: 6,
+                borderRadius: '50%',
+                background: '#059669',
+                animation: 'pulse 2s ease-in-out infinite',
+              }} />
+              <span style={{
+                fontSize: 10,
+                fontWeight: 700,
+                color: '#059669',
+                letterSpacing: '0.08em',
+                textTransform: 'uppercase',
+              }}>
+                En direct
+              </span>
             </div>
-            <div style={{ fontFamily: F.display, fontSize: 22, fontWeight: 700, color: C.text, marginTop: 8 }}>
-              {s.value}
+            <div style={{
+              fontSize: 13,
+              fontWeight: 700,
+              color: '#1A1A2E',
+              fontFamily: "'DM Sans', sans-serif",
+            }}>
+              Semaine du 19 mai
+            </div>
+            <div style={{
+              fontSize: 11,
+              color: '#9090A8',
+              marginTop: 1,
+            }}>
+              3 rendez-vous confirmés
             </div>
           </div>
-        ))}
-      </div>
-
-      {/* Week calendar */}
-      <div style={{ padding: 28 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
-          <div style={{ fontFamily: F.display, fontSize: 18, fontWeight: 700, color: C.text }}>Semaine en cours</div>
-          <div style={{ display: 'flex', gap: 8 }}>
-            {['Jour', 'Semaine', 'Mois'].map((t, i) => (
-              <span
-                key={t}
-                style={{
-                  fontFamily: F.sans,
-                  fontSize: 12,
-                  fontWeight: 600,
-                  color: i === 1 ? '#fff' : C.muted,
-                  background: i === 1 ? C.grad : '#F3F4F6',
-                  padding: '6px 14px',
-                  borderRadius: 100,
-                }}
-              >
-                {t}
+          <div style={{
+            display: 'flex',
+            gap: 4,
+          }}>
+            {['Jour', 'Semaine'].map((v, i) => (
+              <span key={v} style={{
+                padding: '4px 10px',
+                borderRadius: 100,
+                fontSize: 11,
+                fontWeight: 600,
+                background: i === 1
+                  ? 'linear-gradient(135deg, #7C3AED, #EC4899)'
+                  : 'transparent',
+                color: i === 1 ? 'white' : '#9090A8',
+                border: i === 1
+                  ? 'none'
+                  : '1px solid rgba(0,0,0,0.08)',
+              }}>
+                {v}
               </span>
             ))}
           </div>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '40px repeat(5, 1fr)', gap: 8 }}>
-          {/* hours column */}
-          <div>
-            <div style={{ height: 28 }} />
-            {hours.map((h) => (
-              <div
-                key={h}
-                style={{
-                  height: 36,
-                  fontFamily: F.sans,
-                  fontSize: 11,
-                  color: '#9CA3AF',
-                  display: 'flex',
-                  alignItems: 'flex-start',
-                  justifyContent: 'flex-end',
-                  paddingRight: 6,
-                }}
-              >
-                {h}h
+
+        {/* Liste des RDV */}
+        {[
+          {
+            jour: 'Lun',
+            heure: '09h00',
+            client: 'Sophie M.',
+            service: 'Consultation',
+            duree: '45 min',
+            couleur: '#F3F0FF',
+            texte: '#7C3AED',
+          },
+          {
+            jour: 'Mar',
+            heure: '10h30',
+            client: 'Marc D.',
+            service: 'Coaching',
+            duree: '1h00',
+            couleur: '#FFF0F7',
+            texte: '#EC4899',
+          },
+          {
+            jour: 'Ven',
+            heure: '14h00',
+            client: 'Clara R.',
+            service: 'Bilan mensuel',
+            duree: '30 min',
+            couleur: '#F0FDF4',
+            texte: '#059669',
+          },
+        ].map((rdv, i) => (
+          <div key={i} style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+            padding: '12px 20px',
+            borderBottom: i < 2
+              ? '1px solid rgba(0,0,0,0.04)'
+              : 'none',
+          }}>
+            {/* Jour */}
+            <div style={{
+              width: 28,
+              fontSize: 10,
+              fontWeight: 700,
+              color: '#9090A8',
+              letterSpacing: '0.05em',
+              textTransform: 'uppercase',
+              flexShrink: 0,
+            }}>
+              {rdv.jour}
+            </div>
+            {/* Heure */}
+            <div style={{
+              width: 36,
+              fontSize: 11,
+              fontWeight: 600,
+              color: '#4A4A6A',
+              flexShrink: 0,
+              fontFamily: 'monospace',
+            }}>
+              {rdv.heure}
+            </div>
+            {/* Separateur */}
+            <div style={{
+              width: 2,
+              height: 28,
+              borderRadius: 2,
+              background: rdv.texte,
+              opacity: 0.4,
+              flexShrink: 0,
+            }} />
+            {/* Infos */}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{
+                fontSize: 12,
+                fontWeight: 600,
+                color: '#1A1A2E',
+              }}>
+                {rdv.client}
               </div>
-            ))}
-          </div>
-          {/* day columns */}
-          {days.map((d, di) => (
-            <div key={d} style={{ position: 'relative' }}>
-              <div
-                style={{
-                  height: 28,
-                  fontFamily: F.sans,
-                  fontSize: 12,
-                  fontWeight: 600,
-                  color: C.text,
-                  textAlign: 'center',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.06em',
-                }}
-              >
-                {d}
-              </div>
-              <div
-                style={{
-                  position: 'relative',
-                  background: '#FAFAF9',
-                  border: `1px solid ${C.border}`,
-                  borderRadius: 10,
-                  height: hours.length * 36,
-                }}
-              >
-                {hours.map((_, hi) => (
-                  <div
-                    key={hi}
-                    style={{
-                      position: 'absolute',
-                      top: hi * 36,
-                      left: 0,
-                      right: 0,
-                      height: 36,
-                      borderTop: hi === 0 ? 'none' : `1px solid ${C.border}`,
-                    }}
-                  />
-                ))}
-                {slots
-                  .filter((s) => s.day === di)
-                  .map((s, idx) => (
-                    <div
-                      key={idx}
-                      style={{
-                        position: 'absolute',
-                        top: s.start * 36 + 3,
-                        left: 6,
-                        right: 6,
-                        height: s.len * 36 - 6,
-                        background:
-                          s.color === '#7C3AED'
-                            ? 'linear-gradient(135deg, rgba(124,58,237,0.95), rgba(124,58,237,0.78))'
-                            : 'linear-gradient(135deg, rgba(236,72,153,0.95), rgba(236,72,153,0.78))',
-                        borderRadius: 8,
-                        padding: '6px 8px',
-                        fontFamily: F.sans,
-                        fontSize: 11,
-                        fontWeight: 600,
-                        color: '#fff',
-                        boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
-                        overflow: 'hidden',
-                      }}
-                    >
-                      {s.label}
-                    </div>
-                  ))}
+              <div style={{
+                fontSize: 11,
+                color: '#9090A8',
+                marginTop: 1,
+              }}>
+                {rdv.duree}
               </div>
             </div>
-          ))}
+            {/* Badge service */}
+            <span style={{
+              padding: '3px 10px',
+              borderRadius: 100,
+              fontSize: 10,
+              fontWeight: 600,
+              background: rdv.couleur,
+              color: rdv.texte,
+              flexShrink: 0,
+              whiteSpace: 'nowrap',
+            }}>
+              {rdv.service}
+            </span>
+          </div>
+        ))}
+      </div>
+
+      {/* Element flottant haut droite - Paiement recu */}
+      <div style={{
+        position: 'absolute',
+        top: 0,
+        right: -16,
+        background: '#FFFFFF',
+        borderRadius: 14,
+        border: '1px solid rgba(0,0,0,0.06)',
+        boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
+        padding: '12px 16px',
+        width: 210,
+        zIndex: 3,
+        animation: 'floatA 4s ease-in-out infinite',
+      }}>
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          marginBottom: 8,
+        }}>
+          <div style={{
+            width: 28, height: 28,
+            borderRadius: 8,
+            background: '#F0FDF4',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0,
+          }}>
+            <svg width="13" height="13"
+              viewBox="0 0 24 24" fill="none"
+              stroke="#059669" strokeWidth="2.5"
+              strokeLinecap="round">
+              <circle cx="12" cy="12" r="10"/>
+              <path d="M12 6v6l4 2"/>
+            </svg>
+          </div>
+          <div>
+            <div style={{
+              fontSize: 11,
+              fontWeight: 700,
+              color: '#1A1A2E',
+            }}>
+              Acompte recu
+            </div>
+            <div style={{
+              fontSize: 10,
+              color: '#9090A8',
+              marginTop: 1,
+            }}>
+              Sophie M. · Stripe
+            </div>
+          </div>
+          <div style={{
+            marginLeft: 'auto',
+            fontSize: 13,
+            fontWeight: 800,
+            color: '#059669',
+            fontFamily: "'Clash Display', sans-serif",
+            letterSpacing: '-0.02em',
+          }}>
+            +30€
+          </div>
         </div>
+        {/* Barre progression */}
+        <div style={{
+          height: 3,
+          background: '#F0EDE8',
+          borderRadius: 2,
+          overflow: 'hidden',
+        }}>
+          <div style={{
+            height: '100%',
+            width: '40%',
+            background: 'linear-gradient(90deg, #7C3AED, #EC4899)',
+            borderRadius: 2,
+          }} />
+        </div>
+        <div style={{
+          fontSize: 9,
+          color: '#9090A8',
+          marginTop: 4,
+          textAlign: 'right',
+        }}>
+          40% encaisse · solde a la seance
+        </div>
+      </div>
+
+      {/* Element flottant bas gauche - SMS envoye */}
+      <div style={{
+        position: 'absolute',
+        bottom: 8,
+        left: -16,
+        background: '#FFFFFF',
+        borderRadius: 12,
+        border: '1px solid rgba(0,0,0,0.06)',
+        boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
+        padding: '10px 14px',
+        zIndex: 3,
+        animation: 'floatB 3s ease-in-out infinite',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+        whiteSpace: 'nowrap',
+      }}>
+        <div style={{
+          width: 24, height: 24,
+          borderRadius: 6,
+          background: 'rgba(124,58,237,0.08)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          flexShrink: 0,
+        }}>
+          <svg width="11" height="11"
+            viewBox="0 0 24 24" fill="none"
+            stroke="#7C3AED" strokeWidth="2.5"
+            strokeLinecap="round">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+          </svg>
+        </div>
+        <span style={{
+          fontSize: 11,
+          fontWeight: 600,
+          color: '#1A1A2E',
+        }}>
+          Rappel SMS envoye
+        </span>
+        <span style={{
+          padding: '2px 8px',
+          borderRadius: 100,
+          fontSize: 9,
+          fontWeight: 700,
+          background: '#F0FDF4',
+          color: '#059669',
+          border: '1px solid rgba(5,150,105,0.15)',
+        }}>
+          Livre
+        </span>
       </div>
     </div>
   )
@@ -622,17 +812,17 @@ const Ticker: React.FC = () => {
           <span
             style={{
               fontFamily: F.sans,
-              fontSize: 12,
+              fontSize: 10,
               fontWeight: 700,
               letterSpacing: '0.12em',
               textTransform: 'uppercase',
-              color: '#C4C4C4',
+              color: '#9090A8',
               whiteSpace: 'nowrap',
             }}
           >
             {label}
           </span>
-          <span style={{ width: 4, height: 4, borderRadius: '50%', background: C.violet, flexShrink: 0 }} />
+          <span style={{ width: 4, height: 4, borderRadius: '50%', background: '#7C3AED', flexShrink: 0 }} />
         </React.Fragment>
       ))}
     </div>
@@ -640,10 +830,10 @@ const Ticker: React.FC = () => {
   return (
     <div
       style={{
-        background: C.bg,
-        borderTop: '1px solid #F3F4F6',
-        borderBottom: '1px solid #F3F4F6',
-        padding: '16px 0',
+        background: 'transparent',
+        borderTop: '1px solid rgba(0,0,0,0.04)',
+        borderBottom: '1px solid rgba(0,0,0,0.04)',
+        padding: '12px 0',
         overflow: 'hidden',
       }}
     >
@@ -651,7 +841,7 @@ const Ticker: React.FC = () => {
         style={{
           display: 'flex',
           width: 'max-content',
-          animation: 'cp-ticker 24s linear infinite',
+          animation: 'cp-ticker 30s linear infinite',
         }}
       >
         {Row}
@@ -1075,7 +1265,7 @@ const BentoFeatures: React.FC = () => {
             marginTop: 80,
           }}
         >
-          {/* Card A — Agenda (row span 2) */}
+          {/* Card A · Agenda (row span 2) */}
           <FadeUp style={{ gridRow: 'span 2' }}>
             <div
               style={{ ...cardBase, background: '#fff', height: '100%', display: 'flex', flexDirection: 'column' }}
@@ -1108,7 +1298,7 @@ const BentoFeatures: React.FC = () => {
             </div>
           </FadeUp>
 
-          {/* Card B — Rappels SMS */}
+          {/* Card B · Rappels SMS */}
           <FadeUp delay={0.07}>
             <div
               style={{ ...cardBase, background: '#F8F5FF' }}
@@ -1141,7 +1331,7 @@ const BentoFeatures: React.FC = () => {
             </div>
           </FadeUp>
 
-          {/* Card C — Paiements */}
+          {/* Card C · Paiements */}
           <FadeUp delay={0.14}>
             <div
               style={{ ...cardBase, background: '#FFF5FA' }}
@@ -1174,7 +1364,7 @@ const BentoFeatures: React.FC = () => {
             </div>
           </FadeUp>
 
-          {/* Card D — Marketplace (col span 2, dark) */}
+          {/* Card D · Marketplace (col span 2, dark) */}
           <FadeUp delay={0.21} style={{ gridColumn: 'span 2' }}>
             <div
               style={{
@@ -1330,7 +1520,7 @@ const PaymentsPreview: React.FC = () => (
 )
 
 const FranceMap: React.FC = () => {
-  // Stylized France SVG with violet city dots — no fake stats
+  // Stylized France SVG with violet city dots · no fake stats
   return (
     <div style={{ position: 'relative', height: 260 }}>
       <svg viewBox="0 0 280 280" width="100%" height="100%" preserveAspectRatio="xMidYMid meet">
@@ -1449,7 +1639,7 @@ const DemoSection: React.FC = () => (
           Aperçu réservation
         </div>
         <div style={{ fontFamily: F.display, fontSize: 26, fontWeight: 800, color: C.onDark, marginTop: 10, letterSpacing: '-0.02em' }}>
-          Réservez avec Thomas — Barbier
+          Réservez avec Thomas · Barbier
         </div>
         <div
           style={{
@@ -1794,7 +1984,7 @@ const PricingSection: React.FC = () => {
           >
             {[
               { label: 'Mensuel', val: false },
-              { label: 'Annuel — 2 mois offerts', val: true },
+              { label: 'Annuel · 2 mois offerts', val: true },
             ].map((opt) => (
               <button
                 key={opt.label}

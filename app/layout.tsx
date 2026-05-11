@@ -18,7 +18,7 @@ const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://calendapro.fr'
 export const metadata: Metadata = {
   metadataBase: new URL(baseUrl),
   title: {
-    default: 'CalendaPro — Gérez vos rendez-vous comme un pro',
+    default: 'CalendaPro · Gérez vos rendez-vous comme un pro',
     template: '%s | CalendaPro',
   },
   description: 'Solution complète de gestion de rendez-vous pour professionnels. Acceptez des réservations en ligne 24/7, envoyez des rappels automatiques et gérez vos paiements.',
@@ -42,7 +42,7 @@ export const metadata: Metadata = {
     locale: 'fr_FR',
     url: baseUrl,
     siteName: 'CalendaPro',
-    title: 'CalendaPro — Gérez vos rendez-vous comme un pro',
+    title: 'CalendaPro · Gérez vos rendez-vous comme un pro',
     description: 'Solution complète de gestion de rendez-vous pour professionnels. Acceptez des réservations en ligne 24/7.',
     images: [
       {
@@ -55,7 +55,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'CalendaPro — Gérez vos rendez-vous comme un pro',
+    title: 'CalendaPro · Gérez vos rendez-vous comme un pro',
     description: 'Solution complète de gestion de rendez-vous pour professionnels.',
     images: ['/og-image.png'],
     creator: '@calendapro',
