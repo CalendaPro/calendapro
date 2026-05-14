@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { auth } from '@clerk/nextjs/server'
+import { auth, clerkClient } from '@clerk/nextjs/server'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { logger } from '@/lib/logger'
 
@@ -22,7 +22,17 @@ export async function GET(request: Request) {
 
     const supabase = createServerSupabaseClient()
 
-    // Récupérer les transactions du client depuis la table client_transactions
+    // Récupérer l'email du user connecté pour le fallback (réservations anonymes)
+    let userEmail: string | null = null
+    try {
+      const clerk = await clerkClient()
+      const user = await clerk.users.getUser(userId)
+      userEmail = user.emailAddresses[0]?.emailAddress ?? null
+    } catch {
+      logger.warn('client/transactions: impossible de récupérer email Clerk')
+    }
+
+    // Requête principale par Clerk userId
     const { data: transactions, error, count } = await supabase
       .from('client_transactions')
       .select('*', { count: 'exact' })
@@ -35,23 +45,46 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
+    // Fallback : récupérer aussi les transactions stockées avec l'email comme user_id
+    // (réservations anonymes créées avant la création de compte)
+    let anonymousTransactions: typeof transactions = []
+    if (userEmail) {
+      const { data: anonData } = await supabase
+        .from('client_transactions')
+        .select('*')
+        .eq('user_id', userEmail)
+        .order('created_at', { ascending: false })
+
+      if (anonData && anonData.length > 0) {
+        // Déduplique par id — évite les doublons si migration déjà faite
+        const existingIds = new Set((transactions ?? []).map((t) => t.id))
+        anonymousTransactions = anonData.filter((t) => !existingIds.has(t.id))
+      }
+    }
+
+    const allTransactions = [...(transactions ?? []), ...anonymousTransactions]
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+      .slice(offset, offset + limit)
+
+    const totalCount = (count ?? 0) + anonymousTransactions.length
+
     // Calculer les totaux
-    const totalSpent = transactions
-      ?.filter(t => t.status === 'succeeded' || t.status === 'partially_refunded')
+    const totalSpent = allTransactions
+      .filter(t => t.status === 'succeeded' || t.status === 'partially_refunded')
       .reduce((sum, t) => sum + (t.amount - (t.refunded_amount || 0)), 0) || 0
 
-    const totalRefunded = transactions
-      ?.reduce((sum, t) => sum + (t.refunded_amount || 0), 0) || 0
+    const totalRefunded = allTransactions
+      .reduce((sum, t) => sum + (t.refunded_amount || 0), 0) || 0
 
     return NextResponse.json({
-      transactions: transactions || [],
-      totalCount: count || 0,
+      transactions: allTransactions,
+      totalCount,
       totalSpent,
       totalRefunded,
       pagination: {
         limit,
         offset,
-        hasMore: (count || 0) > offset + limit,
+        hasMore: totalCount > offset + limit,
       },
     })
 

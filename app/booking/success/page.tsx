@@ -77,6 +77,9 @@ function BookingSuccessContent() {
         } else if (data.error?.includes('SLOT_CONFLICT') || data.error?.includes('déjà créé')) {
           // Booking was already created by webhook — that's fine
           setStatus('success')
+          if (data.appointment?.id) {
+            fetchBookingDetails(data.appointment.id)
+          }
         } else {
           setStatus('error')
           setError(data.error || 'Erreur lors de la création du rendez-vous')

@@ -123,7 +123,7 @@ function Avatar({ name, size = 56, avatarUrl, isPremium = false }: { name: strin
           src={avatarUrl}
           alt={name}
           fill
-          sizes="${size}px"
+          sizes={`${size}px`}
           className="rounded-full object-cover"
           style={{
             border: isPremium ? '2px solid #ffffff' : 'none',

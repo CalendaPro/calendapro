@@ -16,14 +16,10 @@ type TimeSlot = {
   available: boolean
 }
 
-// Generate time slots from 8h to 20h with 30min intervals
-const generateTimeSlots = (): TimeSlot[] => {
-  const slots: TimeSlot[] = []
-  for (let hour = 8; hour < 20; hour++) {
-    slots.push({ time: `${hour.toString().padStart(2, '0')}:00`, label: `${hour}h00`, available: true })
-    slots.push({ time: `${hour.toString().padStart(2, '0')}:30`, label: `${hour}h30`, available: Math.random() > 0.3 }) // Simulate availability
-  }
-  return slots
+// Generate a human-readable label from a "HH:MM" time string
+function timeToLabel(time: string): string {
+  const [h, m] = time.split(':')
+  return m === '00' ? `${parseInt(h)}h` : `${parseInt(h)}h${m}`
 }
 
 // Get days of week starting from today
@@ -64,6 +60,7 @@ export default function BookingForm({ username, trackingSource, professionalName
   const [selectedDate, setSelectedDate] = useState<string>('')
   const [weekOffset, setWeekOffset] = useState(0)
   const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([])
+  const [loadingSlots, setLoadingSlots] = useState(false)
   const [estimatedEur, setEstimatedEur] = useState('')
   const [settings, setSettings] = useState<PublicBookingSettings | null>(null)
   const [settingsError, setSettingsError] = useState<string | null>(null)
@@ -123,8 +120,33 @@ export default function BookingForm({ username, trackingSource, professionalName
   const weekDays = useMemo(() => getWeekDays(weekOffset), [weekOffset])
 
   useEffect(() => {
-    setTimeSlots(generateTimeSlots())
-  }, [selectedDate])
+    if (!selectedDate) {
+      setTimeSlots([])
+      return
+    }
+    let cancelled = false
+    setLoadingSlots(true)
+    setTimeSlots([])
+    fetch(`/api/public/${encodeURIComponent(username)}/availability?date=${selectedDate}&duration=60`)
+      .then(r => r.json())
+      .then(data => {
+        if (cancelled) return
+        if (data?.slots) {
+          setTimeSlots(
+            (data.slots as Array<{ time: string; available: boolean }>).map(s => ({
+              time: s.time,
+              label: timeToLabel(s.time),
+              available: s.available,
+            }))
+          )
+        }
+        setLoadingSlots(false)
+      })
+      .catch(() => {
+        if (!cancelled) setLoadingSlots(false)
+      })
+    return () => { cancelled = true }
+  }, [selectedDate, username])
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
@@ -488,24 +510,36 @@ export default function BookingForm({ username, trackingSource, professionalName
         {selectedDate && (
           <div className="animate-in fade-in slide-in-from-top-2 duration-200">
             <label className="text-sm font-medium text-[var(--cl-text-primary)] mb-2 block">Choisissez un horaire *</label>
-            <div className="grid grid-cols-4 sm:grid-cols-5 gap-2">
-              {timeSlots.map((slot) => (
-                <button
-                  key={slot.time}
-                  onClick={() => slot.available && handleTimeSelect(slot.time)}
-                  disabled={!slot.available}
-                  className={`py-2 px-1 rounded-lg text-sm font-medium transition-all ${
-                    selectedTime === slot.time
-                      ? 'bg-[var(--accent-500)] text-white'
-                      : slot.available
-                        ? 'bg-[var(--cl-glass-sidebar)] border border-[var(--accent-20)] hover:border-[var(--accent-400)] text-[var(--cl-text-primary)]'
-                        : 'bg-stone-100 text-stone-400 cursor-not-allowed border border-stone-200'
-                  }`}
-                >
-                  {slot.label}
-                </button>
-              ))}
-            </div>
+            {loadingSlots ? (
+              <div className="grid grid-cols-4 sm:grid-cols-5 gap-2">
+                {Array.from({ length: 10 }).map((_, i) => (
+                  <div key={i} className="py-2 px-1 rounded-lg bg-stone-100 animate-pulse h-9" />
+                ))}
+              </div>
+            ) : (
+              <div className="grid grid-cols-4 sm:grid-cols-5 gap-2">
+                {timeSlots.length === 0 ? (
+                  <p className="col-span-5 text-sm text-[var(--cl-text-muted)] py-2">Aucun créneau disponible pour ce jour.</p>
+                ) : (
+                  timeSlots.map((slot) => (
+                    <button
+                      key={slot.time}
+                      onClick={() => slot.available && handleTimeSelect(slot.time)}
+                      disabled={!slot.available}
+                      className={`py-2 px-1 rounded-lg text-sm font-medium transition-all ${
+                        selectedTime === slot.time
+                          ? 'bg-[var(--accent-500)] text-white'
+                          : slot.available
+                            ? 'bg-[var(--cl-glass-sidebar)] border border-[var(--accent-20)] hover:border-[var(--accent-400)] text-[var(--cl-text-primary)]'
+                            : 'bg-stone-100 text-stone-400 cursor-not-allowed border border-stone-200'
+                      }`}
+                    >
+                      {slot.label}
+                    </button>
+                  ))
+                )}
+              </div>
+            )}
             <div className="flex items-center gap-4 mt-3 text-xs text-[var(--cl-text-muted)]">
               <div className="flex items-center gap-1">
                 <div className="w-3 h-3 rounded bg-[var(--cl-glass-sidebar)] border border-[var(--accent-20)]"></div>

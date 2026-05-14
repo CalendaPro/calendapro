@@ -4,7 +4,10 @@ import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { stripe } from '@/lib/stripe'
 import { sendRefundNotificationToClient } from '@/lib/emails'
 import Stripe from 'stripe'
+import { Resend } from 'resend'
 import { logger } from '@/lib/logger'
+
+const resend = new Resend(process.env.RESEND_API_KEY)
 
 export const dynamic = 'force-dynamic'
 
@@ -242,8 +245,32 @@ export async function POST(request: Request) {
           isPartial: false,
         })
       } else if (walletCreditResult.credited && walletCreditResult.amount > 0) {
-        // Email de crédit wallet (conservé de l'ancienne implémentation)
-        // Note: l'email est déjà envoyé par la RPC ou le code précédent
+        // Email de crédit wallet
+        const walletAmountEur = (walletCreditResult.amount / 100).toFixed(2)
+        await resend.emails.send({
+          from: 'CalendaPay <wallet@calendapro.app>',
+          to: booking.client_email,
+          subject: 'Votre acompte est disponible dans votre porte-monnaie CalendaPro',
+          html: `
+            <div style="font-family: DM Sans, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 20px;">
+              <h1 style="color: #10b981; font-family: 'Clash Display', sans-serif;">Remboursement effectué</h1>
+              <p>Bonjour ${booking.client_name || ''},</p>
+              <p>Votre rendez-vous du <strong>${new Date(booking.scheduled_at).toLocaleDateString('fr-FR')}</strong> a été annulé.</p>
+              <div style="background: #ecfdf5; border-radius: 12px; padding: 24px; margin: 24px 0; border: 1px solid #10b981;">
+                <p style="margin: 0; font-size: 14px; color: #065f46;">Montant crédité sur votre porte-monnaie</p>
+                <p style="margin: 8px 0 0; font-size: 32px; font-weight: 700; color: #10b981;">${walletAmountEur} €</p>
+              </div>
+              <p>Votre acompte est disponible dans votre porte-monnaie CalendaPro et peut être utilisé pour votre prochaine réservation.</p>
+              <a href="${process.env.NEXT_PUBLIC_APP_URL}/client/wallet"
+                 style="display: inline-block; background: #7c3aed; color: white; padding: 14px 28px; border-radius: 10px; text-decoration: none; font-weight: 600; margin-top: 20px;">
+                Voir mon porte-monnaie
+              </a>
+              <p style="margin-top: 32px; font-size: 12px; color: #6b7280;">
+                Si vous avez des questions, contactez-nous à support@calendapro.app
+              </p>
+            </div>
+          `,
+        })
       }
     } catch (emailErr) {
  logger.error(' Erreur envoi email:', emailErr)

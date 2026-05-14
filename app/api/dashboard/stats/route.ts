@@ -54,7 +54,7 @@ export async function GET() {
     // Revenus semaine : prix, acomptes, statut pour calcul detaille
     supabase
       .from('bookings')
-      .select('price, deposit_amount, payment_status, status')
+      .select('price, deposit_amount, amount_paid, payment_status, status')
       .eq('pro_id', userId)
       .gte('scheduled_at', weekStart.toISOString())
       .neq('status', 'cancelled'),
@@ -62,10 +62,11 @@ export async function GET() {
 
   const revenueBookings = revenueRes.data ?? []
 
-  // CA encaisse = paiements confirms (paye en entier)
+  // CA encaisse = paiements confirms — utilise amount_paid (montant réellement encaissé)
+  // Fallback sur price pour les anciens enregistrements sans amount_paid
   const caEncaisse = revenueBookings
     .filter((b) => b.payment_status === 'paid')
-    .reduce((sum, b) => sum + (Number(b.price) || 0), 0)
+    .reduce((sum, b) => sum + (Number(b.amount_paid) || Number(b.price) || 0), 0)
 
   // Acomptes percus = depots verses (paiement partiel, non encore complet)
   const caAcomptes = revenueBookings

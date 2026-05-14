@@ -34,8 +34,8 @@ function getPeriodEnd(subscription: Stripe.Subscription): string | null {
 }
 
 function getPlanFromPriceId(priceId: string): string {
-  if (priceId === process.env.NEXT_PUBLIC_STRIPE_PREMIUM_PRICE_ID) return 'premium'
-  if (priceId === process.env.NEXT_PUBLIC_STRIPE_INFINITY_PRICE_ID) return 'infinity'
+  if (priceId === process.env.STRIPE_PREMIUM_PRICE_ID) return 'premium'
+  if (priceId === process.env.STRIPE_INFINITY_PRICE_ID) return 'infinity'
   return 'free'
 }
 
@@ -196,7 +196,8 @@ async function processWebhookEvent(
               // Créer la transaction client pour l'historique
               if (clientEmail && session.amount_total) {
                 await supabase.from('client_transactions').insert({
-                  user_id: clientEmail, // Utiliser l'email comme ID temporaire ou chercher le vrai userId
+                  user_id: clientEmail, // email comme clé temporaire — sera réconcilié via client_email
+                  client_email: clientEmail, // champ dédié pour lookup par email
                   booking_id: bookingId,
                   pro_id: proId || '',
                   stripe_payment_intent_id: piId,

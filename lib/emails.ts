@@ -5,6 +5,8 @@ import { logger } from './logger'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 
+const FROM_EMAIL = 'CalendaPro <noreply@calendapro.fr>'
+
 export async function sendBookingNotification({
   professionalEmail,
   professionalName,
@@ -30,7 +32,7 @@ export async function sendBookingNotification({
   })
 
   await resend.emails.send({
-    from: 'CalendaPro <onboarding@resend.dev>',
+    from: FROM_EMAIL,
     to: professionalEmail,
     subject: `Nouvelle demande de RDV de ${clientName}`,
     html: `
@@ -105,7 +107,7 @@ export async function sendBookingConfirmation({
   })
 
   await resend.emails.send({
-    from: 'CalendaPro <onboarding@resend.dev>',
+    from: FROM_EMAIL,
     to: clientEmail,
     subject: `Votre demande de RDV avec ${professionalName} est confirmée`,
     html: `
@@ -194,7 +196,7 @@ export async function sendPaymentConfirmationWithReceipt({
 
   try {
     await resend.emails.send({
-      from: 'CalendaPro <onboarding@resend.dev>',
+      from: FROM_EMAIL,
       to: clientEmail,
       subject: `Votre paiement de ${amountInEuros} € a ete recu`,
       html: `
@@ -409,7 +411,7 @@ export async function sendWelcomeProEmail({
   publicUrl: string
 }) {
   await resend.emails.send({
-    from: 'CalendaPro <onboarding@resend.dev>',
+    from: FROM_EMAIL,
     to: proEmail,
  subject: `Bienvenue sur CalendaPro, ${proName} ! `,
     html: `
@@ -454,7 +456,7 @@ export async function sendOnboardingReminderEmail({
   publicUrl: string
 }) {
   await resend.emails.send({
-    from: 'CalendaPro <onboarding@resend.dev>',
+    from: FROM_EMAIL,
     to: proEmail,
     subject: `Finalisez votre profil CalendaPro — vous y êtes presque !`,
     html: `
@@ -490,7 +492,7 @@ export async function sendPageLiveEmail({
   publicUrl: string
 }) {
   await resend.emails.send({
-    from: 'CalendaPro <onboarding@resend.dev>',
+    from: FROM_EMAIL,
     to: proEmail,
  subject: ` Votre page est en ligne ! Commencez à recevoir des clients`,
     html: `
@@ -540,7 +542,7 @@ export async function sendFirstBookingCelebrationEmail({
   })
 
   await resend.emails.send({
-    from: 'CalendaPro <onboarding@resend.dev>',
+    from: FROM_EMAIL,
     to: proEmail,
  subject: ` Votre premier client ! Félicitations ${proName}`,
     html: `
@@ -593,7 +595,7 @@ export async function sendRefundNotificationToClient({
   })
 
   await resend.emails.send({
-    from: 'CalendaPro <onboarding@resend.dev>',
+    from: FROM_EMAIL,
     to: clientEmail,
     subject: isPartial
       ? `Remboursement partiel de ${amountInEuros} € — ${professionalName}`
@@ -656,7 +658,7 @@ export async function sendPayoutNotificationToPro({
   const formattedEnd = new Date(periodEnd).toLocaleDateString('fr-FR')
 
   await resend.emails.send({
-    from: 'CalendaPro <onboarding@resend.dev>',
+    from: FROM_EMAIL,
     to: proEmail,
  subject: ` Virement reçu : ${amountInEuros} €`,
     html: `
@@ -704,7 +706,7 @@ export async function sendPaymentFailedNotification({
   const amountInEuros = (amount / 100).toFixed(2)
 
   await resend.emails.send({
-    from: 'CalendaPro <onboarding@resend.dev>',
+    from: FROM_EMAIL,
     to: clientEmail,
  subject: ` Paiement échoué — Action requise`,
     html: `

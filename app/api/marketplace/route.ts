@@ -45,9 +45,12 @@ export async function GET(request: Request) {
       async () => {
         let profileQuery = supabase
           .from('profiles')
-          .select('id, username, full_name, bio, category, city, avatar_url, latitude, longitude')
+          .select('id, username, full_name, bio, category, city, avatar_url, latitude, longitude, created_at')
           .not('username', 'is', null)
           .not('full_name', 'is', null)
+          .eq('onboarding_completed', true)
+          .is('deleted_at', null)
+          .not('account_status', 'in', '("deleted","pending_deletion","suspended")')
 
         if (category && category !== 'all') {
           profileQuery = profileQuery.eq('category', category)
@@ -204,7 +207,9 @@ export async function GET(request: Request) {
         const pb = b.min_price ?? 0
         if (pa !== pb) return pb - pa
       } else if (sortBy === 'newest') {
-        // Use plan/distance as tiebreak for now (created_at not in select)
+        const ca = new Date(a.created_at ?? 0).getTime()
+        const cb = new Date(b.created_at ?? 0).getTime()
+        if (cb !== ca) return cb - ca
       }
       // Default: plan + distance (relevance)
       const c = compareMarketplacePros(

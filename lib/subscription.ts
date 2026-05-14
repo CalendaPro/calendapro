@@ -13,7 +13,7 @@ export async function getUserPlan(userId: string): Promise<Plan> {
     .from('subscriptions')
     .select('plan, status')
     .eq('user_id', userId)
-    .single()
+    .maybeSingle()
 
   // Si pas de subscription ou erreur (ex: user nouveau), c'est free
   if (error || !data) return 'free'

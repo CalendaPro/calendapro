@@ -20,8 +20,8 @@ export const revalidate = 0
 
 const SYNC_PLAN_CREDITS: Record<string, number> = { premium: 30, infinity: 200 }
 function planFromPriceId(priceId: string): string {
-  if (priceId === process.env.NEXT_PUBLIC_STRIPE_PREMIUM_PRICE_ID) return 'premium'
-  if (priceId === process.env.NEXT_PUBLIC_STRIPE_INFINITY_PRICE_ID) return 'infinity'
+  if (priceId === process.env.STRIPE_PREMIUM_PRICE_ID) return 'premium'
+  if (priceId === process.env.STRIPE_INFINITY_PRICE_ID) return 'infinity'
   return 'free'
 }
 
@@ -162,7 +162,7 @@ export default async function DashboardPage({
   // ── Stripe Connect status (for banner) ─────────────────────────────────
   const { data: connectProfile } = await serverSb
     .from('profiles')
-    .select('stripe_connect_onboarding')
+    .select('stripe_connect_onboarding, username')
     .eq('id', userId!)
     .maybeSingle()
   const stripeConnectConfigured = connectProfile?.stripe_connect_onboarding === true
@@ -171,7 +171,7 @@ export default async function DashboardPage({
   const greeting = greetingHour < 12 ? 'Bonjour' : greetingHour < 18 ? 'Bon après-midi' : 'Bonsoir'
 
   const username = user.username ?? user.firstName?.toLowerCase() ?? 'votre-nom'
-  const publicUrl = `calendapro.fr/${username}`
+  const publicUrl = `calendapro.fr/${connectProfile?.username ?? username}`
 
   const planBadge = {
     free: { label: 'Starter', bg: 'var(--dl-sidebar-bg)', color: 'var(--dl-text-muted)', border: 'var(--dl-card-border)' },

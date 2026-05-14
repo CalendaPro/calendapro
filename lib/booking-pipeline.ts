@@ -194,7 +194,7 @@ export async function createBookingAndNotify(input: BookingPayload): Promise<{ a
       p_deposit_amount: null,
       p_notes:          notes || null,
       p_source_channel: source_channel || 'direct',
-      p_pro_name:       clientName || null,
+      p_pro_name:       (profile as { full_name?: string }).full_name || null,
       p_pro_username:   sanitizedUsername,
       p_payment_status: payment_completed ? 'paid' : 'pending',
       p_stripe_session: null,

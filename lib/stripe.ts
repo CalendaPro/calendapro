@@ -20,7 +20,7 @@ export const PLANS = {
   premium: {
     name: 'Premium',
     price: 19,
-    priceId: process.env.NEXT_PUBLIC_STRIPE_PREMIUM_PRICE_ID,
+    priceId: process.env.STRIPE_PREMIUM_PRICE_ID,
     features: [
       'Rendez-vous illimités',
       'Page publique premium',
@@ -35,7 +35,7 @@ export const PLANS = {
   infinity: {
     name: 'Infinity',
     price: 49,
-    priceId: process.env.NEXT_PUBLIC_STRIPE_INFINITY_PRICE_ID,
+    priceId: process.env.STRIPE_INFINITY_PRICE_ID,
     features: [
       'Tout le plan Premium',
       'Assistant IA intégré',

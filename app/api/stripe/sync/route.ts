@@ -16,8 +16,8 @@ const PLAN_INITIAL_CREDITS: Record<string, number> = {
 }
 
 function getPlanFromPriceId(priceId: string): string {
-  if (priceId === process.env.NEXT_PUBLIC_STRIPE_PREMIUM_PRICE_ID) return 'premium'
-  if (priceId === process.env.NEXT_PUBLIC_STRIPE_INFINITY_PRICE_ID) return 'infinity'
+  if (priceId === process.env.STRIPE_PREMIUM_PRICE_ID) return 'premium'
+  if (priceId === process.env.STRIPE_INFINITY_PRICE_ID) return 'infinity'
   return 'free'
 }
 

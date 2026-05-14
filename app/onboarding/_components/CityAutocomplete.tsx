@@ -171,11 +171,6 @@ export default function CityAutocomplete({ value, onChange, accentColor, showErr
         </div>
       )}
       
-      {/* DEBUG: Visible counter */}
-      <div style={{fontSize: '10px', color: '#666', marginTop: 2, fontFamily: 'monospace'}}>
-        Suggestions: {suggestions.length} | Show: {showSuggestions ? 'yes' : 'no'} | Loading: {loading ? 'yes' : 'no'}
-      </div>
-      
       {/* DROPDOWN: Always render but toggle visibility with display CSS */}
       <div
         ref={dropdownRef}

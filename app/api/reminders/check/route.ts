@@ -31,7 +31,7 @@ export async function GET(request: Request) {
 
   const { data: bookings24h, error: err24 } = await supabase
     .from('bookings')
-    .select('id, client_id, pro_username, pro_name, service_name, scheduled_at, price')
+    .select('id, client_id, client_email, client_name, pro_username, pro_name, service_name, scheduled_at, price')
     .eq('status', 'upcoming')
     .eq('reminder_sent_24h', false)
     .gte('scheduled_at', window24Start.toISOString())
@@ -48,7 +48,7 @@ export async function GET(request: Request) {
 
   const { data: bookings2h, error: err2 } = await supabase
     .from('bookings')
-    .select('id, client_id, pro_username, pro_name, service_name, scheduled_at, price')
+    .select('id, client_id, client_email, client_name, pro_username, pro_name, service_name, scheduled_at, price')
     .eq('status', 'upcoming')
     .eq('reminder_sent_2h', false)
     .gte('scheduled_at', window2Start.toISOString())
@@ -78,12 +78,22 @@ export async function GET(request: Request) {
       if (email24h) {
         let clientEmail: string | null = null
         let clientName = 'Client'
-        try {
-          const user = await clerk.users.getUser(booking.client_id)
-          clientEmail = user.emailAddresses[0]?.emailAddress ?? null
-          clientName  = user.fullName ?? user.firstName ?? 'Client'
-        } catch {
-          logger.warn(`reminders/check: Clerk user not found ${booking.client_id}`)
+        // Use stored client_email if available (anonymous bookings)
+        if (booking.client_email) {
+          clientEmail = booking.client_email
+          clientName = booking.client_name || 'Client'
+        } else if (booking.client_id?.includes('@')) {
+          // client_id is an email for anonymous bookings
+          clientEmail = booking.client_id
+          clientName = booking.client_name || 'Client'
+        } else {
+          try {
+            const user = await clerk.users.getUser(booking.client_id)
+            clientEmail = user.emailAddresses[0]?.emailAddress ?? null
+            clientName  = user.fullName ?? user.firstName ?? 'Client'
+          } catch {
+            logger.warn(`reminders/check: Clerk user not found ${booking.client_id}`)
+          }
         }
 
         if (clientEmail) {
@@ -95,6 +105,11 @@ export async function GET(request: Request) {
             date: booking.scheduled_at,
             proUsername: booking.pro_username,
           })
+        } else {
+          // No email available — skip marking as sent so we can retry next run
+          logger.warn(`reminders/check: No email for booking ${booking.id}, skipping`)
+          processed24++
+          continue
         }
       }
 
@@ -140,11 +155,19 @@ export async function GET(request: Request) {
       // Also send a short email reminder at T-2h
       let clientEmail: string | null = null
       let clientName = 'Client'
-      try {
-        const user = await clerk.users.getUser(booking.client_id)
-        clientEmail = user.emailAddresses[0]?.emailAddress ?? null
-        clientName  = user.fullName ?? user.firstName ?? 'Client'
-      } catch {}
+      if (booking.client_email) {
+        clientEmail = booking.client_email
+        clientName = booking.client_name || 'Client'
+      } else if (booking.client_id?.includes('@')) {
+        clientEmail = booking.client_id
+        clientName = booking.client_name || 'Client'
+      } else {
+        try {
+          const user = await clerk.users.getUser(booking.client_id)
+          clientEmail = user.emailAddresses[0]?.emailAddress ?? null
+          clientName  = user.fullName ?? user.firstName ?? 'Client'
+        } catch {}
+      }
 
       if (clientEmail) {
         await sendReminderEmail({
