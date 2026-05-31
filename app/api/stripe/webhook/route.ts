@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import * as Sentry from '@sentry/nextjs'
 import { stripe } from '@/lib/stripe'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { addCredits, resetCredits } from '@/lib/sms-credits'
@@ -85,10 +86,14 @@ async function processWebhookEvent(
 
     case 'checkout.session.completed': {
       try {
+        Sentry.addBreadcrumb({ category: 'webhook', message: 'Processing checkout.session.completed', level: 'info', data: { session_id: (event.data.object as Stripe.Checkout.Session).id } })
+        logger.info('[webhook] Event reçu:', event.type)
         let session = event.data.object as Stripe.Checkout.Session
+        logger.info('[webhook] Session ID:', session.id)
         if (!session.metadata?.type && session.id) {
           session = await stripe.checkout.sessions.retrieve(session.id)
         }
+        logger.info('[webhook] Metadata:', JSON.stringify(session.metadata))
 
         const userId = session.metadata?.userId
         const type = session.metadata?.type
@@ -158,6 +163,7 @@ async function processWebhookEvent(
               : ''
             const mergedNotes = [baseNotes, paymentLine].filter(Boolean).join('\n\n')
 
+            logger.info(`[Webhook] booking_deposit: appel createBookingAndNotify pour username=${username}, date=${date}`)
             const result = await createBookingAndNotify({
               username,
               clientName,
@@ -168,10 +174,11 @@ async function processWebhookEvent(
               payment_completed: true, // Paiement déjà vérifié par Stripe
               source_channel: session.metadata?.sourceChannel || undefined,
             })
- logger.info(` booking_deposit cree pour ${username}`)
+            logger.info(`[Webhook] booking_deposit créé pour ${username} — status: ${(result.appointment as { status?: string })?.status || 'inconnu'}`)
 
             // Récupérer l'ID du booking créé
             const bookingId = (result.appointment as { id?: string })?.id
+            logger.info(`[Webhook] bookingId obtenu:`, bookingId || 'MANQUANT')
 
             // Sauvegarder les infos Stripe dans le booking
             if (bookingId) {
@@ -181,7 +188,8 @@ async function processWebhookEvent(
                 : null
               const receiptUrl = (pi as unknown as { charges?: { data: Array<{ receipt_url?: string }> } })?.charges?.data[0]?.receipt_url
 
-              await supabase
+              logger.info(`[Webhook] Mise à jour booking ${bookingId} — amount_paid=${session.amount_total}, payment_status=paid`)
+              const { error: updateError } = await supabase
                 .from('bookings')
                 .update({
                   stripe_payment_intent_id: piId,
@@ -192,6 +200,11 @@ async function processWebhookEvent(
                   payment_status: 'paid',
                 })
                 .eq('id', bookingId)
+              if (updateError) {
+                logger.error(`[Webhook] ERREUR mise à jour booking ${bookingId}:`, updateError.message)
+              } else {
+                logger.info(`[Webhook] Booking ${bookingId} mis à jour avec succès (payment_status=paid)`)
+              }
 
               // Créer la transaction client pour l'historique
               if (clientEmail && session.amount_total) {
@@ -246,7 +259,8 @@ async function processWebhookEvent(
             // Send payment confirmation email with PDF receipt
             if (clientEmail && session.amount_total) {
               try {
-                await sendPaymentConfirmationWithReceipt({
+                logger.info('[webhook] Email client envoi début →', clientEmail)
+                const emailResult = await sendPaymentConfirmationWithReceipt({
                   clientEmail,
                   clientName,
                   professionalName: proName,
@@ -255,9 +269,9 @@ async function processWebhookEvent(
                   transactionId: session.id,
                   service: serviceName,
                 })
- logger.info(` Email avec recu envoye a ${clientEmail}`)
+                logger.info('[webhook] Email client envoi fin:', JSON.stringify(emailResult))
               } catch (emailError) {
- logger.error(' Erreur envoi email avec recu:', emailError)
+                logger.error('[webhook] Erreur envoi email client:', emailError)
               }
             }
           } catch (error) {
@@ -364,6 +378,7 @@ async function processWebhookEvent(
     }
 
     case 'invoice.paid': {
+      Sentry.addBreadcrumb({ category: 'webhook', message: 'Processing invoice.paid', level: 'info', data: { invoice_id: (event.data.object as Stripe.Invoice).id } })
       const invoice = event.data.object as Stripe.Invoice & {
         subscription?: string | Stripe.Subscription | null
       }
@@ -430,6 +445,7 @@ async function processWebhookEvent(
     // CHARGE REFUNDED — Remboursement effectué
     // ═══════════════════════════════════════════════════════════════════════════
     case 'charge.refunded': {
+      Sentry.addBreadcrumb({ category: 'webhook', message: 'Processing charge.refunded', level: 'info', data: { charge_id: (event.data.object as Stripe.Charge).id } })
       const charge = event.data.object as Stripe.Charge
       const piId = charge.payment_intent as string
 
@@ -638,6 +654,7 @@ export async function POST(request: Request) {
     )
   } catch (err) {
     logger.error('Webhook signature error:', err)
+    Sentry.captureException(err, { tags: { webhook: 'stripe', phase: 'signature_verification' } })
     return NextResponse.json({ error: 'Webhook invalide' }, { status: 400 })
   }
 
@@ -656,6 +673,10 @@ export async function POST(request: Request) {
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error'
     logger.error(`[Webhook] Erreur traitement ${event.type}:`, errorMessage)
+    Sentry.captureException(error, {
+      tags: { webhook: 'stripe', event_type: event.type, severity: 'critical' },
+      extra: { stripe_event_id: event.id, error_message: errorMessage },
+    })
 
     // Pour les événements critiques, enregistrer pour retry
     if (CRITICAL_EVENTS.includes(event.type)) {

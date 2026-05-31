@@ -8,6 +8,10 @@
     {
       "path": "/api/reminders/check",
       "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/cron/complete-past-bookings",
+      "schedule": "*/15 * * * *"
     }
   ]
 }

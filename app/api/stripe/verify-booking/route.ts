@@ -9,6 +9,79 @@ import { logger } from '@/lib/logger'
 
 export const dynamic = 'force-dynamic'
 
+export async function GET(request: Request) {
+  try {
+    const { searchParams } = new URL(request.url)
+    const sessionId = searchParams.get('session_id')
+
+    if (!sessionId) {
+      return NextResponse.json({ error: 'session_id requis' }, { status: 400 })
+    }
+
+    const supabase = createServerSupabaseClient()
+
+    // 1. Chercher le booking par stripe_checkout_session_id (le plus fiable)
+    const { data: booking } = await supabase
+      .from('bookings')
+      .select('id, service_name, scheduled_at, amount_paid, stripe_receipt_url, pro_name, status, payment_status')
+      .eq('stripe_checkout_session_id', sessionId)
+      .maybeSingle()
+
+    if (booking) {
+      logger.info(`[verify-booking GET] Booking trouvé par session_id: ${booking.id}`)
+      return NextResponse.json({
+        booking_id: booking.id,
+        service_name: booking.service_name || 'Rendez-vous',
+        scheduled_at: booking.scheduled_at,
+        professional_name: booking.pro_name || 'Professionnel',
+        amount_paid: booking.amount_paid || 0,
+        receipt_url: booking.stripe_receipt_url || null,
+      })
+    }
+
+    // 2. Fallback : récupérer la session Stripe et chercher par pro_id + date
+    const session = await stripe.checkout.sessions.retrieve(sessionId)
+    const proId = session.metadata?.proId
+    const date = session.metadata?.date
+
+    if (proId && date) {
+      const { data: fallbackBooking } = await supabase
+        .from('bookings')
+        .select('id, service_name, scheduled_at, amount_paid, stripe_receipt_url, pro_name, status, payment_status')
+        .eq('pro_id', proId)
+        .eq('scheduled_at', date)
+        .in('status', ['upcoming', 'pending', 'confirmed'])
+        .maybeSingle()
+
+      if (fallbackBooking) {
+        logger.info(`[verify-booking GET] Booking trouvé par pro+date: ${fallbackBooking.id}`)
+        return NextResponse.json({
+          booking_id: fallbackBooking.id,
+          service_name: fallbackBooking.service_name || session.metadata?.serviceName || 'Rendez-vous',
+          scheduled_at: fallbackBooking.scheduled_at,
+          professional_name: fallbackBooking.pro_name || session.metadata?.proName || 'Professionnel',
+          amount_paid: fallbackBooking.amount_paid || session.amount_total || 0,
+          receipt_url: fallbackBooking.stripe_receipt_url || null,
+        })
+      }
+    }
+
+    // 3. Booking pas encore en DB (webhook en cours) — retourner les métadonnées Stripe
+    logger.info(`[verify-booking GET] Booking pas encore en DB pour session: ${sessionId}`)
+    return NextResponse.json({
+      booking_id: null,
+      service_name: session.metadata?.serviceName || 'Rendez-vous',
+      scheduled_at: session.metadata?.date || null,
+      professional_name: session.metadata?.proName || session.metadata?.username || 'Professionnel',
+      amount_paid: session.amount_total || 0,
+      receipt_url: null,
+    })
+  } catch (err) {
+    logger.error('[verify-booking GET] Erreur:', err)
+    return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 })
+  }
+}
+
 export async function POST(request: Request) {
   try {
     const { sessionId, username } = await request.json()

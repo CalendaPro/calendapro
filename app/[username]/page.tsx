@@ -18,7 +18,7 @@ interface ProPublicProfile {
   bio: string | null
   category: string | null
   city: string | null
-  plan: 'free' | 'premium' | 'infinity' | 'starter'
+  plan?: 'free' | 'premium' | 'infinity' | 'starter'
   avatar_url: string | null
   template?: 'minimal' | 'visual' | 'direct'
   accent_color?: string
@@ -42,7 +42,7 @@ export async function generateMetadata({
 
   const { data: profile } = await serverSupabase
     .from('profiles')
-    .select('username, full_name, bio, category, city, avatar_url, rating, review_count')
+    .select('username, full_name, bio, category, city, avatar_url')
     .eq('username', username)
     .single()
 
@@ -266,9 +266,9 @@ export default async function PublicProfilePage({
       const { data } = await serverSupabase
         .from('profiles')
         .select(`
-          id, username, full_name, bio, category, city, plan,
+          id, username, full_name, bio, category, city,
           avatar_url, template, accent_color, is_published,
-          rating, review_count, theme_name, font_family,
+          theme_name, font_family,
           hero_image_url, logo_url, sections_visible, social_links,
           schedule, location_address, location_lat, location_lng,
           cta_button_text, cta_button_style, cta_button_action, cta_custom_url,

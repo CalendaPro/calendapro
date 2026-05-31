@@ -1,7 +1,9 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useUser } from '@clerk/nextjs'
 import Link from 'next/link'
+import { supabase } from '@/lib/supabase'
 import {
   ArrowDownLeft, ArrowUpRight, RefreshCcw, RotateCcw,
   CalendarDays, ShieldCheck, Clock, ArrowRight, Receipt,
@@ -38,22 +40,34 @@ interface WalletData {
 }
 
 export default function WalletPage() {
+  const { user } = useUser()
   const [data, setData] = useState<WalletData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
+  function loadTransactions() {
     fetch('/api/client/transactions')
       .then(r => r.json())
-      .then(data => {
-        setData(data)
-        setLoading(false)
-      })
-      .catch(() => {
-        setError('Impossible de charger vos transactions')
-        setLoading(false)
-      })
-  }, [])
+      .then(d => { setData(d); setLoading(false) })
+      .catch(() => { setError('Impossible de charger vos transactions'); setLoading(false) })
+  }
+
+  useEffect(() => { loadTransactions() }, [])
+
+  // Realtime : nouvelle transaction → rafraîchir le portefeuille
+  useEffect(() => {
+    if (!user?.id) return
+    const channel = supabase
+      .channel(`wallet-${user.id}`)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'client_transactions',
+        filter: `user_id=eq.${user.id}`,
+      }, () => { loadTransactions() })
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }, [user?.id])
 
   if (loading) {
     return (

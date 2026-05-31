@@ -5,6 +5,7 @@ import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { checkBookingConflict, isValidSlotTime } from '@/lib/booking-conflict'
 import { toUiStatus, toDbStatus } from '@/lib/booking-status'
 import { logger } from '@/lib/logger'
+import { sendBookingConfirmation } from '@/lib/emails'
 
 export const dynamic = 'force-dynamic'
 
@@ -73,6 +74,9 @@ export async function GET(
     return NextResponse.json({
       id: booking.id,
       title: booking.service_name || `RDV avec ${clientName}`,
+      service_name: booking.service_name || 'Rendez-vous',
+      scheduled_at: booking.scheduled_at,
+      pro_name: booking.pro_name,
       client_name: clientName,
       client_id: booking.client_id,
       date: booking.scheduled_at,
@@ -154,6 +158,18 @@ export async function PATCH(
     }
     updates.updated_at = new Date().toISOString()
 
+    // Fetch booking before update to get client info for email
+    let bookingBeforeUpdate: { client_email?: string | null; client_name?: string | null; pro_name?: string | null; scheduled_at?: string | null; service_name?: string | null } | null = null
+    if (status === 'confirmed') {
+      const { data: existing } = await supabase
+        .from('bookings')
+        .select('client_email, client_name, pro_name, scheduled_at, service_name')
+        .eq('id', id)
+        .eq('pro_id', userId)
+        .maybeSingle()
+      bookingBeforeUpdate = existing
+    }
+
     const { data, error } = await supabase
       .from('bookings')
       .update(updates)
@@ -163,6 +179,21 @@ export async function PATCH(
       .single()
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+    // Send confirmation email to client when pro confirms
+    if (status === 'confirmed' && bookingBeforeUpdate?.client_email) {
+      try {
+        await sendBookingConfirmation({
+          clientEmail: bookingBeforeUpdate.client_email,
+          clientName: bookingBeforeUpdate.client_name || 'Client',
+          professionalName: bookingBeforeUpdate.pro_name || 'Professionnel',
+          date: bookingBeforeUpdate.scheduled_at || data.scheduled_at,
+        })
+        logger.info('[Bookings PATCH] Email confirmation envoyé à', bookingBeforeUpdate.client_email)
+      } catch (emailErr) {
+        logger.error('[Bookings PATCH] Erreur email confirmation:', emailErr)
+      }
+    }
 
     revalidatePath('/dashboard', 'layout')
 

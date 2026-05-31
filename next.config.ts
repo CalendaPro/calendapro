@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { withSentryConfig } from "@sentry/nextjs";
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // Content Security Policy — Protection XSS et injections
@@ -6,10 +7,11 @@ import type { NextConfig } from "next";
 const CSP_HEADER = `
   default-src 'self';
   script-src 'self' 'unsafe-eval' 'unsafe-inline' https://js.stripe.com https://checkout.stripe.com https://clerk.calendapro.app https://challenges.cloudflare.com https://*.clerk.accounts.dev https://clerk.accounts.dev https://*.clerk.com;
-  style-src 'self' 'unsafe-inline' https://api.fontshare.com;
+  style-src 'self' 'unsafe-inline' https://api.fontshare.com https://cdn.fontshare.com https://fonts.googleapis.com;
   img-src 'self' blob: data: https://*.stripe.com https://clerk.calendapro.app https://img.clerk.com https://*.clerk.com https://*.gravatar.com;
-  font-src 'self' https://api.fontshare.com https://fonts.gstatic.com;
-  connect-src 'self' https://*.stripe.com https://*.supabase.co https://clerk.calendapro.app https://api.clerk.dev https://api.openai.com https://api.anthropic.com https://*.clerk.accounts.dev https://clerk.accounts.dev https://*.clerk.com;
+  font-src 'self' https://api.fontshare.com https://cdn.fontshare.com https://fonts.gstatic.com;
+  worker-src 'self' blob:;
+  connect-src 'self' https://*.stripe.com https://*.supabase.co https://clerk.calendapro.app https://api.clerk.dev https://api.openai.com https://api.anthropic.com https://*.clerk.accounts.dev https://clerk.accounts.dev https://*.clerk.com https://clerk-telemetry.com;
   frame-src 'self' https://js.stripe.com https://checkout.stripe.com https://connect.stripe.com https://challenges.cloudflare.com https://*.clerk.accounts.dev;
   object-src 'none';
   base-uri 'self';
@@ -31,7 +33,7 @@ const nextConfig: NextConfig = {
   // ═══════════════════════════════════════════════════════════════════════════════
   compress: true,
   poweredByHeader: false,
-  
+
   // Image optimization
   images: {
     formats: ['image/webp', 'image/avif'],
@@ -134,4 +136,21 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+// ═══════════════════════════════════════════════════════════════════════════════
+// Sentry — Error monitoring (wrap Next.js config)
+// ═══════════════════════════════════════════════════════════════════════════════
+export default withSentryConfig(nextConfig, {
+  org: process.env.SENTRY_ORG || undefined,
+  project: process.env.SENTRY_PROJECT || undefined,
+  silent: !process.env.CI,
+  widenClientFileUpload: true,
+  sourcemaps: {
+    disable: true,
+  },
+  webpack: {
+    treeshake: {
+      removeDebugLogging: true,
+    },
+    automaticVercelMonitors: true,
+  },
+});

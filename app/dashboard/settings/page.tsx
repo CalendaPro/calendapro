@@ -11,7 +11,7 @@ const AppearanceSettings = dynamic(() => import('@/components/AppearanceSettings
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type Section = 'notifications' | 'security' | 'integrations' | 'appearance' | 'contact'
+type Section = 'notifications' | 'security' | 'integrations' | 'appearance' | 'contact' | 'bookings'
 
 interface NotifSettings {
   email_new_booking: boolean
@@ -237,6 +237,10 @@ function SettingsContent() {
   const [profileLoaded, setProfileLoaded] = useState(false)
   const [savingNotif, setSavingNotif] = useState(false)
 
+  // Auto-confirm booking setting
+  const [autoConfirm, setAutoConfirm] = useState(true)
+  const [savingAutoConfirm, setSavingAutoConfirm] = useState(false)
+
   // Google Calendar state
   const [gcal, setGcal] = useState<GoogleCalStatus>({ connected: false })
   const [gcalLoading, setGcalLoading] = useState(true)
@@ -267,9 +271,10 @@ function SettingsContent() {
   useEffect(() => {
     fetch('/api/profile')
       .then(r => r.json())
-      .then((d: { email?: string; phone?: string; email_contact?: string }) => {
+      .then((d: { email?: string; phone?: string; email_contact?: string; auto_confirm?: boolean }) => {
         setContactEmail(d.email_contact ?? d.email ?? '')
         setContactPhone(d.phone ?? '')
+        setAutoConfirm(d.auto_confirm !== false)
         setProfileLoaded(true)
       })
       .catch(() => setProfileLoaded(true))
@@ -398,8 +403,24 @@ function SettingsContent() {
     showSaved()
   }, [contactEmail, contactPhone])
 
+  const saveAutoConfirm = useCallback(async () => {
+    setSavingAutoConfirm(true)
+    try {
+      await fetch('/api/pro/site-settings', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ auto_confirm: autoConfirm }),
+      })
+      showSaved()
+    } catch (e) {
+      logger.error('Failed to save auto_confirm', e)
+    }
+    setSavingAutoConfirm(false)
+  }, [autoConfirm])
+
   const NAV: { id: Section; label: string }[] = [
     { id: 'notifications', label: 'Notifications' },
+    { id: 'bookings',      label: 'Reservations' },
     { id: 'appearance',    label: 'Apparence' },
     { id: 'contact',       label: 'Contact & coordonnees' },
     { id: 'integrations',  label: 'Integrations' },
@@ -518,6 +539,26 @@ function SettingsContent() {
                 <ActionButton variant="primary" onClick={saveNotifications} disabled={savingNotif}>
                   {savingNotif ? 'Enregistrement...' : 'Enregistrer les preferences'}
                 </ActionButton>
+              </div>
+            </SectionCard>
+          )}
+
+          {/* ── BOOKINGS ── */}
+          {active === 'bookings' && (
+            <SectionCard title="Reservations" icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>}>
+              <div>
+                <p style={{ fontSize: '0.65rem', fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--dl-text-muted)', margin: '0 0 8px', fontFamily: 'DM Sans, sans-serif' }}>Confirmation</p>
+                <ToggleRow
+                  label="Confirmation automatique"
+                  desc="Les reservations sont confirmees automatiquement. Desactivez pour les valider manuellement."
+                  checked={autoConfirm}
+                  onChange={setAutoConfirm}
+                />
+                <div style={{ marginTop: 16, display: 'flex', justifyContent: 'flex-end' }}>
+                  <ActionButton variant="primary" onClick={saveAutoConfirm} disabled={savingAutoConfirm}>
+                    {savingAutoConfirm ? 'Enregistrement...' : 'Enregistrer'}
+                  </ActionButton>
+                </div>
               </div>
             </SectionCard>
           )}

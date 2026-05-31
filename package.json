@@ -18,6 +18,7 @@
     "@clerk/nextjs": "^7.0.6",
     "@radix-ui/react-tabs": "^1.1.13",
     "@radix-ui/react-toast": "^1.2.15",
+    "@sentry/nextjs": "^10.55.0",
     "@stripe/stripe-js": "^8.11.0",
     "@supabase/supabase-js": "^2.99.3",
     "@types/react-big-calendar": "^1.16.3",

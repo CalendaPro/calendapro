@@ -26,6 +26,8 @@ const PROFILE_FIELDS = [
   'keep_deposit_on_late_cancellation', 'allow_reschedule',
   // Paramètres de reçus
   'auto_send_receipt_to_client', 'auto_send_receipt_to_pro', 'receipt_custom_message',
+  // Paramètre de confirmation automatique
+  'auto_confirm',
 ]
 
 export async function GET() {

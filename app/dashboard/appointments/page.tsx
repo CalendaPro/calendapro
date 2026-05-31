@@ -1,6 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
+import { useUser } from '@clerk/nextjs'
+import { supabase } from '@/lib/supabase'
 import Link from 'next/link'
 
 type Appointment = {
@@ -293,13 +295,15 @@ function CancelRefundModal({
 function AppointmentCard({
   appointment,
   onCancel,
+  onConfirm,
+  isConfirming,
 }: {
   appointment: Appointment
-  onCancel: (apt: Appointment) => void
+  onCancel?: (apt: Appointment) => void
+  onConfirm?: (id: string) => void
+  isConfirming?: boolean
 }) {
   const status = STATUS_CONFIG[appointment.status]
-  const hasPayment = appointment.payment_status === 'paid' || appointment.deposit_amount || appointment.price
-
   const getInitials = (name: string) => {
     return name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || 'C'
   }
@@ -364,15 +368,7 @@ function AppointmentCard({
                   <span className={`w-1.5 h-1.5 rounded-full ${status.dot}`} />
                   {status.label}
                 </span>
-                {appointment.requires_validation && (
-                  <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
-                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                    </svg>
-                    À traiter
-                  </span>
-                )}
-                {appointment.source && (
+                        {appointment.source && (
                   <span className="text-xs text-slate-400">
                     via {appointment.source}
                   </span>
@@ -428,8 +424,34 @@ function AppointmentCard({
           )}
         </div>
 
-        {/* Actions */}
-        {appointment.status !== 'cancelled' && appointment.status !== 'completed' && appointment.status !== 'no_show' && (
+        {/* Bouton Confirmer — pending uniquement */}
+        {onConfirm && (
+          <div className="flex gap-2 pt-2">
+            <button
+              onClick={() => onConfirm(appointment.id)}
+              disabled={isConfirming}
+              className="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-xl transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isConfirming ? (
+                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              ) : (
+                <CheckIcon className="w-4 h-4" />
+              )}
+              Confirmer
+            </button>
+            {onCancel && (
+              <button
+                onClick={() => onCancel(appointment)}
+                className="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 border border-rose-200 text-rose-600 text-sm font-medium rounded-xl hover:bg-rose-50 hover:border-rose-300 transition-all active:scale-[0.98]"
+              >
+                <XIcon className="w-4 h-4" />
+                Annuler
+              </button>
+            )}
+          </div>
+        )}
+        {/* Bouton Annuler seul — confirmed/upcoming */}
+        {!onConfirm && onCancel && (
           <div className="flex gap-2 pt-2">
             <button
               onClick={() => onCancel(appointment)}
@@ -438,12 +460,6 @@ function AppointmentCard({
               <XIcon className="w-4 h-4" />
               Annuler
             </button>
-            <Link
-              href={`/dashboard/appointments/${appointment.id}`}
-              className="flex items-center justify-center gap-2 py-2.5 px-4 bg-slate-100 text-slate-700 text-sm font-medium rounded-xl hover:bg-slate-200 transition-all active:scale-[0.98]"
-            >
-              <UserIcon className="w-4 h-4" />
-            </Link>
           </div>
         )}
       </div>
@@ -452,19 +468,37 @@ function AppointmentCard({
 }
 
 export default function AppointmentsPage() {
+  const { user } = useUser()
   const [appointments, setAppointments] = useState<Appointment[]>([])
   const [loading, setLoading] = useState(true)
   const [cancelModal, setCancelModal] = useState<Appointment | null>(null)
   const [cancelling, setCancelling] = useState(false)
-  const [completing, setCompleting] = useState<string | null>(null)
+  const [confirming, setConfirming] = useState<string | null>(null)
   
-  // Filtres et tri
-  const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'upcoming' | 'completed' | 'cancelled' | 'no_show' | 'requires_validation'>('all')
+  // Filtres
+  const [tab, setTab] = useState<'all' | 'upcoming' | 'completed' | 'cancelled'>('all')
   const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest')
 
   useEffect(() => {
     fetchAppointments()
   }, [])
+
+  // Realtime : rafraîchit la liste dès qu'un booking est créé/modifié
+  useEffect(() => {
+    if (!user?.id) return
+    const channel = supabase
+      .channel(`appointments-pro-${user.id}`)
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'bookings',
+        filter: `pro_id=eq.${user.id}`,
+      }, () => {
+        fetchAppointments()
+      })
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }, [user?.id])
 
   async function fetchAppointments() {
     const res = await fetch('/api/calendar')
@@ -523,84 +557,60 @@ export default function AppointmentsPage() {
     }
   }
 
-  // Validation post-RDV (completed / no_show)
-  const handleComplete = async (appointmentId: string, status: 'completed' | 'no_show') => {
-    setCompleting(appointmentId)
-    
+  const handleConfirm = async (appointmentId: string) => {
+    setConfirming(appointmentId)
     try {
-      const res = await fetch(`/api/calendar/${appointmentId}`, {
+      const res = await fetch(`/api/bookings/${appointmentId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status }),
+        body: JSON.stringify({ status: 'confirmed' }),
       })
-
       if (res.ok) {
         setAppointments(prev => prev.map(apt =>
           apt.id === appointmentId
-            ? { ...apt, status }
+            ? { ...apt, status: 'confirmed' as const }
             : apt
         ))
       } else {
         const error = await res.json()
-        alert(error.error || 'Erreur lors de la validation')
+        alert(error.error || 'Erreur lors de la confirmation')
       }
     } catch {
       alert('Erreur réseau')
     } finally {
-      setCompleting(null)
+      setConfirming(null)
     }
   }
 
-  // Filtrage et tri des rendez-vous
   const now = new Date()
+
+  // Upcoming = future + non terminal
+  const isUpcoming = (a: Appointment) =>
+    ['pending', 'confirmed', 'upcoming'].includes(a.status) && new Date(a.date) > now
+  // Completed = terminal non annulé OU passé non annulé
+  const isCompleted = (a: Appointment) =>
+    a.status === 'completed' ||
+    (new Date(a.date) <= now && a.status !== 'cancelled' && a.status !== 'no_show')
+
   const filteredAppointments = appointments.filter(a => {
-    if (statusFilter === 'all') return true
-    if (statusFilter === 'requires_validation') {
-      const aptDate = new Date(a.date)
-      const aptEnd = new Date(aptDate.getTime() + (a.duration || 60) * 60000)
-      return aptEnd < now && !['cancelled', 'completed', 'no_show'].includes(a.status)
-    }
-    // 'pending' filter includes both legacy 'pending' and 'confirmed' (mapped from 'upcoming' bookings)
-    if (statusFilter === 'pending') {
-      return a.status === 'pending' || a.status === 'confirmed'
-    }
-    return a.status === statusFilter
+    if (tab === 'all') return true
+    if (tab === 'upcoming') return isUpcoming(a)
+    if (tab === 'completed') return isCompleted(a) || a.status === 'no_show'
+    if (tab === 'cancelled') return a.status === 'cancelled'
+    return true
   })
-  
+
   const sortedAppointments = [...filteredAppointments].sort((a, b) => {
     const dateA = new Date(a.date).getTime()
     const dateB = new Date(b.date).getTime()
     return sortOrder === 'newest' ? dateB - dateA : dateA - dateB
   })
-  
-  // Détection des RDV à traiter (passés mais non validés)
-  const appointmentsWithValidation = sortedAppointments.map(a => {
-    const aptDate = new Date(a.date)
-    const aptEnd = new Date(aptDate.getTime() + (a.duration || 60) * 60000)
-    return {
-      ...a,
-      requires_validation: aptEnd < now && !['cancelled', 'completed', 'no_show'].includes(a.status)
-    }
-  })
 
-  const activeAppointments = appointmentsWithValidation.filter(a => !['cancelled', 'completed', 'no_show'].includes(a.status))
-  const pastAppointments = appointmentsWithValidation.filter(a => ['cancelled', 'completed', 'no_show'].includes(a.status))
-  const pendingValidationAppointments = appointmentsWithValidation.filter(a => a.requires_validation)
-
-  // Calculs financiers synchronisés - UNIQUEMENT les RDV complétés comptent dans le CA
-  const financialStats = {
-    totalDeposits: appointments
-      .filter(a => a.payment_status === 'paid' && a.status === 'completed')
-      .reduce((sum, a) => sum + (a.deposit_amount || 0), 0),
-    stripePayments: appointments.filter(a => a.payment_method === 'stripe' && a.payment_status === 'paid' && a.status === 'completed').length,
-    walletPayments: appointments.filter(a => a.payment_method === 'wallet' && a.payment_status === 'paid' && a.status === 'completed').length,
-    refunds: appointments.filter(a => a.payment_status === 'refunded').length,
-    // CA uniquement sur les RDV completed
-    totalRevenue: appointments
-      .filter(a => a.status === 'completed')
-      .reduce((sum, a) => sum + (a.price || 0) + (a.deposit_amount || 0), 0),
-    pendingPayments: appointments.filter(a => a.payment_status === 'pending' && !['cancelled', 'no_show'].includes(a.status)).length,
-    pendingValidation: pendingValidationAppointments.length,
+  const counts = {
+    all: appointments.length,
+    upcoming: appointments.filter(isUpcoming).length,
+    completed: appointments.filter(a => isCompleted(a) || a.status === 'no_show').length,
+    cancelled: appointments.filter(a => a.status === 'cancelled').length,
   }
 
   return (
@@ -613,7 +623,7 @@ export default function AppointmentsPage() {
               Rendez-vous
             </h1>
             <p className="text-slate-500 text-sm mt-1">
-              {filteredAppointments.length} au total · {activeAppointments.length} actifs
+              {counts.all} au total · {counts.upcoming} à venir
             </p>
           </div>
           <Link
@@ -627,40 +637,33 @@ export default function AppointmentsPage() {
           </Link>
         </div>
 
-        {/* Contrôles de filtre et tri */}
+        {/* Onglets + tri */}
         <div className="flex flex-col sm:flex-row gap-3 mb-8">
-          {/* Filtres par statut */}
           <div className="flex items-center gap-2 overflow-x-auto pb-2 sm:pb-0">
-            <span className="text-xs font-medium text-slate-500 whitespace-nowrap">Filtrer:</span>
-            {[
-              { key: 'all', label: 'Tous', count: appointments.length },
-              { key: 'pending', label: 'À confirmer', count: appointments.filter(a => a.status === 'pending' || a.status === 'confirmed').length },
-              { key: 'upcoming', label: 'Confirmés', count: appointments.filter(a => a.status === 'upcoming' || a.status === 'confirmed').length },
-              { key: 'requires_validation', label: 'À traiter', count: financialStats.pendingValidation, badge: 'amber' },
-              { key: 'completed', label: 'Terminés', count: appointments.filter(a => a.status === 'completed').length },
-              { key: 'no_show', label: 'Absents', count: appointments.filter(a => a.status === 'no_show').length },
-              { key: 'cancelled', label: 'Annulés', count: appointments.filter(a => a.status === 'cancelled').length },
-            ].map(({ key, label, count, badge }) => (
+            {([
+              { key: 'all', label: 'Tous' },
+              { key: 'upcoming', label: 'À venir' },
+              { key: 'completed', label: 'Terminés' },
+              { key: 'cancelled', label: 'Annulés' },
+            ] as const).map(({ key, label }) => (
               <button
                 key={key}
-                onClick={() => setStatusFilter(key as any)}  // reason: Object.keys() returns string[], not the union literal
+                onClick={() => setTab(key)}
                 className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all ${
-                  statusFilter === key
+                  tab === key
                     ? 'bg-violet-600 text-white shadow-md shadow-violet-200'
                     : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
                 }`}
               >
                 {label}
                 <span className={`ml-1.5 px-1.5 py-0.5 rounded-full text-[10px] ${
-                  statusFilter === key ? 'bg-white/20' : 'bg-slate-100 text-slate-500'
+                  tab === key ? 'bg-white/20' : 'bg-slate-100 text-slate-500'
                 }`}>
-                  {count}
+                  {counts[key]}
                 </span>
               </button>
             ))}
           </div>
-
-          {/* Tri */}
           <div className="flex items-center gap-2 ml-auto">
             <span className="text-xs font-medium text-slate-500">Trier:</span>
             <button
@@ -676,141 +679,34 @@ export default function AppointmentsPage() {
           </div>
         </div>
 
-        {/* Statistiques financières modernes */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
-          {/* Acomptes reçus */}
-          <div className="relative p-5 bg-white border border-slate-200 rounded-2xl overflow-hidden hover:shadow-md transition-shadow">
-            <div className="absolute top-0 right-0 w-20 h-20 bg-emerald-50 rounded-full -translate-y-1/2 translate-x-1/2" />
-            <div className="relative">
-              <div className="flex items-center gap-2 mb-2">
-                <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center">
-                  <WalletIcon className="w-4 h-4 text-emerald-600" />
-                </div>
-                <span className="text-xs font-medium text-slate-500">Acomptes</span>
-              </div>
-              <p className="text-2xl font-bold text-slate-900">
-                {financialStats.totalDeposits.toFixed(2)} €
-              </p>
-              <p className="text-xs text-slate-400 mt-1">{financialStats.stripePayments + financialStats.walletPayments} paiements</p>
-            </div>
-          </div>
-
-          {/* Paiements Stripe */}
-          <div className="relative p-5 bg-white border border-slate-200 rounded-2xl overflow-hidden hover:shadow-md transition-shadow">
-            <div className="absolute top-0 right-0 w-20 h-20 bg-blue-50 rounded-full -translate-y-1/2 translate-x-1/2" />
-            <div className="relative">
-              <div className="flex items-center gap-2 mb-2">
-                <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center">
-                  <CreditCardIcon className="w-4 h-4 text-blue-600" />
-                </div>
-                <span className="text-xs font-medium text-slate-500">Stripe</span>
-              </div>
-              <p className="text-2xl font-bold text-slate-900">
-                {financialStats.stripePayments}
-              </p>
-              <p className="text-xs text-slate-400 mt-1">paiements cartes</p>
-            </div>
-          </div>
-
-          {/* Paiements Wallet */}
-          <div className="relative p-5 bg-white border border-slate-200 rounded-2xl overflow-hidden hover:shadow-md transition-shadow">
-            <div className="absolute top-0 right-0 w-20 h-20 bg-violet-50 rounded-full -translate-y-1/2 translate-x-1/2" />
-            <div className="relative">
-              <div className="flex items-center gap-2 mb-2">
-                <div className="w-8 h-8 rounded-lg bg-violet-100 flex items-center justify-center">
-                  <WalletIcon className="w-4 h-4 text-violet-600" />
-                </div>
-                <span className="text-xs font-medium text-slate-500">Wallet</span>
-              </div>
-              <p className="text-2xl font-bold text-slate-900">
-                {financialStats.walletPayments}
-              </p>
-              <p className="text-xs text-slate-400 mt-1">portemonnaie</p>
-            </div>
-          </div>
-
-          {/* À traiter */}
-          <div className={`relative p-5 border rounded-2xl overflow-hidden hover:shadow-md transition-shadow ${
-            financialStats.pendingValidation > 0 ? 'bg-amber-50 border-amber-200' : 'bg-white border-slate-200'
-          }`}>
-            <div className={`absolute top-0 right-0 w-20 h-20 rounded-full -translate-y-1/2 translate-x-1/2 ${
-              financialStats.pendingValidation > 0 ? 'bg-amber-100' : 'bg-amber-50'
-            }`} />
-            <div className="relative">
-              <div className="flex items-center gap-2 mb-2">
-                <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
-                  financialStats.pendingValidation > 0 ? 'bg-amber-500' : 'bg-amber-100'
-                }`}>
-                  <AlertIcon className={`w-4 h-4 ${financialStats.pendingValidation > 0 ? 'text-white' : 'text-amber-600'}`} />
-                </div>
-                <span className={`text-xs font-medium ${financialStats.pendingValidation > 0 ? 'text-amber-700' : 'text-slate-500'}`}>
-                  À traiter
-                </span>
-              </div>
-              <p className={`text-2xl font-bold ${financialStats.pendingValidation > 0 ? 'text-amber-700' : 'text-slate-900'}`}>
-                {financialStats.pendingValidation}
-              </p>
-              <p className={`text-xs mt-1 ${financialStats.pendingValidation > 0 ? 'text-amber-600' : 'text-slate-400'}`}>
-                {financialStats.pendingValidation > 0 ? 'Validation requise' : 'Tous traités'}
-              </p>
-            </div>
-          </div>
+      {/* Liste unifiée */}
+      {loading ? (
+        <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="h-64 bg-slate-200 rounded-2xl animate-pulse" />
+          ))}
         </div>
-
-      {/* Active appointments */}
-      <div className="mb-8">
-        <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-emerald-500" />
-          Rendez-vous actifs
-        </h2>
-
-        {loading ? (
-          <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
-            {[...Array(4)].map((_, i) => (
-              <div key={i} className="h-64 bg-slate-200 rounded-2xl animate-pulse" />
-            ))}
+      ) : sortedAppointments.length === 0 ? (
+        <div className="text-center py-12 bg-white rounded-2xl border border-slate-200">
+          <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-4">
+            <svg className="w-8 h-8 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
           </div>
-        ) : activeAppointments.length === 0 ? (
-          <div className="text-center py-12 bg-white rounded-2xl border border-slate-200">
-            <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-4">
-              <svg className="w-8 h-8 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-              </svg>
-            </div>
-            <p className="text-slate-600 font-medium">Aucun rendez-vous actif</p>
-            <p className="text-slate-400 text-sm mt-1">
-              {statusFilter !== 'all' ? 'Essayez un autre filtre pour voir plus de résultats' : 'Vos prochains rendez-vous apparaîtront ici'}
-            </p>
-          </div>
-        ) : (
-          <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
-            {activeAppointments.map(apt => (
-              <AppointmentCard
-                key={apt.id}
-                appointment={apt}
-                onCancel={setCancelModal}
-              />
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Past appointments */}
-      {pastAppointments.length > 0 && (
-        <div>
-          <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-slate-400" />
-            Historique
-          </h2>
-          <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
-            {pastAppointments.map(apt => (
-              <AppointmentCard
-                key={apt.id}
-                appointment={apt}
-                onCancel={() => {}}
-              />
-            ))}
-          </div>
+          <p className="text-slate-600 font-medium">Aucun rendez-vous</p>
+          <p className="text-slate-400 text-sm mt-1">Essayez un autre filtre</p>
+        </div>
+      ) : (
+        <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
+          {sortedAppointments.map(apt => (
+            <AppointmentCard
+              key={apt.id}
+              appointment={apt}
+              onCancel={isUpcoming(apt) ? setCancelModal : undefined}
+              onConfirm={isUpcoming(apt) && apt.status === 'pending' ? handleConfirm : undefined}
+              isConfirming={confirming === apt.id}
+            />
+          ))}
         </div>
       )}
 

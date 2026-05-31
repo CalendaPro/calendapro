@@ -13,6 +13,7 @@ import { PerformanceWidget } from './_components/PerformanceWidget'
 import { NextAppointmentsWidget, RevenueTrendWidget } from './widgets'
 import { FinancialIntelligenceWidget } from './_components/FinancialIntelligence'
 import { OnboardingChecklist } from './_components/OnboardingChecklist'
+import { RealtimeBookingSync } from './RealtimeBookingSync'
 import { logger } from '@/lib/logger'
 
 export const dynamic = 'force-dynamic'
@@ -181,6 +182,7 @@ export default async function DashboardPage({
 
   return (
     <>
+      <RealtimeBookingSync />
       <WelcomeTour username={username} />
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&display=swap');

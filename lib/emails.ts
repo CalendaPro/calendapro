@@ -5,7 +5,9 @@ import { logger } from './logger'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 
-const FROM_EMAIL = 'CalendaPro <noreply@calendapro.fr>'
+const FROM_EMAIL = process.env.NODE_ENV === 'production'
+  ? 'CalendaPro <noreply@calendapro.fr>'
+  : 'CalendaPro <onboarding@resend.dev>'
 
 export async function sendBookingNotification({
   professionalEmail,
@@ -31,6 +33,7 @@ export async function sendBookingNotification({
     minute: '2-digit',
   })
 
+  logger.info('[emails] sendBookingNotification →', professionalEmail)
   await resend.emails.send({
     from: FROM_EMAIL,
     to: professionalEmail,
@@ -106,6 +109,7 @@ export async function sendBookingConfirmation({
     minute: '2-digit',
   })
 
+  logger.info('[emails] sendBookingConfirmation →', clientEmail)
   await resend.emails.send({
     from: FROM_EMAIL,
     to: clientEmail,
@@ -176,10 +180,10 @@ export async function sendPaymentConfirmationWithReceipt({
 
   const amountInEuros = (amount / 100).toFixed(2)
 
-  // Generate PDF receipt
-  let pdfBytes: Uint8Array
+  // Generate PDF receipt (optionnel — si échec, email envoyé sans pièce jointe)
+  let pdfAttachment: { filename: string; content: string }[] = []
   try {
-    pdfBytes = await generateReceiptPDF({
+    const pdfBytes = await generateReceiptPDF({
       clientName,
       clientEmail,
       proName: professionalName,
@@ -188,14 +192,16 @@ export async function sendPaymentConfirmationWithReceipt({
       transactionId,
       service,
     })
- logger.info(` PDF généré avec succès pour ${clientEmail}`)
+    pdfAttachment = [{ filename: `recu-${transactionId}.pdf`, content: Buffer.from(pdfBytes).toString('base64') }]
+    logger.info(`[emails] PDF généré pour ${clientEmail}`)
   } catch (pdfErr) {
- logger.error(' Erreur génération PDF:', pdfErr)
-    throw pdfErr
+    logger.error('[emails] Erreur génération PDF (email sans pièce jointe):', pdfErr)
   }
 
   try {
-    await resend.emails.send({
+    logger.info('[emails] sendPaymentConfirmationWithReceipt →', clientEmail)
+    const hasPdf = pdfAttachment.length > 0
+    const result = await resend.emails.send({
       from: FROM_EMAIL,
       to: clientEmail,
       subject: `Votre paiement de ${amountInEuros} € a ete recu`,
@@ -219,19 +225,15 @@ export async function sendPaymentConfirmationWithReceipt({
             <div style="font-size: 12px; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px;">Date du rendez-vous</div>
             <div style="font-size: 18px; font-weight: 600; color: #7c3aed;">${formattedDate}</div>
           </div>
-          <p style="color: #64748b; font-size: 14px; text-align: center;">Votre recu est en piece jointe. Conservez-le precieusement.</p>
+          <p style="color: #64748b; font-size: 14px; text-align: center;">${hasPdf ? 'Votre recu est en piece jointe. Conservez-le precieusement.' : 'Votre paiement a bien ete enregistre.'}</p>
           <p style="text-align: center; color: #94a3b8; font-size: 12px; margin-top: 32px;">Propulse par CalendaPro</p>
         </div>
       `,
-      attachments: [
-        {
-          filename: `recu-${transactionId}.pdf`,
-          content: Buffer.from(pdfBytes).toString('base64'),
-        }
-      ]
+      attachments: pdfAttachment,
     })
+    logger.info('[emails] sendPaymentConfirmationWithReceipt résultat:', result)
   } catch (emailErr) {
- logger.error(` Erreur envoi email à ${clientEmail}:`, emailErr)
+    logger.error(`[emails] Erreur envoi email à ${clientEmail}:`, emailErr)
     throw emailErr
   }
 }
@@ -264,6 +266,7 @@ export async function sendReminderEmail({
   const proUrl = `${appUrl}/${proUsername}`
   const icsUrl = `${appUrl}/api/calendar/ics?title=${encodeURIComponent(`RDV ${serviceName ?? ''} avec ${professionalName}`)}&start=${encodeURIComponent(date)}&pro_name=${encodeURIComponent(professionalName)}`
 
+  logger.info('[emails] sendReminderEmail →', clientEmail)
   await resend.emails.send({
     from: 'CalendaPro <noreply@calendapro.fr>',
     to: clientEmail,
@@ -317,6 +320,7 @@ export async function sendReviewRequestEmail({
   const appUrl = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, '') ?? ''
   const reviewUrl = `${appUrl}/client/bookings?review=${bookingId}&pro=${proId}`
 
+  logger.info('[emails] sendPostAppointmentReviewRequest →', clientEmail)
   await resend.emails.send({
     from: 'CalendaPro <noreply@calendapro.fr>',
     to: clientEmail,
@@ -410,10 +414,11 @@ export async function sendWelcomeProEmail({
   proName: string
   publicUrl: string
 }) {
+  logger.info('[emails] sendWelcomeProEmail →', proEmail)
   await resend.emails.send({
     from: FROM_EMAIL,
     to: proEmail,
- subject: `Bienvenue sur CalendaPro, ${proName} ! `,
+    subject: `Bienvenue sur CalendaPro, ${proName} ! `,
     html: `
       <div style="font-family: Inter, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 20px; background: #ffffff;">
         <div style="margin-bottom: 32px; text-align: center;">
@@ -455,6 +460,7 @@ export async function sendOnboardingReminderEmail({
   completionPercentage: number
   publicUrl: string
 }) {
+  logger.info('[emails] sendProfileCompletionReminder →', proEmail)
   await resend.emails.send({
     from: FROM_EMAIL,
     to: proEmail,
@@ -491,10 +497,11 @@ export async function sendPageLiveEmail({
   proName: string
   publicUrl: string
 }) {
+  logger.info('[emails] sendPageLiveEmail →', proEmail)
   await resend.emails.send({
     from: FROM_EMAIL,
     to: proEmail,
- subject: ` Votre page est en ligne ! Commencez à recevoir des clients`,
+    subject: ` Votre page est en ligne ! Commencez à recevoir des clients`,
     html: `
       <div style="font-family: Inter, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 20px; background: #ffffff;">
         <div style="background: linear-gradient(135deg, #f0fdf4, #dcfce7); border-radius: 20px; padding: 40px 32px; margin-bottom: 32px; text-align: center; border: 1px solid rgba(16,185,129,0.2);">
@@ -541,10 +548,11 @@ export async function sendFirstBookingCelebrationEmail({
     minute: '2-digit',
   })
 
+  logger.info('[emails] sendFirstBookingCelebrationEmail →', proEmail)
   await resend.emails.send({
     from: FROM_EMAIL,
     to: proEmail,
- subject: ` Votre premier client ! Félicitations ${proName}`,
+    subject: ` Votre premier client ! Félicitations ${proName}`,
     html: `
       <div style="font-family: Inter, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 20px; background: #ffffff;">
         <div style="background: linear-gradient(135deg, #fef3c7, #fde68a); border-radius: 20px; padding: 40px 32px; margin-bottom: 32px; text-align: center; border: 1px solid rgba(217,119,6,0.2);">
@@ -594,6 +602,7 @@ export async function sendRefundNotificationToClient({
     year: 'numeric',
   })
 
+  logger.info('[emails] sendRefundNotificationToClient →', clientEmail)
   await resend.emails.send({
     from: FROM_EMAIL,
     to: clientEmail,
@@ -657,10 +666,11 @@ export async function sendPayoutNotificationToPro({
   const formattedStart = new Date(periodStart).toLocaleDateString('fr-FR')
   const formattedEnd = new Date(periodEnd).toLocaleDateString('fr-FR')
 
+  logger.info('[emails] sendPayoutNotificationToPro →', proEmail)
   await resend.emails.send({
     from: FROM_EMAIL,
     to: proEmail,
- subject: ` Virement reçu : ${amountInEuros} €`,
+    subject: ` Virement reçu : ${amountInEuros} €`,
     html: `
       <div style="font-family: Inter, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 20px; background: #ffffff;">
         <div style="margin-bottom: 32px; text-align: center;">
@@ -705,10 +715,11 @@ export async function sendPaymentFailedNotification({
 }) {
   const amountInEuros = (amount / 100).toFixed(2)
 
+  logger.info('[emails] sendPaymentFailedNotification →', clientEmail)
   await resend.emails.send({
     from: FROM_EMAIL,
     to: clientEmail,
- subject: ` Paiement échoué — Action requise`,
+    subject: ` Paiement échoué — Action requise`,
     html: `
       <div style="font-family: Inter, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 20px; background: #ffffff;">
         <div style="margin-bottom: 32px; text-align: center;">

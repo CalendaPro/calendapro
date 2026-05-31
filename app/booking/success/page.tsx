@@ -70,16 +70,12 @@ function BookingSuccessContent() {
               })
             }
           }
-          // Récupérer les détails du booking pour afficher le reçu
-          if (data.appointment?.id) {
-            fetchBookingDetails(data.appointment.id)
-          }
+          // Récupérer les détails via session_id (pas d'auth requise)
+          fetchBookingDetails()
         } else if (data.error?.includes('SLOT_CONFLICT') || data.error?.includes('déjà créé')) {
           // Booking was already created by webhook — that's fine
           setStatus('success')
-          if (data.appointment?.id) {
-            fetchBookingDetails(data.appointment.id)
-          }
+          fetchBookingDetails()
         } else {
           setStatus('error')
           setError(data.error || 'Erreur lors de la création du rendez-vous')
@@ -93,23 +89,38 @@ function BookingSuccessContent() {
     verifyAndCreate()
   }, [sessionId, username])
 
-  // Récupérer les détails du booking (montant, reçu, etc.)
-  const fetchBookingDetails = async (bookingId: string) => {
+  // Récupérer les détails du booking via session_id (pas d'auth requise)
+  const fetchBookingDetails = async () => {
+    if (!sessionId) {
+      console.warn('[BookingSuccess] fetchBookingDetails: session_id manquant')
+      setBooking({ id: '', amount: 0, receipt_url: null, service_name: 'Rendez-vous', scheduled_at: '', professional_name: 'Professionnel' })
+      return
+    }
+    console.log('[BookingSuccess] fetchBookingDetails START — session:', sessionId)
+    const controller = new AbortController()
+    const timeout = setTimeout(() => {
+      console.warn('[BookingSuccess] fetchBookingDetails TIMEOUT après 5s — fallback minimal')
+      controller.abort()
+    }, 5000)
     try {
-      const res = await fetch(`/api/bookings/${bookingId}`)
-      if (res.ok) {
-        const data = await res.json()
-        setBooking({
-          id: data.id,
-          amount: data.amount_paid || 0,
-          receipt_url: data.stripe_receipt_url,
-          service_name: data.service_name || 'Rendez-vous',
-          scheduled_at: data.scheduled_at,
-          professional_name: data.pro_name || 'Professionnel',
-        })
-      }
+      const res = await fetch(`/api/stripe/verify-booking?session_id=${encodeURIComponent(sessionId)}`, {
+        signal: controller.signal,
+      })
+      clearTimeout(timeout)
+      const data = await res.json().catch(() => ({}))
+      console.log('[BookingSuccess] fetchBookingDetails OK:', { booking_id: data.booking_id, service_name: data.service_name })
+      setBooking({
+        id: data.booking_id || '',
+        amount: data.amount_paid || 0,
+        receipt_url: data.receipt_url || null,
+        service_name: data.service_name || 'Rendez-vous',
+        scheduled_at: data.scheduled_at || '',
+        professional_name: data.professional_name || 'Professionnel',
+      })
     } catch (err) {
-      logger.error('Erreur récupération booking:', err)
+      clearTimeout(timeout)
+      logger.error('[BookingSuccess] Erreur récupération booking:', err)
+      setBooking({ id: '', amount: 0, receipt_url: null, service_name: 'Rendez-vous', scheduled_at: '', professional_name: 'Professionnel' })
     }
   }
 

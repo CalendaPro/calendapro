@@ -649,7 +649,8 @@ export default function BookingForm({ username, trackingSource, professionalName
             </div>
           </button>
 
-          {/* Pay On Site Option */}
+          {/* Pay On Site Option — masqué si paiement obligatoire */}
+          {!paymentRequired ? (
           <button
             onClick={() => setPayOnSite(true)}
             className={`w-full flex items-start gap-3 p-4 rounded-xl border-2 transition-all text-left ${
@@ -667,13 +668,21 @@ export default function BookingForm({ username, trackingSource, professionalName
               <div className="flex items-center gap-2">
                 <User className="w-4 h-4 text-[var(--accent-600)]" />
                 <span className="font-medium text-[var(--cl-text-primary)]">Payer sur place</span>
-                {!paymentRequired && <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">Gratuit</span>}
+                <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">Sans acompte</span>
               </div>
               <p className="text-xs text-[var(--cl-text-muted)] mt-1">
                 Réservez maintenant, réglez directement avec {professionalName || 'le professionnel'} lors de votre rendez-vous.
               </p>
             </div>
           </button>
+          ) : (
+          <div className="flex items-start gap-3 p-3 bg-amber-50 border border-amber-200/70 rounded-xl">
+            <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+            <p className="text-xs text-amber-700 leading-relaxed">
+              Ce professionnel exige un paiement en ligne pour confirmer votre réservation. Le paiement sur place n'est pas disponible.
+            </p>
+          </div>
+          )}
 
           {/* Security Badge */}
           <div className="flex items-center justify-center gap-4 py-2">

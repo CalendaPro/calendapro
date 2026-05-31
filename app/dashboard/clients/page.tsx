@@ -3,11 +3,11 @@
 import { useState, useEffect, useMemo } from 'react'
 
 type Client = {
-  id: string
+  user_id: string
   name: string
   email: string
-  phone: string
-  created_at: string
+  last_booking: string | null
+  total_bookings: number
 }
 
 const ITEMS_PER_PAGE = 20
@@ -34,8 +34,7 @@ export default function ClientsPage() {
     const q = search.toLowerCase()
     return clients.filter(c =>
       c.name.toLowerCase().includes(q) ||
-      c.email.toLowerCase().includes(q) ||
-      c.phone.includes(q)
+      (c.email || '').toLowerCase().includes(q)
     )
   }, [clients, search])
 
@@ -156,7 +155,7 @@ export default function ClientsPage() {
         <div className="flex flex-col gap-3">
           {/* #26 - Afficher clients paginés */}
           {paginatedClients.map(client => (
-            <div key={client.id} className="rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-colors" style={{ background: 'var(--dl-card-bg)', border: '1px solid var(--dl-card-border)' }}>
+            <div key={client.user_id} className="rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-colors" style={{ background: 'var(--dl-card-bg)', border: '1px solid var(--dl-card-border)' }}>
               <div className="flex items-center gap-3 sm:gap-4">
                 <div className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm shrink-0" style={{ background: 'rgba(16,185,129,0.1)', color: '#10b981' }}>
                   {client.name.charAt(0).toUpperCase()}
@@ -165,25 +164,19 @@ export default function ClientsPage() {
                   <div className="font-semibold text-base" style={{ color: 'var(--dl-text-primary)' }}>{client.name}</div>
                   <div className="text-sm mt-0.5 flex flex-wrap items-center gap-x-2" style={{ color: 'var(--dl-text-muted)' }}>
                     {client.email && <span className="truncate">{client.email}</span>}
-                    {client.email && client.phone && <span className="hidden sm:inline">·</span>}
-                    {client.phone && <span>{client.phone}</span>}
                   </div>
                 </div>
               </div>
-              <button
-                onClick={async () => {
-                  await fetch('/api/clients', {
-                    method: 'DELETE',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ id: client.id }),
-                  })
-                  fetchClients()
-                }}
-                className="hover:text-red-400 transition-colors text-sm touch-target self-start sm:self-auto px-2 py-2 sm:px-0 sm:py-0"
-                style={{ color: 'var(--dl-text-muted)' }}
-              >
-                Supprimer
-              </button>
+              <div className="flex items-center gap-4 text-sm" style={{ color: 'var(--dl-text-muted)' }}>
+                <div className="text-right">
+                  <div className="font-semibold" style={{ color: 'var(--dl-text-primary)' }}>{client.total_bookings} RDV</div>
+                  {client.last_booking && (
+                    <div className="text-xs">
+                      Dernier : {new Date(client.last_booking).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })}
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           ))}
         </div>

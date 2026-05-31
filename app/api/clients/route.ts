@@ -22,27 +22,51 @@ export async function GET() {
 
   const supabase = createServerSupabaseClient()
 
-  // Get unique clients from bookings - sélectionner UNIQUEMENT les champs nécessaires
-  // Pas d'email, téléphone ou autres données personnelles sensibles
-  const { data: bookings } = await supabase
+  const { data: bookings, error: bookingsError } = await supabase
     .from('bookings')
-    .select('client_id, pro_name, client_name, scheduled_at, status')
+    .select('client_id, client_name, client_email, scheduled_at, status, pro_name')
     .eq('pro_id', userId)
-    .not('client_id', 'is', null)
-    .order('created_at', { ascending: false })
+    .or('client_email.not.is.null,client_id.not.is.null')
+    .order('scheduled_at', { ascending: false })
 
-  if (!bookings) return NextResponse.json([])
+  logger.info('[clients] GET userId:', userId)
+  logger.info('[clients] bookings found:', bookings?.length ?? 0, bookingsError ? `erreur: ${bookingsError.message}` : 'ok')
+  if (bookings?.[0]) logger.info('[clients] first booking:', JSON.stringify(bookings[0]))
 
-  // Deduplicate by client_id - ne retourner que les champs publics/nécessaires
-  const seen = new Set<string>()
-  const clients = bookings
-    .filter(b => b.client_id && !seen.has(b.client_id) && seen.add(b.client_id))
-    .map(b => ({ 
-      user_id: b.client_id, 
-      name: b.client_name || b.pro_name || 'Client',
-      last_booking: b.scheduled_at,
-      status: b.status
-    }))
+  if (!bookings || bookings.length === 0) return NextResponse.json([])
+
+  // Aggregate by client_email (fallback: client_id) for deduplication across bookings
+  const map = new Map<string, { name: string; email: string; last_booking: string; total_bookings: number }>()
+  for (const b of bookings) {
+    const key = b.client_email || b.client_id
+    if (!key) continue
+    const existing = map.get(key)
+    if (!existing) {
+      map.set(key, {
+        name: b.client_name || b.pro_name || 'Client',
+        email: b.client_email || (b.client_id?.includes('@') ? b.client_id : ''),
+        last_booking: b.scheduled_at,
+        total_bookings: 1,
+      })
+    } else {
+      existing.total_bookings++
+      if (b.scheduled_at > existing.last_booking) {
+        existing.last_booking = b.scheduled_at
+      }
+      if (!existing.name || existing.name === 'Client') {
+        existing.name = b.client_name || b.pro_name || existing.name
+      }
+    }
+  }
+
+  const clients = Array.from(map.entries()).map(([user_id, data]) => ({
+    user_id,
+    name: data.name,
+    email: data.email,
+    last_booking: data.last_booking,
+    total_bookings: data.total_bookings,
+  }))
+  logger.info('[clients] GET résultat:', clients.length, 'clients uniques')
 
   return NextResponse.json(clients)
 }

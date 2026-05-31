@@ -39,7 +39,7 @@ export async function createBookingAndNotify(input: BookingPayload): Promise<{ a
 
   const { data: profile, error: profileError } = await supabase
     .from('profiles')
-    .select('id, full_name, email_contact, online_payment_enabled, deposit_required, deposit_type, deposit_value, allow_full_online_payment, account_status, deleted_at, time_zone')
+    .select('id, full_name, email_contact, online_payment_enabled, deposit_required, deposit_type, deposit_value, allow_full_online_payment, account_status, deleted_at, time_zone, auto_confirm')
     .eq('username', sanitizedUsername)
     .maybeSingle()
 
@@ -175,7 +175,7 @@ export async function createBookingAndNotify(input: BookingPayload): Promise<{ a
     }
   }
 
-  const bookingStatus = 'upcoming'
+  const proAutoConfirm = (profile as { auto_confirm?: boolean | null }).auto_confirm
 
   // L'insert via create_booking_safe est ATOMIQUE :
   // la vérification de conflit et l'insert sont une seule opération DB.
@@ -199,6 +199,16 @@ export async function createBookingAndNotify(input: BookingPayload): Promise<{ a
       p_payment_status: payment_completed ? 'paid' : 'pending',
       p_stripe_session: null,
     })
+
+  // Si auto_confirm est desactive, passer le statut a 'pending' apres creation
+  if (!appointmentError && appointment && proAutoConfirm === false) {
+    const createdId = (appointment as Record<string, unknown>).id as string
+    await supabase
+      .from('bookings')
+      .update({ status: 'pending' })
+      .eq('id', createdId)
+      .then(null, () => {})
+  }
 
   if (appointmentError) {
     if (
@@ -404,7 +414,7 @@ export async function createBookingAndNotify(input: BookingPayload): Promise<{ a
     }
   })()
 
- logger.info(` Booking créé pour ${username} (status=${bookingStatus}):`, notificationResults)
+ logger.info(` Booking créé pour ${username} (auto_confirm=${proAutoConfirm !== false}):`, notificationResults)
 
   return { appointment: appointment as Record<string, unknown>, userId, profile: profile as Record<string, unknown>, notificationResults }
 }

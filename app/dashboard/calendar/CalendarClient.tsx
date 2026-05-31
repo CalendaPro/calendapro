@@ -43,13 +43,14 @@ const DnDCalendar = withDragAndDrop(Calendar)
 
 type Booking = {
   id: string
-  service_name: string | null
-  scheduled_at: string
-  duration_minutes: number | null
+  title: string
+  date: string
+  duration: number
   status: string
-  price: number | null
+  price?: number | null
   notes?: string | null
   client_id?: string | null
+  client_name?: string | null
 }
 
 export type CalEvent = {
@@ -130,7 +131,6 @@ export default function CalendarClient() {
       setView(Views.DAY)
     }
   }, [isMobile])
-  const [focusInfinity, setFocusInfinity] = useState(false)
   const [sidebarId, setSidebarId] = useState<string | null>(null)
   const [sidebarData, setSidebarData] = useState<{
     id: string
@@ -171,14 +171,6 @@ export default function CalendarClient() {
   const [proId, setProId] = useState<string | null>(null)
   const [isCompleting, setIsCompleting] = useState(false)
   
-  // Stats enrichies depuis l'API
-  const [calStats, setCalStats] = useState<{
-    todayCount: number
-    weekCount: number
-    weekRevenue: number
-    noShowRate: number
-  } | null>(null)
-
   const fetchAppointments = useCallback(async (options?: { silent?: boolean }) => {
     try {
       if (!options?.silent) setLoading(true)
@@ -204,15 +196,17 @@ export default function CalendarClient() {
       }
       
       const mapped: CalEvent[] = (data as Booking[]).map(b => {
-        const start = new Date(b.scheduled_at)
-        const dur = b.duration_minutes && b.duration_minutes > 0 ? b.duration_minutes : 60
+        const start = new Date(b.date)
+        const dur = b.duration > 0 ? b.duration : 60
+        const label = [b.client_name, b.title].filter(Boolean).join(' — ')
         return {
           id: b.id,
-          title: b.service_name || 'Rendez-vous',
+          title: label || 'Rendez-vous',
           start,
           end: new Date(start.getTime() + dur * 60000),
           status: toUiStatus(b.status),
           price: b.price ?? undefined,
+          client_id: b.client_id,
         }
       })
       
@@ -286,15 +280,17 @@ export default function CalendarClient() {
         'postgres_changes',
         { event: '*', schema: 'public', table: 'bookings', filter: `pro_id=eq.${proId}` },
         (payload) => {
+          type DbRow = { id: string; service_name?: string | null; scheduled_at: string; duration_minutes?: number | null; status: string; price?: number | null; client_name?: string | null }
           if (payload.eventType === 'INSERT') {
-            const b = payload.new as Booking
+            const b = payload.new as DbRow
             const dur = b.duration_minutes || 60
             const start = new Date(b.scheduled_at)
+            const label = [b.client_name, b.service_name].filter(Boolean).join(' — ')
             setEvents(prev => {
               if (prev.some(e => e.id === b.id)) return prev
               return [...prev, {
                 id: b.id,
-                title: b.service_name || 'Rendez-vous',
+                title: label || 'Rendez-vous',
                 start,
                 end: new Date(start.getTime() + dur * 60000),
                 status: toUiStatus(b.status),
@@ -302,14 +298,15 @@ export default function CalendarClient() {
               }]
             })
           } else if (payload.eventType === 'UPDATE') {
-            const b = payload.new as Booking
+            const b = payload.new as DbRow
             const dur = b.duration_minutes || 60
             const start = new Date(b.scheduled_at)
+            const label2 = [b.client_name, b.service_name].filter(Boolean).join(' — ')
             setEvents(prev => prev.map(e =>
               e.id === b.id
                 ? {
                     ...e,
-                    title: b.service_name || e.title,
+                    title: label2 || e.title,
                     start,
                     end: new Date(start.getTime() + dur * 60000),
                     status: toUiStatus(b.status),
@@ -460,51 +457,15 @@ export default function CalendarClient() {
     }
   }
 
-  // Chargement des stats enrichies
-  useEffect(() => {
-    fetch('/api/dashboard/stats', { cache: 'no-store' })
-      .then(r => r.ok ? r.json() : null)
-      .then(d => {
-        if (d) setCalStats({
-          todayCount: d.todayCount,
-          weekCount: d.weekCount,
-          weekRevenue: d.weekRevenue,
-          noShowRate: d.noShowRate || 0,
-        })
-      })
-      .catch(() => {})
-  }, [])
-
   const stats = useMemo(() => {
     const { start, end } = weekBounds(date)
     const inWeek = events.filter(e => e.start >= start && e.start <= end)
-    // Utilise les stats API si disponibles, sinon fallback sur le calcul local
-    const ca = calStats?.weekRevenue ?? inWeek.reduce((s, e) => s + (e.price ?? 0), 0)
+    const ca = inWeek.reduce((s, e) => s + (e.price ?? 0), 0)
     const slots = 5 * 10
     const fill = Math.min(100, Math.round((inWeek.length / Math.max(slots, 1)) * 100))
-    // Calcul du no-show réel depuis les events
-    const realNoShows = events.filter(e => e.status === 'no_show' && e.start >= start && e.start <= end).length
-    const noShowEst = realNoShows > 0 ? realNoShows : Math.max(0, Math.round(inWeek.filter(e => e.status === 'confirmed').length * 0.15))
-    return { ca, fill, count: inWeek.length, noShowEst }
-  }, [events, date, calStats])
-
-  const backgroundEvents = useMemo(() => {
-    if (!focusInfinity || (view !== 'week' && view !== 'day')) return []
-    const { start } = weekBounds(date)
-    const out: { id: string; title: string; start: Date; end: Date }[] = []
-    ;[0, 2, 4].forEach((d, i) => {
-      const day = addDays(start, d)
-      const s = setMinutes(setHours(day, 14), 0)
-      const e = setMinutes(setHours(day, 14), 30)
-      out.push({
-        id: `smart-${i}`,
-        title: 'Smart slot · Marketplace',
-        start: s,
-        end: e,
-      })
-    })
-    return out
-  }, [focusInfinity, view, date])
+    const noShows = inWeek.filter(e => e.status === 'no_show').length
+    return { ca, fill, count: inWeek.length, noShows }
+  }, [events, date])
 
   const eventStyleGetter = (event: object) => {
     const ev = event as CalEvent
@@ -995,30 +956,9 @@ export default function CalendarClient() {
         </div>
         <div className="rounded-2xl border border-stone-200 bg-white p-4 shadow-sm">
           <p className="text-[0.65rem] font-bold uppercase tracking-wider text-stone-400">No-shows constatés</p>
-          <p className="mt-1 text-2xl font-bold text-emerald-600 tabular-nums">{stats.noShowEst}</p>
-          <p className="text-xs text-stone-400">{calStats ? 'Données réelles de la semaine' : 'Basé sur les RDV confirmés'}</p>
+          <p className="mt-1 text-2xl font-bold text-emerald-600 tabular-nums">{stats.noShows}</p>
+          <p className="text-xs text-stone-400">Données de la période affichée</p>
         </div>
-      </div>
-
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-violet-100 bg-gradient-to-r from-violet-50/80 to-pink-50/50 px-4 py-3">
-        <div className="flex items-center gap-3">
-            <svg className="w-5 h-5 text-violet-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/></svg>
-          <div>
-            <p className="text-sm font-semibold text-stone-800">Focus Infinity · Smart slots</p>
-            <p className="text-xs text-stone-500">Met en évidence des créneaux conseillés pour la marketplace (démo).</p>
-          </div>
-        </div>
-        <button
-          type="button"
-          role="switch"
-          aria-checked={focusInfinity}
-          onClick={() => setFocusInfinity(v => !v)}
-          className={`relative h-8 w-14 rounded-full transition-colors ${focusInfinity ? 'bg-violet-600' : 'bg-stone-300'}`}
-        >
-          <span
-            className={`absolute top-1 h-6 w-6 rounded-full bg-white shadow transition-transform ${focusInfinity ? 'left-7' : 'left-1'}`}
-          />
-        </button>
       </div>
 
       {/* Bandeau de conflit de créneau */}
@@ -1101,7 +1041,6 @@ export default function CalendarClient() {
             localizer={localizer}
             culture="fr"
             events={events}
-            backgroundEvents={backgroundEvents}
             startAccessor={(e: object) => (e as CalEvent).start}
             endAccessor={(e: object) => (e as CalEvent).end}
             style={{ minHeight: 720 }}

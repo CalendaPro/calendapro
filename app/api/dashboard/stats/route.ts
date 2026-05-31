@@ -26,6 +26,11 @@ export async function GET() {
   weekStart.setDate(now.getDate() + diff)
   weekStart.setHours(0, 0, 0, 0)
 
+  // Dimanche de la semaine courante (borne haute)
+  const weekEnd = new Date(weekStart)
+  weekEnd.setDate(weekStart.getDate() + 6)
+  weekEnd.setHours(23, 59, 59, 999)
+
   const [todayRes, weekRes, pendingRes, revenueRes] = await Promise.all([
     // RDV aujourd'hui (tous statuts sauf cancelled)
     supabase
@@ -36,12 +41,13 @@ export async function GET() {
       .lte('scheduled_at', todayEnd.toISOString())
       .neq('status', 'cancelled'),
 
-    // RDV cette semaine
+    // RDV cette semaine (lun→dim)
     supabase
       .from('bookings')
       .select('id', { count: 'exact', head: true })
       .eq('pro_id', userId)
       .gte('scheduled_at', weekStart.toISOString())
+      .lte('scheduled_at', weekEnd.toISOString())
       .neq('status', 'cancelled'),
 
     // En attente de confirmation
@@ -51,22 +57,23 @@ export async function GET() {
       .eq('pro_id', userId)
       .eq('status', 'pending'),
 
-    // Revenus semaine : prix, acomptes, statut pour calcul detaille
+    // Revenus semaine : prix, acomptes, statut pour calcul detaille (lun→dim)
     supabase
       .from('bookings')
       .select('price, deposit_amount, amount_paid, payment_status, status')
       .eq('pro_id', userId)
       .gte('scheduled_at', weekStart.toISOString())
+      .lte('scheduled_at', weekEnd.toISOString())
       .neq('status', 'cancelled'),
   ])
 
   const revenueBookings = revenueRes.data ?? []
 
   // CA encaisse = paiements confirms — utilise amount_paid (montant réellement encaissé)
-  // Fallback sur price pour les anciens enregistrements sans amount_paid
+  // amount_paid est en centimes (Stripe), price est en euros → diviser amount_paid par 100
   const caEncaisse = revenueBookings
     .filter((b) => b.payment_status === 'paid')
-    .reduce((sum, b) => sum + (Number(b.amount_paid) || Number(b.price) || 0), 0)
+    .reduce((sum, b) => sum + (b.amount_paid ? Number(b.amount_paid) / 100 : Number(b.price) || 0), 0)
 
   // Acomptes percus = depots verses (paiement partiel, non encore complet)
   const caAcomptes = revenueBookings

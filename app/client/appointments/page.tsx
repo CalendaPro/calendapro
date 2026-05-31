@@ -1,7 +1,9 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useUser } from '@clerk/nextjs'
 import Link from 'next/link'
+import { supabase } from '@/lib/supabase'
 import { format, isAfter, differenceInHours } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import {
@@ -20,7 +22,8 @@ interface Booking {
   scheduled_at: string
   duration_minutes: number | null
   price: number | null
-  status: 'upcoming' | 'completed' | 'cancelled' | 'no_show'
+  amount_paid?: number | null
+  status: 'upcoming' | 'confirmed' | 'pending' | 'completed' | 'cancelled' | 'no_show'
   payment_status: 'pending' | 'paid' | 'refunded'
   deposit_amount?: number
   location?: string
@@ -34,11 +37,14 @@ interface CancelCheck {
 }
 
 // Configuration des statuts
-const STATUS_CONFIG = {
-  upcoming:  { label: 'Confirmé',  bg: '#EFF6FF', text: '#1D4ED8', border: '#BFDBFE', dot: '#3B82F6', icon: <CheckCircle2 size={12} strokeWidth={2} /> },
-  completed: { label: 'Terminé',  bg: '#F0FDF4', text: '#15803D', border: '#BBF7D0', dot: '#22C55E', icon: <CheckCircle2 size={12} strokeWidth={2} /> },
-  cancelled: { label: 'Annulé',   bg: '#FFF1F2', text: '#BE123C', border: '#FECDD3', dot: '#F43F5E', icon: <XCircle     size={12} strokeWidth={2} /> },
-  no_show:   { label: 'Absent',   bg: '#F8FAFC', text: '#475569', border: '#E2E8F0', dot: '#94A3B8', icon: <UserX       size={12} strokeWidth={2} /> },
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const STATUS_CONFIG: Record<string, any> = {
+  upcoming:  { label: 'Confirmé',          bg: '#EFF6FF', text: '#1D4ED8', border: '#BFDBFE', dot: '#3B82F6', icon: <CheckCircle2 size={12} strokeWidth={2} /> },
+  confirmed: { label: 'Confirmé',          bg: '#EFF6FF', text: '#1D4ED8', border: '#BFDBFE', dot: '#3B82F6', icon: <CheckCircle2 size={12} strokeWidth={2} /> },
+  pending:   { label: 'En attente',        bg: '#FFFBEB', text: '#B45309', border: '#FDE68A', dot: '#F59E0B', icon: <AlertCircle  size={12} strokeWidth={2} /> },
+  completed: { label: 'Terminé',          bg: '#F0FDF4', text: '#15803D', border: '#BBF7D0', dot: '#22C55E', icon: <CheckCircle2 size={12} strokeWidth={2} /> },
+  cancelled: { label: 'Annulé',           bg: '#FFF1F2', text: '#BE123C', border: '#FECDD3', dot: '#F43F5E', icon: <XCircle     size={12} strokeWidth={2} /> },
+  no_show:   { label: 'Absent',            bg: '#F8FAFC', text: '#475569', border: '#E2E8F0', dot: '#94A3B8', icon: <UserX       size={12} strokeWidth={2} /> },
 }
 
 const PAYMENT_STATUS_CONFIG = {
@@ -285,13 +291,15 @@ function AppointmentCard({
             <Tag size={13} strokeWidth={2} style={{ color: '#16a34a', flexShrink: 0 }} />
             <div>
               <p style={{ fontSize: '0.59rem', color: 'var(--cl-text-muted)', fontWeight: 600, textTransform: 'uppercase' as const, letterSpacing: '0.06em', fontFamily: "'DM Sans', sans-serif" }}>Prix</p>
-              <p style={{ fontSize: '0.75rem', fontWeight: 700, color: '#15803D', fontFamily: "'DM Sans', sans-serif" }}>{booking.price ? `${booking.price}€` : 'Gratuit'}</p>
+              <p style={{ fontSize: '0.75rem', fontWeight: 700, color: '#15803D', fontFamily: "'DM Sans', sans-serif" }}>
+                {booking.amount_paid ? `${(booking.amount_paid / 100).toFixed(2)} €` : booking.price ? `${booking.price} €` : 'Sur place'}
+              </p>
             </div>
           </div>
         </div>
 
         {/* Actions */}
-        {booking.status === 'upcoming' && hoursUntil > 24 && (
+        {(booking.status === 'upcoming' || booking.status === 'confirmed' || booking.status === 'pending') && hoursUntil > 24 && (
           <div style={{ display: 'flex', gap: '0.5rem' }}>
             <button
               onClick={handleCancelClick}
@@ -357,6 +365,7 @@ function AppointmentCard({
 
 // Composant principal
 export default function AppointmentsPage() {
+  const { user } = useUser()
   const [bookings, setBookings] = useState<Booking[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -420,18 +429,64 @@ export default function AppointmentsPage() {
   // Charger les rendez-vous
   useEffect(() => {
     fetch('/api/bookings?status=all')
-      .then(r => r.json())
+      .then(r => {
+        if (!r.ok) {
+          logger.error('[ClientAppointments] API error:', r.status)
+          throw new Error(`HTTP ${r.status}`)
+        }
+        return r.json()
+      })
       .then(data => {
-        setBookings(data)
+        logger.info('[ClientAppointments] bookings reçus:', Array.isArray(data) ? data.length : typeof data)
+        setBookings(Array.isArray(data) ? data : [])
         setLoading(false)
       })
-      .catch(() => setLoading(false))
+      .catch(err => {
+        logger.error('[ClientAppointments] Erreur fetch bookings:', err)
+        setError('Impossible de charger vos rendez-vous. Veuillez réessayer.')
+        setLoading(false)
+      })
   }, [])
 
+  // Realtime : nouveau RDV ou changement de statut → mise à jour live
+  useEffect(() => {
+    if (!user?.id) return
+    const refresh = () => {
+      fetch('/api/bookings?status=all')
+        .then(r => r.json())
+        .then(data => setBookings(Array.isArray(data) ? data : []))
+        .catch(() => {})
+    }
+    const channel = supabase
+      .channel(`client-appointments-${user.id}`)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'bookings',
+        filter: `client_id=eq.${user.id}`,
+      }, refresh)
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'bookings',
+        filter: `client_id=eq.${user.id}`,
+      }, (payload) => {
+        const updated = payload.new as { id: string; status: string }
+        setBookings(prev =>
+          prev.map(b => b.id === updated.id ? { ...b, status: updated.status as Booking['status'] } : b)
+        )
+      })
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }, [user?.id])
+
   // Filtrer les rendez-vous
+  // "À venir" : date future ET statut non terminal
+  // "Historique" : date passée OU statut terminal
+  const TERMINAL_STATUSES = ['cancelled', 'completed', 'no_show']
   const filtered = bookings.filter(b => {
-    const isPast = new Date(b.scheduled_at) < new Date() || b.status === 'completed' || b.status === 'cancelled'
-    return activeTab === 'upcoming' ? !isPast : isPast
+    const isUpcoming = new Date(b.scheduled_at) > new Date() && !TERMINAL_STATUSES.includes(b.status)
+    return activeTab === 'upcoming' ? isUpcoming : !isUpcoming
   })
 
   // Trier : à venir par date croissante, passés par date décroissante
@@ -441,10 +496,9 @@ export default function AppointmentsPage() {
     return activeTab === 'upcoming' ? dateA - dateB : dateB - dateA
   })
 
-  const upcomingCount = bookings.filter(b => {
-    const isPast = new Date(b.scheduled_at) < new Date() || b.status === 'completed' || b.status === 'cancelled'
-    return !isPast
-  }).length
+  const upcomingCount = bookings.filter(b =>
+    new Date(b.scheduled_at) > new Date() && !TERMINAL_STATUSES.includes(b.status)
+  ).length
 
   return (
     <div>
@@ -497,6 +551,24 @@ export default function AppointmentsPage() {
           {[...Array(4)].map((_, i) => (
             <div key={i} className="skel" style={{ height: 220, borderRadius: 20 }} />
           ))}
+        </div>
+      ) : error ? (
+        <div style={{ textAlign: 'center', padding: '3rem 1rem' }}>
+          <div style={{ width: 56, height: 56, borderRadius: 16, background: '#FEF2F2', border: '1.5px solid #FECDD3', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1rem' }}>
+            <AlertCircle size={24} strokeWidth={1.5} style={{ color: '#E11D48' }} />
+          </div>
+          <p style={{ fontFamily: "'Clash Display', sans-serif", fontWeight: 700, fontSize: '1rem', color: 'var(--cl-text-primary)', marginBottom: '0.4rem' }}>
+            Erreur de chargement
+          </p>
+          <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: '0.82rem', color: 'var(--cl-text-muted)', marginBottom: '1rem' }}>
+            {error}
+          </p>
+          <button
+            onClick={() => { setError(null); setLoading(true); fetch('/api/bookings?status=all').then(r => r.json()).then(d => { setBookings(Array.isArray(d) ? d : []); setLoading(false) }).catch(() => setLoading(false)) }}
+            style={{ padding: '0.5rem 1.25rem', borderRadius: 10, background: 'var(--cl-accent)', color: 'white', border: 'none', fontSize: '0.82rem', fontWeight: 700, cursor: 'pointer', fontFamily: "'DM Sans', sans-serif" }}
+          >
+            Réessayer
+          </button>
         </div>
       ) : sorted.length === 0 ? (
         activeTab === 'upcoming' ? (
